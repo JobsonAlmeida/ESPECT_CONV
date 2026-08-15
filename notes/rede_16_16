@@ -1,0 +1,89 @@
+sujeito 1
+Acurácia média: 0.5
+Desvio padrão: 0.0447213595499958
+
+sujeito 2
+Acurácia média: 0.4800000000000001
+Desvio padrão: 0.09273618495495707
+
+
+class SpaceFrequencyCNN(nn.Module):
+
+    def __init__(self):
+
+        super().__init__()
+
+        # Entrada:
+        # (batch, channels, frequency, row, column)
+        # (8, 9, 65, 21, 21)
+        #
+        # channels = 9 janelas de tempo
+
+        self.conv1 = nn.Conv3d(
+            in_channels=9,
+            out_channels=16,
+            kernel_size=3,
+            padding=1
+        )
+        # Saída:
+        # (8, 16, 65, 21, 21)
+
+        self.relu1 = nn.ReLU()
+        # Saída:
+        # (8, 16, 65, 21, 21)
+
+        self.pool1 = nn.MaxPool3d(
+            kernel_size=(2,2,2)
+        )
+        # Saída:
+        # (8, 16, 32, 10, 10)
+
+
+        self.conv2 = nn.Conv3d(
+            in_channels=16,
+            out_channels=16,
+            kernel_size=3,
+            padding=1
+        )
+        # Saída:
+        # (8, 16, 32, 10, 10)
+
+        self.relu2 = nn.ReLU()
+        # Saída:
+        # (8, 16, 32, 10, 10)
+
+        self.pool2 = nn.MaxPool3d(
+            kernel_size=(2,2,2)
+        )
+        # Saída:
+        # (8, 16, 16, 5, 5)
+
+
+        self.flatten = nn.Flatten()
+        # Saída:
+        # (8, --)
+
+
+        self.classifier = nn.Linear(
+            16 * 16 * 5 * 5,
+            4
+        )
+        # Saída:
+        # (8, 4)
+
+
+    def forward(self, x):
+
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+
+        x = self.flatten(x)
+
+        x = self.classifier(x)
+
+        return x

@@ -17,7 +17,7 @@ from sklearn.model_selection import StratifiedKFold
 # ==========================================================
 
 N_FOLDS = 5
-N_EPOCHS = 30
+N_EPOCHS = 100
 BATCH_SIZE = 8
 LEARNING_RATE = 0.001
 
@@ -34,16 +34,24 @@ PROJECT_ROOT = current_file.parents[2]
 INPUT_DIR = PROJECT_ROOT / "processed_data" / "stage_30_array_assembly"
 OUTPUT_DIR = PROJECT_ROOT / "processed_data" / "stage_40_cnn"
 
+
+
+
+
+
 # ==========================================================
 # 1. CARREGAR OS DADOS
 # ==========================================================
 
 power_array = np.load(
-    INPUT_DIR / "sub-01_ses-01_power.npy"
+    # INPUT_DIR / "sub-01_ses-01_power.npy"
+    INPUT_DIR / "sub-02_power.npy"
 )
 
 labels = np.load(
-    INPUT_DIR / "sub-01_ses-01_labels.npy"
+    # INPUT_DIR / "sub-01_ses-01_labels.npy"
+    INPUT_DIR / "sub-02_labels.npy"
+
 )
 
 print("Power:", power_array.shape)
@@ -86,9 +94,26 @@ print("X:", X.shape)
 print("y:", y.shape)
 
 
+print("Min:", X.min())
+print("Max:", X.max())
+print("Mean:", X.mean())
+print("Std:", X.std())
+
+print(
+    "Valores diferentes de zero:",
+    torch.count_nonzero(X).item()
+)
+
+print(
+    "Proporção diferente de zero:",
+    torch.count_nonzero(X).item() / X.numel()
+)
+
 # ==========================================================
 # 4. DEFINIR A REDE
 # ==========================================================
+
+
 
 class SpaceFrequencyCNN(nn.Module):
 
@@ -96,70 +121,129 @@ class SpaceFrequencyCNN(nn.Module):
 
         super().__init__()
 
-        #entrada: (epoch, time, frequency, row, column) = (8, 9, 65, 21, 21)
+        # Entrada:
+        # (batch, channels, frequency, row, column)
+        # Exemplo:
+        # (8, 9, 65, 21, 21)
 
-        self.conv1 = nn.Conv3d(  
+        # -------------------------------------------------
+        # Bloco 1
+        # -------------------------------------------------
+
+        self.conv1 = nn.Conv3d(
             in_channels=9,
             out_channels=16,
             kernel_size=3,
             padding=1
-        ) # saída: (epoch, time, frequency, row, column) = (8, 16, 65, 21, 21)
+        )
+        # Saída:
+        # (batch, 16, 65, 21, 21)
 
-        self.relu1 = nn.ReLU() # saída: (epoch, time, frequency, row, column) = (8, 16, 65, 21, 21)
-
-        self.pool1 = nn.MaxPool3d(
-            kernel_size=2
-        ) # saída: (epoch, time, frequency, row, column) = (8, 16, 32, 10, 10)
-
+        self.relu1 = nn.ReLU()
 
         self.conv2 = nn.Conv3d(
+            in_channels=16,
+            out_channels=16,
+            kernel_size=3,
+            padding=1
+        )
+        # Saída:
+        # (batch, 16, 65, 21, 21)
+
+        self.relu2 = nn.ReLU()
+
+        self.pool1 = nn.MaxPool3d(
+            kernel_size=(1, 2, 2)
+        )
+        # Não reduz frequência.
+        #
+        # Saída:
+        # (batch, 16, 65, 10, 10)
+
+
+        # -------------------------------------------------
+        # Bloco 2
+        # -------------------------------------------------
+
+        self.conv3 = nn.Conv3d(
             in_channels=16,
             out_channels=8,
             kernel_size=3,
             padding=1
-        )# saída: (epoch, time, frequency, row, column) = (8, 8, 32, 10, 10)
+        )
+        # Saída:
+        # (batch, 8, 65, 10, 10)
 
-        self.relu2 = nn.ReLU() # saída: (epoch, time, frequency, row, column) = (8, 8, 32, 10, 10)
+        self.relu3 = nn.ReLU()
+
+        self.conv4 = nn.Conv3d(
+            in_channels=8,
+            out_channels=8,
+            kernel_size=3,
+            padding=1
+        )
+        # Saída:
+        # (batch, 8, 65, 10, 10)
+
+        self.relu4 = nn.ReLU()
 
         self.pool2 = nn.MaxPool3d(
-            kernel_size=2
-        ) # saída: (epoch, time, frequency, row, column) = (8, 8, 16, 5, 5)
-
-
-        self.flatten = nn.Flatten() # saída:  (8, 8x16x5x5) = (8, 3200)
-
-
-        self.latent = nn.Linear(
-            8 * 16 * 5 * 5,
-            3
+            kernel_size=(1, 2, 2)
         )
+        # Saída:
+        # (batch, 8, 65, 5, 5)
 
+        # -------------------------------------------------
+        # Flatten
+        # -------------------------------------------------
+
+        self.flatten = nn.Flatten()
+        # Saída:
+        # (batch, 8 x 65 x 5 x 5 )
+
+
+        # -------------------------------------------------
+        # Classificador
+        # -------------------------------------------------
 
         self.classifier = nn.Linear(
-            3,
-            4
+            in_features=8*65*5*5,
+            out_features=4
         )
+        # Saída:
+        # (batch, 4)
+        #
+        # São os 4 logits das 4 classes.
 
 
     def forward(self, x):
 
+        # Bloco 1
         x = self.conv1(x)
         x = self.relu1(x)
-        x = self.pool1(x)
 
         x = self.conv2(x)
         x = self.relu2(x)
+
+        x = self.pool1(x)
+
+        # Bloco 2
+        x = self.conv3(x)
+        x = self.relu3(x)
+
+        x = self.conv4(x)
+        x = self.relu4(x)
+
         x = self.pool2(x)
 
+        # Flatten
         x = self.flatten(x)
 
-        x = self.latent(x)
-
+        # Classificação
         x = self.classifier(x)
 
         return x
-
-
+    
 # ==========================================================
 # 5. CPU OU GPU
 # ==========================================================
@@ -219,6 +303,169 @@ for fold, (train_indices, test_indices) in enumerate(
     X_test = X[test_indices]
     y_test = y[test_indices]
 
+    # --------------------------------
+    # Normalização
+    # --------------------------------
+    power_max = X_train.max()
+    X_train = X_train / power_max
+    X_test = X_test / power_max
+
+    # epsilon = 1e-15
+
+    # X_train_log = torch.where(
+    #     X_train > 0,
+    #     torch.log10(X_train + epsilon),
+    #     torch.zeros_like(X_train)
+    # )
+
+    # X_test_log = torch.where(
+    #     X_test > 0,
+    #     torch.log10(X_test + epsilon),
+    #     torch.zeros_like(X_test)
+    # )
+
+    # X_test_log = torch.zeros_like(X_test)
+
+
+    # X_train_log = torch.zeros_like(X_train)
+    # train_mask = X_train > 0
+    # X_train_log[train_mask] = torch.log10(X_train[train_mask])
+
+    # X_test_log = torch.zeros_like(X_test)
+    # test_mask = X_test > 0
+    # X_test_log[test_mask] = torch.log10(X_test[test_mask])
+
+
+
+    # # ======================================================
+    # # NORMALIZAÇÃO LOGARÍTMICA
+    # # ======================================================
+
+    # # Máscaras dos valores positivos
+    # train_mask = X_train > 0
+    # test_mask = X_test > 0
+
+
+    # # ------------------------------------------------------
+    # # Aplicar log10 somente aos valores positivos
+    # # ------------------------------------------------------
+
+    # X_train_log = torch.zeros_like(X_train)
+    # X_test_log = torch.zeros_like(X_test)
+
+    # X_train_log[train_mask] = torch.log10(
+    #     X_train[train_mask]
+    # )
+
+    # X_test_log[test_mask] = torch.log10(
+    #     X_test[test_mask]
+    # )
+
+
+    # # ------------------------------------------------------
+    # # Min e max calculados SOMENTE no treinamento
+    # # ------------------------------------------------------
+
+    # log_min = X_train_log[train_mask].min()
+    # log_max = X_train_log[train_mask].max()
+
+
+    # # ------------------------------------------------------
+    # # Normalização para [0.01, 1.0]
+    # # ------------------------------------------------------
+
+    # MIN_POSITIVE = 0.01
+
+    # X_train_normalized = torch.zeros_like(X_train_log)
+    # X_test_normalized = torch.zeros_like(X_test_log)
+
+
+    # X_train_normalized[train_mask] = (
+    #     MIN_POSITIVE
+    #     + (1.0 - MIN_POSITIVE)
+    #     * (
+    #         (X_train_log[train_mask] - log_min)
+    #         / (log_max - log_min)
+    #     )
+    # )
+
+
+    # X_test_normalized[test_mask] = (
+    #     MIN_POSITIVE
+    #     + (1.0 - MIN_POSITIVE)
+    #     * (
+    #         (X_test_log[test_mask] - log_min)
+    #         / (log_max - log_min)
+    #     )
+    # )
+
+
+    # # Substituir pelos dados normalizados
+    # X_train = X_train_normalized
+    # X_test = X_test_normalized
+
+    # # ======================================================
+    # # NORMALIZAÇÃO LOGARÍTMICA ENTRE 0 E 1
+    # # ======================================================
+
+    # # Máscaras para identificar somente valores positivos
+    # train_mask = X_train > 0
+    # test_mask = X_test > 0
+
+
+    # # ------------------------------------------------------
+    # # Aplicar log10 somente aos valores positivos
+    # # ------------------------------------------------------
+
+    # X_train_log = torch.zeros_like(X_train)
+    # X_test_log = torch.zeros_like(X_test)
+
+    # X_train_log[train_mask] = torch.log10(
+    #     X_train[train_mask]
+    # )
+
+    # X_test_log[test_mask] = torch.log10(
+    #     X_test[test_mask]
+    # )
+
+
+    # # ------------------------------------------------------
+    # # Calcular mínimo e máximo SOMENTE com o treinamento
+    # # ------------------------------------------------------
+
+    # log_min = X_train_log[train_mask].min()
+    # log_max = X_train_log[train_mask].max()
+
+
+    # # ------------------------------------------------------
+    # # Normalização Min-Max
+    # # ------------------------------------------------------
+
+    # X_train_normalized = torch.zeros_like(X_train_log)
+    # X_test_normalized = torch.zeros_like(X_test_log)
+
+
+    # X_train_normalized[train_mask] = (
+    #     X_train_log[train_mask] - log_min
+    # ) / (
+    #     log_max - log_min
+    # )
+
+
+    # X_test_normalized[test_mask] = (
+    #     X_test_log[test_mask] - log_min
+    # ) / (
+    #     log_max - log_min
+    # )
+
+
+    # # ------------------------------------------------------
+    # # Substituir pelos dados normalizados
+    # # ------------------------------------------------------
+
+    # X_train = X_train_normalized
+    # X_test = X_test_normalized
+
 
     print("Treino:", X_train.shape)
     print("Teste:", X_test.shape)
@@ -243,7 +490,7 @@ for fold, (train_indices, test_indices) in enumerate(
     # 8.3 CRIAR DATALOADERS
     # ======================================================
 
-    generator = torch.Generator()
+    generator = torch.Generator()    
     generator.manual_seed(RANDOM_STATE_LOADER)
 
     train_loader = DataLoader(
@@ -263,6 +510,8 @@ for fold, (train_indices, test_indices) in enumerate(
     # ======================================================
     # 8.4 CRIAR UMA NOVA REDE PARA ESTE FOLD
     # ======================================================
+   
+    torch.manual_seed(184467440737095516) #inicia os pesos das redes de cada fold da mesma forma
 
     model = SpaceFrequencyCNN().to(device)
 
@@ -290,7 +539,7 @@ for fold, (train_indices, test_indices) in enumerate(
 
     for epoch in range(N_EPOCHS):
 
-        model.train()
+        model.train() # faz o modelo entrar no modo de treinamento. ainda não treina de fato 
 
         total_loss = 0.0
 
@@ -370,9 +619,8 @@ for fold, (train_indices, test_indices) in enumerate(
 
             total += y_batch.size(0)
 
-
         # ==================================================
-        # RESULTADOS DA ÉPOCA
+        # RESULTADOS DE TREINAMENTO DA ÉPOCA 
         # ==================================================
 
         train_loss = (
@@ -403,6 +651,10 @@ for fold, (train_indices, test_indices) in enumerate(
     correct = 0
     total = 0
 
+    # Guardar todas as previsões e labels do fold
+    all_predictions = []
+    all_labels = []
+
 
     with torch.no_grad():
 
@@ -427,6 +679,47 @@ for fold, (train_indices, test_indices) in enumerate(
             ).sum().item()
 
             total += y_batch.size(0)
+
+
+            # ----------------------------------------------
+            # Guardar previsões
+            # ----------------------------------------------
+
+            all_predictions.extend(
+                predictions.cpu().numpy()
+            )
+
+
+            # ----------------------------------------------
+            # Guardar labels verdadeiras
+            # ----------------------------------------------
+
+            all_labels.extend(
+                y_batch.cpu().numpy()
+            )
+
+
+    # ======================================================
+    # VER DISTRIBUIÇÃO DAS PREVISÕES
+    # ======================================================
+
+    print("--- Resultados do Teste ---")
+
+    print(
+        "Classes previstas:",
+        np.bincount(
+            all_predictions,
+            minlength=4
+        )
+    )
+
+    print(
+        "Classes reais:",
+        np.bincount(
+            all_labels,
+            minlength=4
+        )
+    )
 
 
     # ======================================================

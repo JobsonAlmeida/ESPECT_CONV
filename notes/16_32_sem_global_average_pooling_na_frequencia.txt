@@ -1,0 +1,166 @@
+
+sujeito  100 épocas de treinamento
+Fold 1: 0.2000
+Fold 2: 0.2500
+Fold 3: 0.3500
+Fold 4: 0.2500
+Fold 5: 0.2500
+
+Acurácia média: 0.26
+Desvio padrão: 0.04898979485566354
+
+
+sujeito 1 30 épocas de treinamento
+Fold 1: 0.2500
+Fold 2: 0.2500
+Fold 3: 0.2500
+Fold 4: 0.2500
+Fold 5: 0.2500
+
+Acurácia média: 0.25
+Desvio padrão: 0.0
+
+class SpaceFrequencyCNN(nn.Module):
+
+    def __init__(self):
+
+        super().__init__()
+
+        # Entrada:
+        # (batch, channels, frequency, row, column)
+        #
+        # Exemplo:
+        # (8, 9, 65, 21, 21)
+        #
+        # channels = 9 janelas de tempo
+
+
+        # =================================================
+        # BLOCO 1
+        # =================================================
+
+        self.conv1 = nn.Conv3d(
+            in_channels=9,
+            out_channels=16,
+            kernel_size=3,
+            padding=1
+        )
+        # (batch, 16, 65, 21, 21)
+
+        self.bn1 = nn.BatchNorm3d(
+            num_features=16
+        )
+
+        self.relu1 = nn.ReLU()
+
+        self.pool1 = nn.MaxPool3d(
+            kernel_size=(1, 2, 2)
+        )
+        # Preserva frequência.
+        #
+        # (batch, 16, 65, 10, 10)
+
+
+        # =================================================
+        # BLOCO 2
+        # =================================================
+
+        self.conv2 = nn.Conv3d(
+            in_channels=16,
+            out_channels=32,
+            kernel_size=3,
+            padding=1
+        )
+        # (batch, 32, 65, 10, 10)
+
+        self.bn2 = nn.BatchNorm3d(
+            num_features=32
+        )
+
+        self.relu2 = nn.ReLU()
+
+        self.pool2 = nn.MaxPool3d(
+            kernel_size=(1, 2, 2)
+        )
+        # Preserva frequência.
+        #
+        # (batch, 32, 65, 5, 5)
+
+
+        # =================================================
+        # GLOBAL AVERAGE POOLING ESPACIAL
+        # =================================================
+
+        self.global_average_pool = nn.AdaptiveAvgPool3d(
+            output_size=(65, 1, 1)
+        )
+
+        # Entrada:
+        # (batch, 32, 65, 5, 5)
+        #
+        # Saída:
+        # (batch, 32, 65, 1, 1)
+        #
+        # A frequência é preservada.
+        # Apenas row e column são reduzidos pela média.
+
+
+        # =================================================
+        # FLATTEN
+        # =================================================
+
+        self.flatten = nn.Flatten()
+
+        # (batch, 32 * 65)
+        #
+        # (batch, 2080)
+
+
+        # =================================================
+        # DROPOUT
+        # =================================================
+
+        self.dropout = nn.Dropout(
+            p=0.5
+        )
+
+
+        # =================================================
+        # CLASSIFICADOR
+        # =================================================
+
+        self.classifier = nn.Linear(
+            in_features=32 * 65,
+            out_features=4
+        )
+
+        # (batch, 4)
+
+
+    def forward(self, x):
+
+        # Bloco 1
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+
+        # Bloco 2
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+
+        # Média somente nas dimensões espaciais
+        x = self.global_average_pool(x)
+
+        # Vetor de características
+        x = self.flatten(x)
+
+        # Regularização
+        x = self.dropout(x)
+
+        # Classificação
+        x = self.classifier(x)
+
+        return x

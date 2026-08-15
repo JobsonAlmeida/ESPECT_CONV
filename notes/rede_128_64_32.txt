@@ -1,0 +1,132 @@
+
+sujeito 1
+Fold 1: 0.4000
+Fold 2: 0.4500
+Fold 3: 0.6500
+Fold 4: 0.5000
+Fold 5: 0.5000
+
+Acurácia média: 0.5
+
+Sujeito 2
+Fold 1: 0.2083
+Fold 2: 0.3750
+Fold 3: 0.4167
+Fold 4: 0.3750
+Fold 5: 0.2500
+
+Acurácia média: 0.325
+Desvio padrão: 0.08079466429027216
+
+sujeito 3
+Fold 1: 0.3000
+Fold 2: 0.4500
+Fold 3: 0.2000
+Fold 4: 0.2000
+Fold 5: 0.2500
+
+Acurácia média: 0.27999999999999997
+Desvio padrão: 0.09273618495495704
+  
+class SpaceFrequencyCNN(nn.Module):
+
+    def __init__(self):
+
+        super().__init__()
+
+        # Entrada:
+        # (batch, channels, frequency, row, column)
+        # (8, 9, 65, 21, 21)
+        #
+        # channels = 9 janelas de tempo
+
+        self.conv1 = nn.Conv3d(
+            in_channels=9,
+            out_channels=128,
+            kernel_size=3,
+            padding=1
+        )
+        # Saída:
+        # (8, 128, 65, 21, 21)
+
+        self.relu1 = nn.ReLU()
+        # Saída:
+        # (8, 128, 65, 21, 21)
+
+        self.pool1 = nn.MaxPool3d(
+            kernel_size=(2,2,2)
+        )
+        # Saída:
+        # (8, 128, 32, 10, 10)
+
+
+        self.conv2 = nn.Conv3d(
+            in_channels=128,
+            out_channels=64,
+            kernel_size=3,
+            padding=1
+        )
+        # Saída:
+        # (8, 64, 32, 10, 10)
+
+        self.relu2 = nn.ReLU()
+        # Saída:
+        # (8, 64, 32, 10, 10)
+
+        self.pool2 = nn.MaxPool3d(
+            kernel_size=(2,2,2)
+        )
+        # Saída:
+        # (8, 64, 16, 5, 5)
+
+        self.conv3 = nn.Conv3d(
+            in_channels=64,
+            out_channels=32,
+            kernel_size=3,
+            padding=1
+        )
+        # Saída:
+        # (8, 32, 16, 5, 5)
+
+        self.relu3 = nn.ReLU()
+        # Saída:
+        # (8, 32, 16, 5, 5)
+
+        self.pool3 = nn.MaxPool3d(
+            kernel_size=(2,2,2)
+        )
+        # Saída:
+        # (8, 32, 8, 2, 2)
+
+
+        self.flatten = nn.Flatten()
+        # Saída:
+        # (8, 32 x 8 x 2 x 2)
+
+
+        self.classifier = nn.Linear(
+            32 * 8 * 2 * 2,
+            4
+        )
+        # Saída:
+        # (8, 4)
+
+    def forward(self, x):
+
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+
+        x = self.conv3(x)
+        x = self.relu3(x)
+        x = self.pool3(x)
+
+        x = self.flatten(x)
+
+        x = self.classifier(x)
+
+        return x

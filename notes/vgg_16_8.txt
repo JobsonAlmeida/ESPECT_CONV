@@ -1,0 +1,151 @@
+
+
+sujeito 1
+Fold 1: 0.3500
+Fold 2: 0.4500
+Fold 3: 0.2500
+Fold 4: 0.4000
+Fold 5: 0.4000
+
+Acurácia média: 0.37
+Desvio padrão: 0.0678232998312527
+
+sujeito 2
+Fold 1: 0.2500
+Fold 2: 0.2083
+Fold 3: 0.2500
+Fold 4: 0.2500
+Fold 5: 0.2917
+
+Acurácia média: 0.25
+Desvio padrão: 0.026352313834736497
+
+
+class SpaceFrequencyCNN(nn.Module):
+
+    def __init__(self):
+
+        super().__init__()
+
+        # Entrada:
+        # (batch, channels, frequency, row, column)
+        # Exemplo:
+        # (8, 9, 65, 21, 21)
+
+        # -------------------------------------------------
+        # Bloco 1
+        # -------------------------------------------------
+
+        self.conv1 = nn.Conv3d(
+            in_channels=9,
+            out_channels=16,
+            kernel_size=3,
+            padding=1
+        )
+        # Saída:
+        # (batch, 16, 65, 21, 21)
+
+        self.relu1 = nn.ReLU()
+
+        self.conv2 = nn.Conv3d(
+            in_channels=16,
+            out_channels=16,
+            kernel_size=3,
+            padding=1
+        )
+        # Saída:
+        # (batch, 16, 65, 21, 21)
+
+        self.relu2 = nn.ReLU()
+
+        self.pool1 = nn.MaxPool3d(
+            kernel_size=(1, 2, 2)
+        )
+        # Não reduz frequência.
+        #
+        # Saída:
+        # (batch, 16, 65, 10, 10)
+
+
+        # -------------------------------------------------
+        # Bloco 2
+        # -------------------------------------------------
+
+        self.conv3 = nn.Conv3d(
+            in_channels=16,
+            out_channels=8,
+            kernel_size=3,
+            padding=1
+        )
+        # Saída:
+        # (batch, 8, 65, 10, 10)
+
+        self.relu3 = nn.ReLU()
+
+        self.conv4 = nn.Conv3d(
+            in_channels=8,
+            out_channels=8,
+            kernel_size=3,
+            padding=1
+        )
+        # Saída:
+        # (batch, 8, 65, 10, 10)
+
+        self.relu4 = nn.ReLU()
+
+        self.pool2 = nn.MaxPool3d(
+            kernel_size=(1, 2, 2)
+        )
+        # Saída:
+        # (batch, 8, 65, 5, 5)
+
+        # -------------------------------------------------
+        # Flatten
+        # -------------------------------------------------
+
+        self.flatten = nn.Flatten()
+        # Saída:
+        # (batch, 8 x 65 x 5 x 5 )
+
+
+        # -------------------------------------------------
+        # Classificador
+        # -------------------------------------------------
+
+        self.classifier = nn.Linear(
+            in_features=8*65*5*5,
+            out_features=4
+        )
+        # Saída:
+        # (batch, 4)
+        #
+        # São os 4 logits das 4 classes.
+
+
+    def forward(self, x):
+
+        # Bloco 1
+        x = self.conv1(x)
+        x = self.relu1(x)
+
+        x = self.conv2(x)
+        x = self.relu2(x)
+
+        x = self.pool1(x)
+
+        # Bloco 2
+        x = self.conv3(x)
+        x = self.relu3(x)
+
+        x = self.conv4(x)
+        x = self.relu4(x)
+
+        x = self.pool2(x)
+
+        # Flatten
+        x = self.flatten(x)
+
+        # Classificação
+        x = self.classifier(x)
+
+        return x

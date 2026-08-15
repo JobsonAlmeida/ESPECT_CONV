@@ -1,0 +1,75 @@
+
+
+seed testados para inicializar os pesos da rede neural 
+0 - 10 
+
+1, 7, 13, 21, 42, 57, 73, 101, 123, 256,
+333, 512, 777, 1001, 2024, 3141, 4096, 5000, 8192, 9999
+
+maximo permitido = 18446744073709551615
+mínimo permitido = -9223372036854775808
+
+
+
+----
+
+space-frequency network
+inner speach
+
+Funcionamento da rede com 5 folds e 100 épocas de treinamento
+
+sub-01 acurácia aumenta no treinamento apenas no fold 4
+sub-02 acurácia aumenta no treinamento apenas no fold  2
+sub-03 acurácia aumenta no treinamento em todos os folds
+sub-04 acurácia aumenta no treinamento em todos os folds
+sub-05 acurácia aumenta no treinamento em todos os folds
+sub-06 acurácia NÂO aumenta em nenhum fold de treinamento
+sub-07 acurácia aumenta fracamente no treinamento em todos os folds (acurácia no treino até 50%) - sem generalização
+sub-08 acurácia aumenta fracamente no treinamento em todos os folds (acurácia no treino até 50%) - sem generalização
+sub-09 acurácia aumenta fracamente no treinamento na maioria dos folds (acurácia no treino até 50% exceto no fold 3 que chega a 70%) - sem generalização
+sub-10 acurácia aumenta no treinamento apenas no fold 3 (acurácia até 86%)
+
+
+----
+
+space-frequency network
+pronounced speach
+
+sub-01  acuracia de treino aumenta em todo os folds e chega a 88% - acuracia media no teste em 55% e desvio padrão 5.48%
+sub-02  acuracia de treino aumenta em todo os folds e chega a 87% - acuracia media no teste em 41.67% e desvio padrão 9.12%
+sub-03 acuracia de treino aumenta em todo os folds e chega a 100% - acuracia media no teste em 43% e desvio padrão 9.2%
+sub-04 acuracia de treino aumenta em todo os folds e chega a 100% - acuracia media no teste em 35.83% e desvio padrão 10%
+sub-05 acuracia de treino aumenta em todo os folds e chega a 94% - acuracia media no teste em 28.33% e desvio padrão 5.52%
+sub-06 acuracia de treino aumenta em todo os folds e chega a 60% - acuracia media no teste em 36.06% e desvio padrão 5.77%
+sub-07 06 acuracia de treino aumenta em todo os folds e chega a 50% (no fold 2 fica em 25%)- acuracia media no teste em 22.5 e desvio padrão 8.58%
+sub-08 acurácia de treino aumenta em todo os folds e chega a 50% - acuracia media no teste em 26.7 e desvio padrão 8.12%
+sub-09 acurácia de treino aumenta em todo os folds e chega a 40% - acuracia media no teste em 26.67% e desvio padrão 7.26%
+sub-10 acurácia de treino aumenta em todo os folds e chega a 95% - acuracia media no teste em 43.33$ e desvio padrão 4.25%
+
+
+
+
+------
+
+
+
+
+Para melhorar a acurácia:
+
+alterar hiperparâmetros da rede neural 
+fazer interpolação dos dados
+cortar a amostra de dados em intervalos menores
+
+
+
+
+
+
+
+
+
+
+
+
+
+

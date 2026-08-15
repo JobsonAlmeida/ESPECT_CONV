@@ -15,7 +15,7 @@ subjects = [f"sub-{i:02d}" for i in range(1, 11)]
 sessions = [f"ses-{i:02d}" for i in range(1, 4)]
 
 
-#show_rcf_at_time('sub-01', 'ses-01', 0, 0)
+show_rcf_at_time('sub-01', 'ses-01', 0, 1)
 
 
 show_rcf_through_time('sub-01', 'ses-01', 0)
