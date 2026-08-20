@@ -1,0 +1,62 @@
+class SpaceFrequencyCNN(nn.Module):
+
+    def __init__(self):
+
+        super().__init__()
+
+        self.conv1 = nn.Conv3d(
+            in_channels=9,
+            out_channels=16,
+            kernel_size=3,
+            padding=1
+        )
+
+        self.relu1 = nn.ReLU()
+
+        self.pool1 = nn.MaxPool3d(
+            kernel_size=(2, 2, 2)
+        )
+
+        self.conv2 = nn.Conv3d(
+            in_channels=16,
+            out_channels=8,
+            kernel_size=3,
+            padding=1
+        )
+
+        self.relu2 = nn.ReLU()
+
+        self.pool2 = nn.MaxPool3d(
+            kernel_size=(2, 2, 2)
+        )
+
+        self.flatten = nn.Flatten()
+
+        self.classifier = nn.Linear(
+            8 * 16 * 5 * 5,
+            4
+        )
+
+
+    def extract_features(self, x):
+
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+
+        x = self.flatten(x)
+
+        return x
+
+
+    def forward(self, x):
+
+        x = self.extract_features(x)
+
+        x = self.classifier(x)
+
+        return x
