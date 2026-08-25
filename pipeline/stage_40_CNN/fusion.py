@@ -54,7 +54,7 @@ sessions = [f"ses-{i:02d}" for i in range(1, 4)]
 # 1. CARREGAR OS DADOS
 # ==========================================================
 
-subject = "sub-02"
+subject = "sub-10"
 
 power_array = np.load(
     INPUT_DIR / f"{subject}_power.npy"
@@ -155,299 +155,298 @@ print(
 # 4. DEFINIR A REDE DE FUSÃO 
 # ==========================================================
 
-# As redes space-frequency e space-time são importadas
+# class FusionModel(nn.Module):
 
-class FusionModel(nn.Module):
+#     def __init__(
+#         self,
+#         space_frequency_model,
+#         space_time_model
+#     ):
 
-    def __init__(
-        self,
-        space_frequency_model,
-        space_time_model
-    ):
+#         super().__init__()
 
-        super().__init__()
-
-        self.space_frequency_model = space_frequency_model
-        self.space_time_model = space_time_model
-
-        # 3200 -> 64
-        self.sf_projection = nn.Sequential(
-            nn.Linear(3200, 128),
-            nn.ReLU()
-        )
-
-        # 1800 -> 64
-        self.st_projection = nn.Sequential(
-            nn.Linear(1800, 128),
-            nn.ReLU()
-        )
-
-        # Recebe SF + ST:
-        # 64 + 64 = 128
-        #
-        # Produz um gate para cada uma
-        # das 64 características
-        self.gate = nn.Linear(
-            128+128,
-            128
-        )
-
-        # A gated fusion continua tendo
-        # apenas 64 características
-        self.classifier = nn.Linear(
-            64,
-            4
-        )
+#         self.space_frequency_model = space_frequency_model
+#         self.space_time_model = space_time_model
 
 
-    def forward(
-        self,
-        x_space_frequency,
-        x_space_time
-    ):
+#         # ==================================================
+#         # PROJEÇÕES
+#         # ==================================================
 
-        # ---------------------------------------------
-        # Extrair características
-        # ---------------------------------------------
+#         # 3200 -> 128
+#         self.sf_projection = nn.Sequential(
+#             nn.Linear(3200, 128),
+#             nn.ReLU()
+#         )
 
-        sf = (
-            self.space_frequency_model
-            .extract_features(
-                x_space_frequency
-            )
-        )
-        # (batch, 3200)
-
-        st = (
-            self.space_time_model
-            .extract_features(
-                x_space_time
-            )
-        )
-        # (batch, 1800)
+#         # 1800 -> 128
+#         self.st_projection = nn.Sequential(
+#             nn.Linear(1800, 128),
+#             nn.ReLU()
+#         )
 
 
-        # ---------------------------------------------
-        # Projetar
-        # ---------------------------------------------
+#         # ==================================================
+#         # GATE
+#         # ==================================================
 
-        sf = self.sf_projection(sf)
-        # (batch, 64)
+#         # Recebe:
+#         #
+#         # SF = 128
+#         # ST = 128
+#         #
+#         # concatenação = 256
+#         #
+#         # Produz 128 valores de gate
 
-        st = self.st_projection(st)
-        # (batch, 64)
-
-
-        # ---------------------------------------------
-        # Juntar para calcular o gate
-        # ---------------------------------------------
-
-        combined = torch.cat(
-            (sf, st),
-            dim=1
-        )
-        # (batch, 128)
+#         self.gate = nn.Linear(
+#             256,
+#             128
+#         )
 
 
-        # ---------------------------------------------
-        # Calcular os 64 gates
-        # ---------------------------------------------
+#         # ==================================================
+#         # CLASSIFICADOR
+#         # ==================================================
 
-        gate = torch.sigmoid(
-            self.gate(combined)
-        )
-        # (batch, 64)
+#         # A representação fundida possui
+#         # 128 características
 
+#         self.classifier = nn.Linear(
+#             128,
+#             4
+#         )
 
-        # ---------------------------------------------
-        # Gated fusion
-        # ---------------------------------------------
-
-        fused = (
-            gate * sf
-            + (1 - gate) * st
-        )
-        # (batch, 64)
+#         self.classifier = nn.Sequential(
+#             nn.Linear(128, 64),
+#             nn.Linear(64, 4),
+#         )
 
 
-        # ---------------------------------------------
-        # Classificação
-        # ---------------------------------------------
+#     def forward(
+#         self,
+#         x_space_frequency,
+#         x_space_time
+#     ):
 
-        outputs = self.classifier(
-            fused
-        )
-        # (batch, 4)
+#         # ==================================================
+#         # EXTRAIR CARACTERÍSTICAS DOS DOIS RAMOS
+#         # ==================================================
 
-        return outputs
+#         sf = (
+#             self.space_frequency_model
+#             .extract_features(
+#                 x_space_frequency
+#             )
+#         )
+
+#         # (batch, 3200)
+
+
+#         st = (
+#             self.space_time_model
+#             .extract_features(
+#                 x_space_time
+#             )
+#         )
+
+#         # (batch, 1800)
+
+
+#         # ==================================================
+#         # PROJETAR PARA 128 CARACTERÍSTICAS
+#         # ==================================================
+
+#         sf = self.sf_projection(sf)
+
+#         # (batch, 128)
+
+
+#         st = self.st_projection(st)
+
+#         # (batch, 128)
+
+
+#         # ==================================================
+#         # CONCATENAR
+#         # ==================================================
+
+#         combined = torch.cat(
+#             (sf, st),
+#             dim=1
+#         )
+
+#         # (batch, 256)
+
+
+#         # ==================================================
+#         # CALCULAR O GATE
+#         # ==================================================
+
+#         gate_logits = self.gate(
+#             combined
+#         )
+
+#         # (batch, 128)
+
+
+#         gate = torch.sigmoid(
+#             gate_logits
+#         )
+
+#         # (batch, 128)
+#         #
+#         # Cada valor está entre 0 e 1.
+
+
+#         # ==================================================
+#         # GATED FUSION
+#         # ==================================================
+
+#         fused = (
+#             gate * sf
+#             + (1 - gate) * st
+#         )
+
+#         # (batch, 128)
+
+
+#         # ==================================================
+#         # CLASSIFICAÇÃO
+#         # ==================================================
+
+#         outputs = self.classifier(
+#             fused
+#         )
+
+#         # (batch, 4)
+
+#         return outputs
 
     
-class FusionModel(nn.Module):
+# class FusionModel(nn.Module):
 
-    def __init__(
-        self,
-        space_frequency_model,
-        space_time_model
-    ):
+#     def __init__(
+#         self,
+#         space_frequency_model,
+#         space_time_model
+#     ):
 
-        super().__init__()
+#         super().__init__()
 
-        self.space_frequency_model = space_frequency_model
-        self.space_time_model = space_time_model
+#         self.space_frequency_model = space_frequency_model
+#         self.space_time_model = space_time_model
 
-        # ----------------------------------------------
-        # Projetar os dois ramos para a mesma dimensão
-        # ----------------------------------------------
+#         # 3200 -> 64
+#         self.sf_projection = nn.Sequential(
+#             nn.Linear(3200, 64),
+#             nn.ReLU()
+#         )
 
-        self.sf_projection = nn.Sequential(
-            nn.Linear(3200, 128),
-            nn.ReLU()
-        )
+#         # 1800 -> 64
+#         self.st_projection = nn.Sequential(
+#             nn.Linear(1800, 64),
+#             nn.ReLU()
+#         )
 
-        self.st_projection = nn.Sequential(
-            nn.Linear(1800, 128),
-            nn.ReLU()
-        )
+#         # Recebe SF + ST:
+#         # 64 + 64 = 128
+#         #
+#         # Produz um gate para cada uma
+#         # das 64 características
+#         self.gate = nn.Linear(
+#             128,
+#             64
+#         )
 
-        # ----------------------------------------------
-        # Classificador
-        #
-        # sf = 128
-        # st = 128
-        # produto externo = 128 * 64 = 4096
-        #
-        # total = 64 + 64 + 4096 = 4224
-        # ----------------------------------------------
-
-        self.gated = nn.Sequential(
-
-
-            
-        )
-
+#         # A gated fusion continua tendo
+#         # apenas 64 características
+#         self.classifier = nn.Linear(
+#             64,
+#             4
+#         )
 
 
+#     def forward(
+#         self,
+#         x_space_frequency,
+#         x_space_time
+#     ):
 
-        self.classifier = nn.Sequential(
+#         # ---------------------------------------------
+#         # Extrair características
+#         # ---------------------------------------------
 
-            nn.Linear(
-                128 + 128 + 128*128,
-                1024
-            ),
+#         sf = (
+#             self.space_frequency_model
+#             .extract_features(
+#                 x_space_frequency
+#             )
+#         )
+#         # (batch, 3200)
 
-            nn.ReLU(),
-
-            nn.Linear(
-                1024,
-                512
-            ),
-            nn.ReLU(),
-
-            nn.Linear(
-                512,
-                4
-            )
-
-
-        )
-
-
-    def forward(
-        self,
-        x_space_frequency,
-        x_space_time
-    ):
-
-        # ==============================================
-        # 1. EXTRAIR FEATURES DOS DOIS RAMOS
-        # ==============================================
-
-        sf = (
-            self.space_frequency_model
-            .extract_features(
-                x_space_frequency
-            )
-        )
-        # shape:
-        # (batch, 3200)
+#         st = (
+#             self.space_time_model
+#             .extract_features(
+#                 x_space_time
+#             )
+#         )
+#         # (batch, 1800)
 
 
-        st = (
-            self.space_time_model
-            .extract_features(
-                x_space_time
-            )
-        )
-        # shape:
-        # (batch, 1800)
+#         # ---------------------------------------------
+#         # Projetar
+#         # ---------------------------------------------
+
+#         sf = self.sf_projection(sf)
+#         # (batch, 64)
+
+#         st = self.st_projection(st)
+#         # (batch, 64)
 
 
-        # ==============================================
-        # 2. PROJETAR PARA 64 DIMENSÕES
-        # ==============================================
+#         # ---------------------------------------------
+#         # Juntar para calcular o gate
+#         # ---------------------------------------------
 
-        sf = self.sf_projection(sf)
-        # (batch, 64)
-
-        st = self.st_projection(st)
-        # (batch, 64)
-
-
-        # ==============================================
-        # 3. PRODUTO EXTERNO
-        # ==============================================
-
-        interaction = torch.bmm(
-            sf.unsqueeze(2),
-            st.unsqueeze(1)
-        )
-
-        # sf.unsqueeze(2):
-        # (batch, 64, 1)
-        #
-        # st.unsqueeze(1):
-        # (batch, 1, 64)
-        #
-        # resultado:
-        # (batch, 64, 64)
+#         combined = torch.cat(
+#             (sf, st),
+#             dim=1
+#         )
+#         # (batch, 128)
 
 
-        # ==============================================
-        # 4. ACHATAR A MATRIZ DE INTERAÇÃO
-        # ==============================================
+#         # ---------------------------------------------
+#         # Calcular os 64 gates
+#         # ---------------------------------------------
 
-        interaction = interaction.flatten(
-            start_dim=1
-        )
-
-        # (batch, 4096)
-
-
-        # ==============================================
-        # 5. CONCATENAR
-        # ==============================================
-
-        fused = torch.cat(
-            (
-                sf,
-                st,
-                interaction
-            ),
-            dim=1
-        )
-
-        # (batch, 4224)
+#         gate = torch.sigmoid(
+#             self.gate(combined)
+#         )
+#         # (batch, 64)
 
 
-        # ==============================================
-        # 6. CLASSIFICAÇÃO
-        # ==============================================
+#         # ---------------------------------------------
+#         # Gated fusion
+#         # ---------------------------------------------
 
-        outputs = self.classifier(
-            fused
-        )
+#         fused = (
+#             gate * sf
+#             + (1 - gate) * st
+#         )
+#         # (batch, 64)
 
-        return outputs
+
+#         # ---------------------------------------------
+#         # Classificação
+#         # ---------------------------------------------
+
+#         outputs = self.classifier(
+#             fused
+#         )
+#         # (batch, 4)
+
+#         return outputs
     
 # class FusionModel(nn.Module):
 
@@ -741,88 +740,90 @@ class FusionModel(nn.Module):
 
 #         return outputs
 
-# class FusionModel(nn.Module):
 
-#     def __init__(
-#         self,
-#         space_frequency_model,
-#         space_time_model
-#     ):
+# Concatenar
+class FusionModel(nn.Module):
 
-#         super().__init__()
+    def __init__(
+        self,
+        space_frequency_model,
+        space_time_model
+    ):
 
-#         self.space_frequency_model = (space_frequency_model)
-#         self.space_time_model = (space_time_model)
+        super().__init__()
 
-
-#         # SF:
-#         # 8 * 16 * 5 * 5 = 3200
-#         #
-#         # ST:
-#         # 8 * 9 * 5 * 5 = 1800
-#         #
-#         # total:
-#         # 5000
-
-#         self.classifier = nn.Sequential(
-
-#             nn.Linear(
-#                 3200 + 1800,
-#                 256
-#             ),
-
-#             nn.ReLU(),
-
-#             nn.Linear(
-#                 256,
-#                 64
-#             ),
-
-#             nn.ReLU(),
-
-#             nn.Linear(
-#                 64,
-#                 4
-#             )
-#         )
+        self.space_frequency_model = (space_frequency_model)
+        self.space_time_model = (space_time_model)
 
 
-#     def forward(self, x_space_frequency, x_space_time):
+        # SF:
+        # 8 * 16 * 5 * 5 = 3200
+        #
+        # ST:
+        # 8 * 9 * 5 * 5 = 1800
+        #
+        # total:
+        # 5000
 
-#         # ----------------------------------------------
-#         # Extrair espaço latente SF
-#         # ----------------------------------------------
+        self.classifier = nn.Sequential(
 
-#         features_sf = (self.space_frequency_model.extract_features(x_space_frequency))
+            nn.Linear(
+                3200 + 1800,
+                256
+            ),
 
+            nn.ReLU(),
 
-#         # ----------------------------------------------
-#         # Extrair espaço latente ST
-#         # ----------------------------------------------
+            nn.Linear(
+                256,
+                64
+            ),
 
-#         features_st = (self.space_time_model.extract_features(x_space_time))
+            nn.ReLU(),
 
-
-#         # ----------------------------------------------
-#         # Concatenar
-#         # ----------------------------------------------
-
-#         features = torch.cat(
-#             (
-#                 features_sf,
-#                 features_st
-#             ),
-#             dim=1
-#         )
+            nn.Linear(
+                64,
+                4
+            )
+        )
 
 
-#         # ----------------------------------------------
-#         # Novo classificador
-#         # ----------------------------------------------
+    def forward(self, x_space_frequency, x_space_time):
 
-#         outputs = self.classifier(features)
+        # ----------------------------------------------
+        # Extrair espaço latente SF
+        # ----------------------------------------------
 
-#         return outputs
+        features_sf = (self.space_frequency_model.extract_features(x_space_frequency))
+
+
+        # ----------------------------------------------
+        # Extrair espaço latente ST
+        # ----------------------------------------------
+
+        features_st = (self.space_time_model.extract_features(x_space_time))
+
+
+        # ----------------------------------------------
+        # Concatenar
+        # ----------------------------------------------
+
+        features = torch.cat(
+            (
+                features_sf,
+                features_st
+            ),
+            dim=1
+        )
+
+
+        # ----------------------------------------------
+        # Novo classificador
+        # ----------------------------------------------
+
+        outputs = self.classifier(features)
+
+        return outputs
 
     
 # ==========================================================
@@ -839,10 +840,6 @@ print("Device:", device)
 print(torch.cuda.is_available())      # Deve retornar False no seu caso
 print(torch.version.cuda)             # Mostra qual versão do CUDA o PyTorch espera (se retornar None, você instalou a versão errada)
 print(torch.cuda.get_device_name(0))  # Tentará forçar o nome da sua placa (provavelmente vai dar erro se o de cima for False)
-
-
-
-
 
 # ==========================================================
 # 6. CRIAR OS 5 FOLDS
@@ -1068,6 +1065,16 @@ for fold in range(1, N_FOLDS + 1):
         fusion_model.classifier.parameters(),
         lr=LEARNING_RATE_FUSION
     )
+
+    # optimizer = torch.optim.Adam(
+
+    #     list(fusion_model.sf_projection.parameters())
+    #     + list(fusion_model.st_projection.parameters())
+    #     + list(fusion_model.gate.parameters())
+    #     + list(fusion_model.classifier.parameters()),
+
+    #     lr=LEARNING_RATE_FUSION
+    # )
 
     # ======================================================
     # 9.16 TREINAMENTO
