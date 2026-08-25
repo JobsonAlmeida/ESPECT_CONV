@@ -9,7 +9,7 @@ from torch.utils.data import (
     DataLoader
 )
 
-from space_frequency import SpaceFrequencyCNN
+from pipeline.stage_40_CNN.space_frequency_old import SpaceFrequencyCNN
 from space_time import SpaceTimeCNN
 
 

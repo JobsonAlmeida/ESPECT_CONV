@@ -169,7 +169,7 @@ def main():
 
     subjects = [
         f"sub-{i:02d}"
-        for i in range(4, 5)
+        for i in range(3, 4)
     ]
 
 
@@ -697,9 +697,7 @@ def main():
             # TREINAMENTO
             # ==================================================
 
-            for epoch in range(
-                N_EPOCHS
-            ):
+            for epoch in range(N_EPOCHS):
 
 
                 # ==============================================
@@ -936,7 +934,7 @@ def main():
 
 
                     best_epoch = (
-                        epoch + 1
+                        epoch
                     )
 
 
@@ -1248,7 +1246,12 @@ def main():
                     "all_labels":
                         np.array(
                             all_labels
-                        )
+                        ),
+
+                    "fold_accuracies": np.array(fold_accuracies),
+
+                    "fold_losses": np.array(fold_losses),
+
                 },
 
                 MODEL_DIR
