@@ -20,8 +20,8 @@ from sklearn.model_selection import (
 # CONFIGURAÇÕES
 # ==========================================================
 
-N_FOLDS = 5
-N_EPOCHS = 100
+N_FOLDS = 6
+N_EPOCHS = 300
 BATCH_SIZE = 8
 LEARNING_RATE = 0.001
 
@@ -61,17 +61,15 @@ class SpaceFrequencyCNN(nn.Module):
 
        super().__init__()
 
-
        # (batch, 9, 65, 21, 21)
-
 
        self.conv1 = nn.Conv3d(
            in_channels=9,
-           out_channels=10,
+           out_channels=16,
            kernel_size=3,
            padding=1
        )
-       # (batch, 10, 65, 21, 21)
+       # (batch, 16, 65, 21, 21)
 
 
        self.relu1 = nn.ReLU()
@@ -80,19 +78,16 @@ class SpaceFrequencyCNN(nn.Module):
        self.pool1 = nn.MaxPool3d(
            kernel_size=(2, 2, 2)
        )
-       # (batch, 10, 32, 10, 10)
+       # (batch, 16, 32, 10, 10)
 
 
        self.conv2 = nn.Conv3d(
-           in_channels=10,
+           in_channels=16,
            out_channels=8,
            kernel_size=3,
            padding=1
        )
        # (batch, 8, 32, 10, 10)
-
-
-
 
        self.relu2 = nn.ReLU()
 
@@ -160,18 +155,13 @@ class SpaceFrequencyCNN(nn.Module):
 # MAIN
 # ==========================================================
 
-def main():
+subjects = [f"sub-{i:02d}" for i in range(1, 11)]
+
+def space_frequency(subjects = subjects):
 
     torch.manual_seed(
         RANDOM_STATE
     )
-
-
-    subjects = [
-        f"sub-{i:02d}"
-        for i in range(3, 4)
-    ]
-
 
     # ==========================================================
     # LOOP DOS SUJEITOS
@@ -966,9 +956,9 @@ def main():
             # Aqui voltamos para os pesos correspondentes
             # à menor validation loss.
 
-            model.load_state_dict(
-                best_model_state
-            )
+            # model.load_state_dict(
+            #     best_model_state
+            # )
 
 
             print()
@@ -1319,4 +1309,4 @@ def main():
 
 if __name__ == "__main__":
 
-    main()
+    space_frequency(subjects=["sub-02"])

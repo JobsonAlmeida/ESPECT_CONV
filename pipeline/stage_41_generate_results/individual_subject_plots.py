@@ -179,4 +179,4 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects):
 
 if __name__ == "__main__":
 
-    individual_subject_plots(branch="space_frequency", subjects=["sub-01", "sub-02"])
+    individual_subject_plots(branch="space_frequency", subjects=["sub-02",])
