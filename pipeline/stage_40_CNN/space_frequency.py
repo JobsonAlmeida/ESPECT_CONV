@@ -65,11 +65,11 @@ class SpaceFrequencyCNN(nn.Module):
 
        self.conv1 = nn.Conv3d(
            in_channels=9,
-           out_channels=16,
+           out_channels=8,
            kernel_size=3,
            padding=1
        )
-       # (batch, 16, 65, 21, 21)
+       # (batch, 8, 65, 21, 21)
 
 
        self.relu1 = nn.ReLU()
@@ -78,16 +78,16 @@ class SpaceFrequencyCNN(nn.Module):
        self.pool1 = nn.MaxPool3d(
            kernel_size=(2, 2, 2)
        )
-       # (batch, 16, 32, 10, 10)
+       # (batch, 8, 32, 10, 10)
 
 
        self.conv2 = nn.Conv3d(
-           in_channels=16,
-           out_channels=8,
+           in_channels=8,
+           out_channels=4,
            kernel_size=3,
            padding=1
        )
-       # (batch, 8, 32, 10, 10)
+       # (batch, 4, 32, 10, 10)
 
        self.relu2 = nn.ReLU()
 
@@ -95,14 +95,14 @@ class SpaceFrequencyCNN(nn.Module):
        self.pool2 = nn.MaxPool3d(
            kernel_size=(2, 2, 2)
        )
-       # (batch, 8, 16, 5, 5)
+       # (batch, 4, 16, 5, 5)
 
 
        self.flatten = nn.Flatten()
 
 
        self.classifier = nn.Linear(
-           8 * 16 * 5 * 5,
+           4 * 16 * 5 * 5,
            4
        )
 
@@ -672,15 +672,13 @@ def space_frequency(subjects = subjects):
             # MELHOR MODELO
             # ==================================================
 
-            best_val_loss = float(
+            min_val_loss = float(
                 "inf"
             )
 
+            min_val_loss_epoch = 0
 
-            best_epoch = 0
-
-
-            best_model_state = None
+            min_val_loss_model_state = None
 
 
             # ==================================================
@@ -916,19 +914,18 @@ def space_frequency(subjects = subjects):
                 # VERIFICAR SE É O MELHOR MODELO
                 # ==============================================
 
-                if val_loss < best_val_loss:
+                if val_loss < min_val_loss:
 
-                    best_val_loss = (
+                    min_val_loss = (
                         val_loss
                     )
 
 
-                    best_epoch = (
+                    min_val_loss_epoch = (
                         epoch
                     )
 
-
-                    best_model_state = copy.deepcopy(
+                    min_val_loss_model_state = copy.deepcopy(
                         model.state_dict()
                     )
 
@@ -956,21 +953,21 @@ def space_frequency(subjects = subjects):
             # Aqui voltamos para os pesos correspondentes
             # à menor validation loss.
 
-            # model.load_state_dict(
-            #     best_model_state
-            # )
+            model.load_state_dict(
+                min_val_loss_model_state
+            )
 
 
             print()
 
             print(
-                f"Melhor época: {best_epoch}"
+                f"Melhor época: {min_val_loss_epoch}"
             )
 
 
             print(
                 f"Menor Validation Loss: "
-                f"{best_val_loss:.6f}"
+                f"{min_val_loss:.6f}"
             )
 
 
@@ -1100,13 +1097,13 @@ def space_frequency(subjects = subjects):
 
             print(
                 f"Best Epoch: "
-                f"{best_epoch}"
+                f"{min_val_loss_epoch}"
             )
 
 
             print(
-                f"Best Validation Loss: "
-                f"{best_val_loss:.6f}"
+                f"Minimum Validation Loss: "
+                f"{min_val_loss:.6f}"
             )
 
 
@@ -1189,11 +1186,11 @@ def space_frequency(subjects = subjects):
                     # MELHOR ÉPOCA
                     # ------------------------------------------
 
-                    "best_epoch":
-                        best_epoch,
+                    "min_val_loss_epoch":
+                        min_val_loss_epoch,
 
-                    "best_val_loss":
-                        best_val_loss,
+                    "min_val_loss":
+                        min_val_loss,
 
 
                     # ------------------------------------------
