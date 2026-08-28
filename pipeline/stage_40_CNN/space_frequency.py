@@ -21,7 +21,7 @@ from sklearn.model_selection import (
 # ==========================================================
 
 N_FOLDS = 6
-N_EPOCHS = 300
+N_EPOCHS = 600
 BATCH_SIZE = 8
 LEARNING_RATE = 0.001
 
@@ -53,7 +53,7 @@ OUTPUT_DIR = (
 # ==========================================================
 # DEFINIR A REDE
 # ==========================================================
-class SpaceFrequencyCNN(nn.Module):
+class SpaceSpaceFrequencyTimeCNN(nn.Module):
 
 
    def __init__(self):
@@ -151,6 +151,244 @@ class SpaceFrequencyCNN(nn.Module):
 
        return x
 
+   
+def test_model(model, model_state_dict, test_loader, device, criterion, fold_accuracies, fold_losses):
+
+    # ==================================================
+    # TESTE COM O MODELO ESCOLHIDO
+    # ==================================================
+
+    # O conjunto de teste aparece SOMENTE agora,
+    # depois que o modelo já foi escolhido.
+
+    model.load_state_dict(
+        model_state_dict
+    )
+
+    model.eval()
+
+    test_total_loss = 0.0
+
+    test_correct = 0
+
+    test_total = 0
+
+    all_predictions = []
+
+    all_labels = []
+
+    with torch.no_grad():
+
+
+        for (
+            X_batch,
+            y_batch
+        ) in test_loader:
+
+
+            X_batch = X_batch.to(
+                device
+            )
+
+            y_batch = y_batch.to(
+                device
+            )
+
+
+            outputs = model(
+                X_batch
+            )
+
+
+            loss = criterion(
+                outputs,
+                y_batch
+            )
+
+
+            test_total_loss += (
+                loss.item()
+            )
+
+
+            predictions = outputs.argmax(
+                dim=1
+            )
+
+
+            test_correct += (
+                predictions
+                == y_batch
+            ).sum().item()
+
+
+            test_total += (
+                y_batch.size(0)
+            )
+
+
+            all_predictions.extend(
+                predictions
+                .cpu()
+                .numpy()
+            )
+
+
+            all_labels.extend(
+                y_batch
+                .cpu()
+                .numpy()
+            )
+
+
+    # ==================================================
+    # RESULTADOS DO TESTE
+    # ==================================================
+
+    test_loss = (
+        test_total_loss
+        / len(test_loader)
+    )
+
+
+    test_accuracy = (
+        test_correct
+        / test_total
+    )
+
+
+    fold_accuracies.append( #acurácias por fold
+        test_accuracy
+    )
+
+
+    fold_losses.append(
+        test_loss
+    )
+
+    return model, test_loss, test_accuracy, fold_losses, fold_accuracies, all_labels, all_predictions
+
+
+
+def print_fold_results(model_type, fold, best_epoch, focus_property, test_loss, test_accuracy, all_labels, all_predictions):
+
+    print()
+
+    match model_type:
+        case "minimum_loss":
+            message = "--- TEST WITH MINIMUM LOSS ---"
+            property_message =  f"Minimum Validation Loss: {focus_property:.6f}"
+
+        case "maximum_accuracy":
+            message = "--- TEST WITH MAXIMUM ACCURACY ---"
+            property_message =  f"Maximum Accuracy: {focus_property:.6f}"
+
+        case _ : 
+            raise ValueError(f"Invalid model_type {model_type}")
+
+
+
+    print(message)
+
+    print(
+        f"Fold {fold}"
+    )
+
+    print(f"Best Epoch: {best_epoch}")
+
+
+    print(property_message)
+
+
+    print(
+        f"Test Loss: "
+        f"{test_loss:.6f}"
+    )
+
+
+    print(
+        f"Test Accuracy: "
+        f"{test_accuracy:.4f}"
+    )
+
+
+    print(
+        "Classes previstas:",
+        np.bincount(
+            all_predictions,
+            minlength=4
+        )
+    )
+
+
+    print(
+        "Classes reais:",
+        np.bincount(
+            all_labels,
+            minlength=4
+        )
+    )
+
+
+def print_folds_summary(model_type, subject, fold_accuracies, fold_losses, ):
+
+    match model_type:
+        case "minimum_loss":
+            message = f"Test Summary - Lowest Loss Model - {subject}"
+
+        case "maximum_accuracy":
+            message = f"Test Summary - Maximum Accuracy Model - {subject}"
+
+        case _:
+             raise ValueError(f"Invalid model_type {model_type}")
+
+    fold_accuracies = np.array(
+        fold_accuracies
+    )
+
+    fold_losses = np.array(
+        fold_losses
+    )
+
+
+    print()
+    print("=" * 70)
+    print(message)
+    print("=" * 70)
+
+
+    for fold, accuracy in enumerate(
+        fold_accuracies,
+        start=1
+    ):
+
+        print(
+            f"Fold {fold}: "
+            f"{accuracy:.4f}"
+        )
+
+
+    print()
+
+
+    print(
+        "Acurácia média:",
+        fold_accuracies.mean()
+    )
+
+
+    print(
+        "Desvio padrão:",
+        fold_accuracies.std()
+    )
+
+
+    print(
+        "Test Loss média:",
+        fold_losses.mean()
+    )
+
+    
 # ==========================================================
 # MAIN
 # ==========================================================
@@ -366,15 +604,15 @@ def space_frequency(subjects = subjects):
             random_state=RANDOM_STATE
         )
 
-
         # ======================================================
-        # RESULTADOS DOS FOLDS
+        # ARMAZENAR RESULTADOS DOS FOLDS
         # ======================================================
 
-        fold_accuracies = []
+        fold_accuracies_ml = []
+        fold_losses_ml = []
 
-        fold_losses = []
-
+        fold_accuracies_ma = []
+        fold_losses_ma = []
 
         # ======================================================
         # LOOP DOS 5 FOLDS
@@ -632,7 +870,7 @@ def space_frequency(subjects = subjects):
             )
 
 
-            model = SpaceFrequencyCNN().to(
+            model = SpaceSpaceFrequencyTimeCNN().to(
                 device
             )
 
@@ -669,17 +907,21 @@ def space_frequency(subjects = subjects):
 
 
             # ==================================================
-            # MELHOR MODELO
+            # INICIALIZAÇÃO PARA O MELHOR MODELO
             # ==================================================
 
+            # menor loss
             min_val_loss = float(
                 "inf"
             )
-
             min_val_loss_epoch = 0
-
             min_val_loss_model_state = None
 
+            # máxima acurácia
+            max_val_accuracy = -1
+            best_val_loss_to_max_accuracy = float("inf")
+            max_val_accuracy_epoch = 0
+            max_val_accuracy_state = None
 
             # ==================================================
             # TREINAMENTO
@@ -914,6 +1156,7 @@ def space_frequency(subjects = subjects):
                 # VERIFICAR SE É O MELHOR MODELO
                 # ==============================================
 
+                # menor loss
                 if val_loss < min_val_loss:
 
                     min_val_loss = (
@@ -926,6 +1169,19 @@ def space_frequency(subjects = subjects):
                     )
 
                     min_val_loss_model_state = copy.deepcopy(
+                        model.state_dict()
+                    )
+
+                #maior acurácia
+                if (val_accuracy > max_val_accuracy or
+                     ( val_accuracy == max_val_accuracy and val_loss < best_val_loss_to_max_accuracy)
+                    ):
+                    
+                    max_val_accuracy = val_accuracy
+                    best_val_loss_to_max_accuracy = val_loss
+                    max_val_accuracy_epoch = epoch
+
+                    max_val_accuracy_model_state = copy.deepcopy(
                         model.state_dict()
                     )
 
@@ -944,221 +1200,66 @@ def space_frequency(subjects = subjects):
                 )
 
 
-            # ==================================================
-            # RESTAURAR O MELHOR MODELO
-            # ==================================================
+            # ==============================
+            # TESTE DO MODELO DE MENOR LOSS
+            # ==============================
 
-            # model atualmente contém os pesos da época 100.
-            #
-            # Aqui voltamos para os pesos correspondentes
-            # à menor validation loss.
-
-            model.load_state_dict(
-                min_val_loss_model_state
+            model_ml, test_loss_ml, test_accuracy_ml, fold_losses_ml, fold_accuracies_ml, all_labels_ml, all_predictions_ml = test_model(model, min_val_loss_model_state,
+                test_loader,
+                device,
+                criterion,
+                fold_accuracies_ml,
+                fold_losses_ml,
             )
 
+            # ===================================
+            # TESTE DO MODELO DE MAIOR ACURÁCIA
+            # ===================================
 
-            print()
-
-            print(
-                f"Melhor época: {min_val_loss_epoch}"
+            model_ma, test_loss_ma, test_accuracy_ma, fold_losses_ma, fold_accuracies_ma, all_labels_ma, all_predictions_ma = test_model(model, max_val_accuracy_model_state,
+                test_loader,
+                device,
+                criterion,
+                fold_accuracies_ma,
+                fold_losses_ma,
             )
 
+            # =============================================================
+            # IMPRIMINDO OS RESULTADOS DE TESTE DE CADA MODELO POR FOLD 
+            # =============================================================
 
-            print(
-                f"Menor Validation Loss: "
-                f"{min_val_loss:.6f}"
-            )
+            print_fold_results(
+                "minimum_loss", 
+                fold, 
+                min_val_loss_epoch, 
+                min_val_loss, 
+                test_loss_ml,
+                test_accuracy_ml, 
+                all_labels_ml, 
+                all_predictions_ml )
 
+            print_fold_results(
+                "maximum_accuracy", 
+                fold, 
+                max_val_accuracy_epoch, 
+                max_val_accuracy, 
+                test_loss_ma,
+                test_accuracy_ma, 
+                all_labels_ma, 
+                all_predictions_ma )
 
-            # ==================================================
-            # TESTE FINAL
-            # ==================================================
-
-            # O conjunto de teste aparece SOMENTE agora,
-            # depois que o modelo já foi escolhido.
-
-            model.eval()
-
-
-            test_total_loss = 0.0
-
-            test_correct = 0
-
-            test_total = 0
-
-
-            all_predictions = []
-
-            all_labels = []
-
-
-            with torch.no_grad():
-
-
-                for (
-                    X_batch,
-                    y_batch
-                ) in test_loader:
-
-
-                    X_batch = X_batch.to(
-                        device
-                    )
-
-                    y_batch = y_batch.to(
-                        device
-                    )
-
-
-                    outputs = model(
-                        X_batch
-                    )
-
-
-                    loss = criterion(
-                        outputs,
-                        y_batch
-                    )
-
-
-                    test_total_loss += (
-                        loss.item()
-                    )
-
-
-                    predictions = outputs.argmax(
-                        dim=1
-                    )
-
-
-                    test_correct += (
-                        predictions
-                        == y_batch
-                    ).sum().item()
-
-
-                    test_total += (
-                        y_batch.size(0)
-                    )
-
-
-                    all_predictions.extend(
-                        predictions
-                        .cpu()
-                        .numpy()
-                    )
-
-
-                    all_labels.extend(
-                        y_batch
-                        .cpu()
-                        .numpy()
-                    )
-
-
-            # ==================================================
-            # RESULTADOS DO TESTE
-            # ==================================================
-
-            test_loss = (
-                test_total_loss
-                / len(test_loader)
-            )
-
-
-            test_accuracy = (
-                test_correct
-                / test_total
-            )
-
-
-            fold_accuracies.append(
-                test_accuracy
-            )
-
-
-            fold_losses.append(
-                test_loss
-            )
-
-
-            print()
-
-            print(
-                "--- RESULTADO DO TESTE ---"
-            )
-
-
-            print(
-                f"Fold {fold}"
-            )
-
-
-            print(
-                f"Best Epoch: "
-                f"{min_val_loss_epoch}"
-            )
-
-
-            print(
-                f"Minimum Validation Loss: "
-                f"{min_val_loss:.6f}"
-            )
-
-
-            print(
-                f"Test Loss: "
-                f"{test_loss:.6f}"
-            )
-
-
-            print(
-                f"Test Accuracy: "
-                f"{test_accuracy:.4f}"
-            )
-
-
-            print(
-                "Classes previstas:",
-                np.bincount(
-                    all_predictions,
-                    minlength=4
-                )
-            )
-
-
-            print(
-                "Classes reais:",
-                np.bincount(
-                    all_labels,
-                    minlength=4
-                )
-            )
-
+            
 
             # ==================================================
             # SALVAR O CHECKPOINT DO FOLD
             # ==================================================
 
             torch.save(
-                {
+                { 
 
-                    # ------------------------------------------
-                    # MELHOR MODELO
-                    # ------------------------------------------
-
-                    "model_state_dict":
-                        model.state_dict(),
-
-
-                    # ------------------------------------------
-                    # NORMALIZAÇÃO
-                    # ------------------------------------------
-
-                    "power_max":
-                        power_max.item(),
-
+                    # =============================
+                    # DADOS DO FOLD 
+                    # =============================
 
                     # ------------------------------------------
                     # FOLD
@@ -1167,7 +1268,13 @@ def space_frequency(subjects = subjects):
                     "fold":
                         fold,
 
+                    # ------------------------------------------
+                    # NORMALIZAÇÃO
+                    # ------------------------------------------
 
+                    "power_max":
+                        power_max.item(),
+                  
                     # ------------------------------------------
                     # ÍNDICES
                     # ------------------------------------------
@@ -1181,17 +1288,21 @@ def space_frequency(subjects = subjects):
                     "test_indices":
                         test_indices,
 
-
                     # ------------------------------------------
-                    # MELHOR ÉPOCA
+                    # HISTÓRICO DAS LOSSES
                     # ------------------------------------------
 
-                    "min_val_loss_epoch":
-                        min_val_loss_epoch,
+                    "train_losses_epoch":
+                        train_losses_epoch,
+
+                    "val_losses_epoch":
+                        val_losses_epoch,
 
                     "min_val_loss":
                         min_val_loss,
 
+                    "min_val_loss_epoch":
+                        min_val_loss_epoch,
 
                     # ------------------------------------------
                     # HISTÓRICO DAS ACURÁCIAS
@@ -1203,41 +1314,88 @@ def space_frequency(subjects = subjects):
                     "val_accuracies_epoch":
                         val_accuracies_epoch,
 
+                    "max_val_accuracy" : 
+                        max_val_accuracy,
 
-                    # ------------------------------------------
-                    # HISTÓRICO DAS LOSSES
-                    # ------------------------------------------
-
-                    "train_losses_epoch":
-                        train_losses_epoch,
-
-                    "val_losses_epoch":
-                        val_losses_epoch,
+                    "max_val_accuracy_epoch": 
+                        max_val_accuracy_epoch,
 
 
-                    # ------------------------------------------
-                    # RESULTADO DO TESTE
-                    # ------------------------------------------
+                    # ===================================
+                    # TEST RESULTS USING MINIMUM LOSS MODEL
+                    # ==================================
 
-                    "test_loss":
-                        test_loss,
+                    "minimum_loss_model_test_results": {
 
-                    "test_accuracy":
-                        test_accuracy,
+                        # ------------------------------------------
+                        # MELHOR MODELO PARA O MENOR CUSTO
+                        # ------------------------------------------
 
-                    "all_predictions":
-                        np.array(
-                            all_predictions
-                        ),
+                        "model_state_dict":
+                            model_ml.state_dict(),
+                           
+                        # ---------------------
+                        # RESULTADOS
+                        # ----------------------
+                        
+                        "test_loss":
+                            test_loss_ml,
 
-                    "all_labels":
-                        np.array(
-                            all_labels
-                        ),
+                        "test_accuracy":
+                            test_accuracy_ml,
 
-                    "fold_accuracies": np.array(fold_accuracies),
+                        "all_predictions":
+                            np.array(
+                                all_predictions_ml
+                            ),
 
-                    "fold_losses": np.array(fold_losses),
+                        "all_labels":
+                            np.array(
+                                all_labels_ml
+                            ),
+
+                        "fold_accuracies": np.array(fold_accuracies_ml),
+
+                        "fold_losses": np.array(fold_losses_ml),
+                    },
+
+                    # ==========================================
+                    # TEST RESULTS USING MAXIMUM ACURRACY MODEL
+                    # ==========================================
+
+                    "maximum_accuracy_model_test_results": {
+
+                        # ------------------------------------------
+                        # MELHOR MODELO PARA O MENOR CUSTO
+                        # ------------------------------------------
+
+                        "model_state_dict":
+                            model_ma.state_dict(),
+
+                        # ---------------------
+                        # RESULTADOS
+                        # ----------------------
+                        
+                        "test_loss":
+                            test_loss_ma,
+
+                        "test_accuracy":
+                            test_accuracy_ma,
+
+                        "all_predictions":
+                            np.array(
+                                all_predictions_ma
+                            ),
+
+                        "all_labels":
+                            np.array(
+                                all_labels_ma
+                            ),
+
+                        "fold_accuracies": np.array(fold_accuracies_ma),
+
+                        "fold_losses": np.array(fold_losses_ma),
+                    },
 
                 },
 
@@ -1245,59 +1403,17 @@ def space_frequency(subjects = subjects):
                 / f"space_frequency_fold_{fold}.pth"
             )
 
-
+            
         # ==========================================================
         # RESULTADOS DOS 5 FOLDS
         # ==========================================================
 
-        fold_accuracies = np.array(
-            fold_accuracies
-        )
+        print_folds_summary("minimum_loss", subject, fold_accuracies_ml, fold_losses_ml)
 
+        print_folds_summary("maximum_accuracy", subject, fold_accuracies_ma, fold_losses_ma)
 
-        fold_losses = np.array(
-            fold_losses
-        )
+        
 
-
-        print()
-        print("=" * 70)
-        print(
-            f"RESULTADO FINAL - {subject}"
-        )
-        print("=" * 70)
-
-
-        for fold, accuracy in enumerate(
-            fold_accuracies,
-            start=1
-        ):
-
-            print(
-                f"Fold {fold}: "
-                f"{accuracy:.4f}"
-            )
-
-
-        print()
-
-
-        print(
-            "Acurácia média:",
-            fold_accuracies.mean()
-        )
-
-
-        print(
-            "Desvio padrão:",
-            fold_accuracies.std()
-        )
-
-
-        print(
-            "Test Loss média:",
-            fold_losses.mean()
-        )
 
 
 # ==========================================================

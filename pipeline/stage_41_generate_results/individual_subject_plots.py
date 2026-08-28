@@ -20,7 +20,7 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
                     
         match branch:
             case "space_frequency":
-                title = "Space Frequency" 
+                title = " Space x Space x Frequency - Channel: Time" 
             case _:
                raise ValueError(f"Invalid Branch {branch}")
 
@@ -31,7 +31,7 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
        # --- 2. CRIAÇÃO DA ESTRUTURA (3 linhas,  n_folds colunas) ---
         fig, axs = plt.subplots(3, n_folds + 1, figsize=(22, 10))
 
-        fig.suptitle(f"{title} - {subject}", fontsize=12, fontweight='bold')
+        fig.suptitle(f"{title} / {subject.capitalize()}", fontsize=12, fontweight='bold')
 
         # ----------------------------------------
         # LOOP PARA CARREGAR E PLOTAR OS FOLDS
@@ -53,10 +53,10 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
             train_accuracies_epoch = checkpoint["train_accuracies_epoch"]
             val_accuracies_epoch = checkpoint["val_accuracies_epoch"]
             min_val_loss_epoch = checkpoint["min_val_loss_epoch"]
-            fold_accuracies = checkpoint["fold_accuracies"]
-            fold_losses = checkpoint["fold_losses"]
-            all_labels = checkpoint["all_labels"]
-            all_predictions = checkpoint["all_predictions"]
+            fold_accuracies = checkpoint["minimum_loss_model_test_results"]["fold_accuracies"]
+            fold_losses = checkpoint["minimum_loss_model_test_results"]["fold_losses"]
+            all_labels = checkpoint["minimum_loss_model_test_results"]["all_labels"]
+            all_predictions = checkpoint["minimum_loss_model_test_results"]["all_predictions"]
             
             epochs = range(1, len(train_losses_epoch) + 1)
             
@@ -69,7 +69,7 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
             ax_loss.plot(epochs, val_losses_epoch, color='red', label='Validation')
             
             # Adiciona a linha vertical na melhor época para o gráfico de Loss
-            ax_loss.axvline(x=min_val_loss_epoch + 1 , color='forestgreen', linestyle=':', linewidth=2, label='Best Epoch')
+            ax_loss.axvline(x=min_val_loss_epoch + 1 , color='forestgreen', linestyle=':', linewidth=2, label='Min Val Loss')
             
             ax_loss.set_title(f"Fold {fold_num} - Loss", fontsize=11, fontweight='bold')
             ax_loss.grid(True, linestyle=':', alpha=0.5)
@@ -88,7 +88,7 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
             ax_acc.plot(epochs, val_accuracies_epoch, color='red', label='Validation')
             
             # Adiciona a linha vertical na melhor época para o gráfico de Acurácia
-            ax_acc.axvline(x=min_val_loss_epoch + 1, color='forestgreen', linestyle=':', linewidth=2, label='Best Epoch')
+            ax_acc.axvline(x=min_val_loss_epoch + 1, color='forestgreen', linestyle=':', linewidth=2, label='Min Val Loss')
             
             ax_acc.set_title(f"Fold {fold_num} - Accuracy", fontsize=11, fontweight='bold')
             ax_acc.set_xlabel("Epochs")
@@ -107,8 +107,8 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
             
             val_loss_best_epoch = val_losses_epoch[min_val_loss_epoch]
             val_accuracy_best_epoch = val_accuracies_epoch[min_val_loss_epoch]
-            test_loss = checkpoint["test_loss"]
-            test_accuracy = checkpoint["test_accuracy"]
+            test_loss = checkpoint["minimum_loss_model_test_results"]["test_loss"]
+            test_accuracy = checkpoint["minimum_loss_model_test_results"]["test_accuracy"]
         
             cell_text = [
                 [str(min_val_loss_epoch + 1)],
@@ -125,13 +125,13 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
             mini_table = ax_table.table(
                 cellText=cell_text,
                 rowLabels=row_labels,
-                colLabels=["Values"],
+                colLabels=["Min Val Loss"],
                 loc='center',
                 cellLoc='center'
             )
             
             mini_table.set_fontsize(10)
-            mini_table.scale(1, 1.5)
+            mini_table.scale(1, 1.1)
 
 
         # ------------------------------------------
@@ -159,15 +159,17 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
         row_labels = [f"Fold {fold_idx+1}" for fold_idx in range(n_folds)]
         row_labels.append("Mean")
         row_labels.append("Std")
-        #row_labels = ["Fold 1","Fold 2", "Fold 3", "Fold 4", "Fold 5", "Mean", "Std" ] if fold_idx == 5 else None
 
         mini_table = ax_table.table(
         cellText=cell_text,
         rowLabels=row_labels,
-        colLabels=[f"Test Results - {subject}"],
+        colLabels=[f"Test - Min Val Loss"],
         loc='center',
         cellLoc='center'
         )
+
+        mini_table.set_fontsize(10)
+        mini_table.scale(1, 1.5)
 
         # 1. Modificar os valores numéricos (Coluna 0 do conteúdo)
         # Penúltima linha = Mean, Última linha = Std (A linha 0 é o cabeçalho)
@@ -186,7 +188,7 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
 
         # Ajusta o tamanho da fonte e escala para caber confortavelmente
         mini_table.set_fontsize(10)
-        mini_table.scale(1, 1.5)
+        mini_table.scale(1, 1)
 
         # ax_table = axs[0, 5]
         # ax_table.axis('off')
