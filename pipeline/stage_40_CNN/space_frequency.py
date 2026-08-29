@@ -21,7 +21,7 @@ from sklearn.model_selection import (
 # ==========================================================
 
 N_FOLDS = 6
-N_EPOCHS = 600
+N_EPOCHS = 50
 BATCH_SIZE = 8
 LEARNING_RATE = 0.001
 

@@ -133,25 +133,32 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
             test_accuracy_ml = checkpoint["minimum_loss_model_test_results"]["test_accuracy"]
             test_accuracy_ma = checkpoint["maximum_accuracy_model_test_results"]["test_accuracy"]
         
+            # Formata os arrays binCount para strings mais compactas sem colchetes longos
+            labels_ml_str = ",".join(map(str, np.bincount(all_labels_ml, minlength=4)))
+            labels_ma_str = ",".join(map(str, np.bincount(all_labels_ma, minlength=4)))
+            preds_ml_str = ",".join(map(str, np.bincount(all_predictions_ml, minlength=4)))
+            preds_ma_str = ",".join(map(str, np.bincount(all_predictions_ma, minlength=4)))
+
             cell_text = [
                 [str(min_val_loss_epoch + 1), str(max_val_accuracy_epoch + 1)],
                 [f"{val_loss_best_epoch_ml:.4f}", f"{val_loss_best_epoch_ma:.4f}"],
                 [f"{val_accuracy_best_epoch_ml:.4f}", f"{val_accuracy_best_epoch_ma:.4f}"],
                 [f"{test_loss_ml:.4f}", f"{test_loss_ma:.4f}"],
                 [f"{test_accuracy_ml:.4f}", f"{test_accuracy_ma:.4f}"],
-                [np.bincount(all_labels_ml, minlength=4), np.bincount(all_labels_ma, minlength=4)],
-                [np.bincount(all_predictions_ml, minlength=4), np.bincount(all_predictions_ma, minlength=4),],
+                [labels_ml_str, labels_ma_str],
+                [preds_ml_str, preds_ma_str],
             ]
             
             row_labels = ["Best Epoch", "Val Loss", "Val Acc", "Test Loss", "Test Acc", "Test Labels", "Test Predictions"] if fold_idx == 0 else None
             
+            # ATENÇÃO: Adicionado colWidths=[0.35, 0.35] para travar o tamanho horizontal de todas as colunas
             mini_table = ax_table.table(
                 cellText=cell_text,
                 rowLabels=row_labels,
                 colLabels=[f"Min\nVal Loss", "Max\nVal Acc"],  
                 loc='center',
                 cellLoc='center',
-                colWidths=[0.45, 0.45] #colWidths para travar o tamanho horizontal de todas as colunas
+                colWidths=[0.35, 0.35] 
             )
             
             # Desativa o auto-ajuste de fonte automático que o Matplotlib faz quando o texto é muito grande
@@ -167,6 +174,7 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
             if fold_idx > 0:
                 # Remove espaços fantasmas que empurram tabelas sem rótulos laterais
                 mini_table.scale(1.0, 1.0) 
+
 
 
 
@@ -208,20 +216,14 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
         rowLabels=row_labels,
         colLabels=[f"Min\nVal Loss", "Max\nVal Acc"],  
         loc='center',
-        cellLoc='center',
-        colWidths=[0.45, 0.45] 
+        cellLoc='center'
     )
-
-    # Desativa o auto-ajuste de fonte automático que o Matplotlib faz quando o texto é muito grande
-    mini_table.auto_set_font_size(False)
-    mini_table.set_fontsize(9) # Tamanho fixo legível para os subplots de tamanho 22x10
-    mini_table.scale(1.0, 1.4) 
 
    
 
-    # # Configurações de fonte e escala iniciais
-    # mini_table.set_fontsize(10)
-    # mini_table.scale(1, 1.3) 
+    # Configurações de fonte e escala iniciais
+    mini_table.set_fontsize(10)
+    mini_table.scale(1, 1.3) 
 
     num_rows = len(cell_text)
 
@@ -252,10 +254,7 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
     # IMPORTANTE: Remova a segunda chamada de mini_table.scale(1, 1) que estava no final, 
     # pois ela desfazia a escala vertical de 1.2 que você aplicou antes.
 
-    # fig.subplots_adjust(top=0.94, bottom=0.05, left=0.08, right=0.95, hspace=0.4, wspace=0.3)
     plt.tight_layout()
-    # fig.subplots_adjust( left=0.08)
-
     plt.show()
 
 
