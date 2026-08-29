@@ -21,7 +21,7 @@ from sklearn.model_selection import (
 # ==========================================================
 
 N_FOLDS = 6
-N_EPOCHS = 50
+N_EPOCHS = 60
 BATCH_SIZE = 8
 LEARNING_RATE = 0.001
 
@@ -1269,6 +1269,19 @@ def space_frequency(subjects = subjects):
                         fold,
 
                     # ------------------------------------------
+                    # NÚMERO DE AMOSTRAS DO FOLD
+                    #-------------------------------------------
+
+                    "total_training_samples": len(train_indices),
+
+                    "total_validation_samples": len(val_indices),
+
+                    "total_test_samples":  len(test_indices),
+
+                    "total_samples":  len(X),
+
+
+                    # ------------------------------------------
                     # NORMALIZAÇÃO
                     # ------------------------------------------
 
@@ -1422,4 +1435,4 @@ def space_frequency(subjects = subjects):
 
 if __name__ == "__main__":
 
-    space_frequency(subjects=["sub-02"])
+    space_frequency(subjects=["sub-01"])

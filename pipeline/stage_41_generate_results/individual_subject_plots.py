@@ -10,6 +10,9 @@ PROJECT_ROOT = current_file.parents[2]  # Mantido o seu padrão original
 
 INPUT_DIR = PROJECT_ROOT / "processed_data" / "stage_40_cnn"
 
+FOLDS_DIR = INPUT_DIR / "folds"
+
+
 subjects = [f"sub-{i:02d}" for i in range(1, 11)]
 
 def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
@@ -33,9 +36,9 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
 
         fig.suptitle(f"{title} / {subject.capitalize()}", fontsize=12, fontweight='bold')
 
-        # ----------------------------------------
+        # ========================================
         # LOOP PARA CARREGAR E PLOTAR OS FOLDS
-        # ----------------------------------------
+        # ========================================
 
         for fold_idx in range(n_folds):
             fold_num = fold_idx + 1
@@ -91,7 +94,7 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
             
             if fold_idx == 0:
                 ax_loss.set_ylabel("Loss", fontsize=12)
-                ax_loss.legend(loc='upper left')
+                ax_loss.legend(loc='best')
 
             # -------------------------------------------
             # PLOT DA LINHA DO MEIO: ACURÁCIA (Linha 1)
@@ -102,7 +105,7 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
             ax_acc.plot(epochs, val_accuracies_epoch, color='royalblue', label='Validation')
             
             # Adiciona a linha vertical na melhor época para o gráfico de Acurácia
-            ax_acc.axvline(x=min_val_loss_epoch + 1, color='forestgreen', linestyle=':', linewidth=2, label='Max Val Acc')
+            ax_acc.axvline(x=min_val_loss_epoch + 1, color='forestgreen', linestyle=':', linewidth=2, label='Min Val Loss')
             ax_acc.axvline(x=max_val_accuracy_epoch + 1 , color='violet', linestyle=':', linewidth=2, label='Max Val Acc')
 
             
@@ -112,11 +115,11 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
             
             if fold_idx == 0:
                 ax_acc.set_ylabel("Accuracy", fontsize=12)
-                ax_acc.legend(loc='upper left') 
+                ax_acc.legend(loc='best') 
 
-            # ---------------------------------------------------
+            # ===================================================
             # CONSTRUÇÃO DA MINI-TABELA INDIVIDUAL: (Linha 2)
-            # ---------------------------------------------------
+            # ===================================================
 
             ax_table = axs[2, fold_idx]
             ax_table.axis('off')
@@ -169,97 +172,156 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
                 mini_table.scale(1.0, 1.0) 
 
 
+        # ==========================================
+        #  TABELA DE RESULTADO FINAL DE TESTE
+        # ==========================================
+
+        file_name = fold_files[-1]
+
+        ax_table = axs[2, n_folds]
+        ax_table.axis('off')
+        cell_text = []
+
+        # 1. Adicione o segundo valor dentro dos colchetes para cada Fold
+        cell_text = [ 
+            [f"{fold_accuracies_ml[fold_idx]:.4f}", f"{fold_accuracies_ma[fold_idx]:.4f}"] 
+            for fold_idx in range(n_folds)
+        ]
+
+        fold_accuracies_mean_ml = f"{fold_accuracies_ml.mean():.4f}"
+        fold_accuracies_std_ml = f"{fold_accuracies_ml.std():.4f}"
+
+        # Suas novas métricas de média e desvio padrão para a nova coluna
+        fold_accuracies_mean_ma = f"{fold_accuracies_ma.mean():.4f}"
+        fold_accuracies_std_ma = f"{fold_accuracies_ma.std():.4f}"
+
+        # 2. Adicione os valores correspondentes para as linhas Mean e Std
+        cell_text.append([fold_accuracies_mean_ml, fold_accuracies_mean_ma])
+        cell_text.append([fold_accuracies_std_ml, fold_accuracies_std_ma])
+
+        row_labels = [f"Fold {fold_idx+1}" for fold_idx in range(n_folds)]
+        row_labels.append("Mean")
+        row_labels.append("Std")
+
+        # 3. Adicione o nome da nova coluna na lista colLabels
+        mini_table = ax_table.table(
+            cellText=cell_text,
+            rowLabels=row_labels,
+            colLabels=[f"Min\nVal Loss", "Max\nVal Acc"],  
+            loc='center',
+            cellLoc='center',
+            colWidths=[0.45, 0.45] 
+        )
+
+        # Desativa o auto-ajuste de fonte automático que o Matplotlib faz quando o texto é muito grande
+        mini_table.auto_set_font_size(False)
+        mini_table.set_fontsize(9) # Tamanho fixo legível para os subplots de tamanho 22x10
+        mini_table.scale(1.0, 1.4) 
+
+        num_rows = len(cell_text)
+
+        # ---------------------------------------------------------
+        # CORREÇÃO PARA OS CABEÇALHOS (colLabels) NÃO FICAREM ESPREMIDOS
+        # ---------------------------------------------------------
+        # Aumenta especificamente a altura das células da linha do cabeçalho (linha 0)
+        for col_idx in range(2): # 2 é o número de colunas de dados
+            mini_table[0, col_idx].set_height(0.15) # Ajuste este valor se precisar de mais espaço
+
+        # Estilizando a Coluna 0 (Antiga) - Ajustado os índices de linha
+        # O Matplotlib Table usa indexação baseada em (linha, coluna) considerando o cabeçalho
+        mini_table[num_rows-1, 0].get_text().set_weight('bold')
+        mini_table[num_rows, 0].get_text().set_weight('bold')
+        mini_table[num_rows-1, 0].set_facecolor('#e6f2ff')
+        mini_table[num_rows, 0].set_facecolor('#e6f2ff')
+
+        # Estilizando a Coluna 1 (Nova Coluna)
+        mini_table[num_rows-1, 1].get_text().set_weight('bold')
+        mini_table[num_rows, 1].get_text().set_weight('bold')
+        mini_table[num_rows-1, 1].set_facecolor('#e6f2ff')
+        mini_table[num_rows, 1].set_facecolor('#e6f2ff')
+
+        # Modificar os rótulos laterais (Row Labels na Coluna -1)
+        mini_table[num_rows-1, -1].get_text().set_weight('bold')
+        mini_table[num_rows, -1].get_text().set_weight('bold')
 
 
-    # ------------------------------------------
-    #  TABELA DE RESULTADO FINAL DE TESTE
-    # ------------------------------------------
+        # ==========================================
+        #  TABELA DE NÚMERO DE AMOSTRAS POR FOLD
+        # ==========================================
 
-    file_name = fold_files[-1]
+        ax_table = axs[1, n_folds]
+        ax_table.axis('off')
+        cell_text = []
 
-    ax_table = axs[2, n_folds]
-    ax_table.axis('off')
-    cell_text = []
+        n_training_samples = np.array([])
+        n_validation_samples = np.array([])
+        n_test_samples = np.array([])
+        n_total_samples = np.array([])
 
-    # 1. Adicione o segundo valor dentro dos colchetes para cada Fold
-    cell_text = [ 
-        [f"{fold_accuracies_ml[fold_idx]:.4f}", f"{fold_accuracies_ma[fold_idx]:.4f}"] 
-        for fold_idx in range(n_folds)
-    ]
+        for fold in range(1, n_folds + 1):
 
-    fold_accuracies_mean_ml = f"{fold_accuracies_ml.mean():.4f}"
-    fold_accuracies_std_ml = f"{fold_accuracies_ml.std():.4f}"
+            fold_data = np.load(
+                FOLDS_DIR / subject /  f"fold_{fold}.npz"
+            )
 
-    # Suas novas métricas de média e desvio padrão para a nova coluna
-    fold_accuracies_mean_ma = f"{fold_accuracies_ma.mean():.4f}"
-    fold_accuracies_std_ma = f"{fold_accuracies_ma.std():.4f}"
+            n_training_samples = np.append(n_training_samples, len(fold_data["train_indices"]))
+            n_validation_samples = np.append(n_validation_samples, len(fold_data["val_indices"]))
+            n_test_samples = np.append(n_test_samples, len(fold_data["test_indices"]))
 
-    # 2. Adicione os valores correspondentes para as linhas Mean e Std
-    cell_text.append([fold_accuracies_mean_ml, fold_accuracies_mean_ma])
-    cell_text.append([fold_accuracies_std_ml, fold_accuracies_std_ma])
+        n_total_samples = np.sum([n_training_samples, n_validation_samples, n_test_samples], axis=0)
 
-    row_labels = [f"Fold {fold_idx+1}" for fold_idx in range(n_folds)]
-    row_labels.append("Mean")
-    row_labels.append("Std")
+        cell_text = [ 
+            [f"{n_training_samples[fold_idx]:.0f}", f"{n_validation_samples[fold_idx]:.0f}", f"{n_test_samples[fold_idx]:.0f}", f"{n_total_samples[fold_idx]:.0f}",  ] 
+            for fold_idx in range(n_folds)
+        ]
 
-    # 3. Adicione o nome da nova coluna na lista colLabels
-    mini_table = ax_table.table(
-        cellText=cell_text,
-        rowLabels=row_labels,
-        colLabels=[f"Min\nVal Loss", "Max\nVal Acc"],  
-        loc='center',
-        cellLoc='center',
-        colWidths=[0.45, 0.45] 
-    )
+        # fold_accuracies_mean_ml = f"{fold_accuracies_ml.mean():.4f}"
+        # fold_accuracies_std_ml = f"{fold_accuracies_ml.std():.4f}"
 
-    # Desativa o auto-ajuste de fonte automático que o Matplotlib faz quando o texto é muito grande
-    mini_table.auto_set_font_size(False)
-    mini_table.set_fontsize(9) # Tamanho fixo legível para os subplots de tamanho 22x10
-    mini_table.scale(1.0, 1.4) 
+        # # Suas novas métricas de média e desvio padrão para a nova coluna
+        # fold_accuracies_mean_ma = f"{fold_accuracies_ma.mean():.4f}"
+        # fold_accuracies_std_ma = f"{fold_accuracies_ma.std():.4f}"
 
-   
+        # # 2. Adicione os valores correspondentes para as linhas Mean e Std
+        # cell_text.append([fold_accuracies_mean_ml, fold_accuracies_mean_ma])
+        # cell_text.append([fold_accuracies_std_ml, fold_accuracies_std_ma])
 
-    # # Configurações de fonte e escala iniciais
-    # mini_table.set_fontsize(10)
-    # mini_table.scale(1, 1.3) 
+        row_labels = [f"Fold {fold_idx+1}" for fold_idx in range(n_folds)]
+        # row_labels.append("Mean")
+        # row_labels.append("Std")
 
-    num_rows = len(cell_text)
+        # 3. Adicione o nome da nova coluna na lista colLabels
+        mini_table = ax_table.table(
+            cellText=cell_text,
+            rowLabels=row_labels,
+            colLabels=[f"Train", "Val", "Test", "Total"],  
+            loc='center',
+            cellLoc='center',
+            colWidths=[0.24, 0.24, 0.24, 0.24] 
+        )
 
-    # ---------------------------------------------------------
-    # CORREÇÃO PARA OS CABEÇALHOS (colLabels) NÃO FICAREM ESPREMIDOS
-    # ---------------------------------------------------------
-    # Aumenta especificamente a altura das células da linha do cabeçalho (linha 0)
-    for col_idx in range(2): # 2 é o número de colunas de dados
-        mini_table[0, col_idx].set_height(0.15) # Ajuste este valor se precisar de mais espaço
+            # Desativa o auto-ajuste de fonte automático que o Matplotlib faz quando o texto é muito grande
+        mini_table.auto_set_font_size(False)
+        mini_table.set_fontsize(9) # Tamanho fixo legível para os subplots de tamanho 22x10
+        mini_table.scale(1.0, 1.4) 
 
-    # Estilizando a Coluna 0 (Antiga) - Ajustado os índices de linha
-    # O Matplotlib Table usa indexação baseada em (linha, coluna) considerando o cabeçalho
-    mini_table[num_rows-1, 0].get_text().set_weight('bold')
-    mini_table[num_rows, 0].get_text().set_weight('bold')
-    mini_table[num_rows-1, 0].set_facecolor('#e6f2ff')
-    mini_table[num_rows, 0].set_facecolor('#e6f2ff')
+        num_rows = len(cell_text)
 
-    # Estilizando a Coluna 1 (Nova Coluna)
-    mini_table[num_rows-1, 1].get_text().set_weight('bold')
-    mini_table[num_rows, 1].get_text().set_weight('bold')
-    mini_table[num_rows-1, 1].set_facecolor('#e6f2ff')
-    mini_table[num_rows, 1].set_facecolor('#e6f2ff')
+        # ---------------------------------------------------------
+        # CORREÇÃO PARA OS CABEÇALHOS (colLabels) NÃO FICAREM ESPREMIDOS
+        # ---------------------------------------------------------
+        # Aumenta especificamente a altura das células da linha do cabeçalho (linha 0)
+        for col_idx in range(4): # 2 é o número de colunas de dados
+            mini_table[0, col_idx].set_height(0.15) # Ajuste este valor se precisar de mais espaço
 
-    # Modificar os rótulos laterais (Row Labels na Coluna -1)
-    mini_table[num_rows-1, -1].get_text().set_weight('bold')
-    mini_table[num_rows, -1].get_text().set_weight('bold')
 
-    # IMPORTANTE: Remova a segunda chamada de mini_table.scale(1, 1) que estava no final, 
-    # pois ela desfazia a escala vertical de 1.2 que você aplicou antes.
+        # fig.subplots_adjust(top=0.94, bottom=0.05, left=0.08, right=0.95, hspace=0.4, wspace=0.3)
+        plt.tight_layout()
 
-    # fig.subplots_adjust(top=0.94, bottom=0.05, left=0.08, right=0.95, hspace=0.4, wspace=0.3)
-    plt.tight_layout()
-    # fig.subplots_adjust( left=0.08)
-
-    plt.show()
+        plt.show()
 
 
 
 if __name__ == "__main__":
 
-    individual_subject_plots(branch="space_frequency", subjects=["sub-02",])
+    individual_subject_plots(branch="space_frequency", subjects=["sub-01",])

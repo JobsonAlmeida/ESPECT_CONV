@@ -121,6 +121,7 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
             ax_table = axs[2, fold_idx]
             ax_table.axis('off')
 
+           
             val_loss_best_epoch_ml = val_losses_epoch[min_val_loss_epoch]
             val_loss_best_epoch_ma = val_losses_epoch[max_val_accuracy_epoch]
 
@@ -130,50 +131,40 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
             test_loss_ml = checkpoint["minimum_loss_model_test_results"]["test_loss"]
             test_loss_ma = checkpoint["maximum_accuracy_model_test_results"]["test_loss"]
 
+
             test_accuracy_ml = checkpoint["minimum_loss_model_test_results"]["test_accuracy"]
             test_accuracy_ma = checkpoint["maximum_accuracy_model_test_results"]["test_accuracy"]
         
-            # Formata os arrays binCount para strings mais compactas sem colchetes longos
-            labels_ml_str = ",".join(map(str, np.bincount(all_labels_ml, minlength=4)))
-            labels_ma_str = ",".join(map(str, np.bincount(all_labels_ma, minlength=4)))
-            preds_ml_str = ",".join(map(str, np.bincount(all_predictions_ml, minlength=4)))
-            preds_ma_str = ",".join(map(str, np.bincount(all_predictions_ma, minlength=4)))
-
             cell_text = [
                 [str(min_val_loss_epoch + 1), str(max_val_accuracy_epoch + 1)],
-                [f"{val_loss_best_epoch_ml:.4f}", f"{val_loss_best_epoch_ma:.4f}"],
+                [f"{val_loss_best_epoch_ml:.4f}", f"{val_loss_best_epoch_ma:.4f}", ],
                 [f"{val_accuracy_best_epoch_ml:.4f}", f"{val_accuracy_best_epoch_ma:.4f}"],
                 [f"{test_loss_ml:.4f}", f"{test_loss_ma:.4f}"],
                 [f"{test_accuracy_ml:.4f}", f"{test_accuracy_ma:.4f}"],
-                [labels_ml_str, labels_ma_str],
-                [preds_ml_str, preds_ma_str],
+                [np.bincount(all_labels_ml, minlength=4), np.bincount(all_labels_ma, minlength=4)],
+                [np.bincount(all_predictions_ml, minlength=4), np.bincount(all_predictions_ma, minlength=4),],
             ]
             
             row_labels = ["Best Epoch", "Val Loss", "Val Acc", "Test Loss", "Test Acc", "Test Labels", "Test Predictions"] if fold_idx == 0 else None
             
-            # ATENÇÃO: Adicionado colWidths=[0.35, 0.35] para travar o tamanho horizontal de todas as colunas
             mini_table = ax_table.table(
                 cellText=cell_text,
                 rowLabels=row_labels,
                 colLabels=[f"Min\nVal Loss", "Max\nVal Acc"],  
                 loc='center',
-                cellLoc='center',
-                colWidths=[0.35, 0.35] 
+                cellLoc='center'
             )
             
-            # Desativa o auto-ajuste de fonte automático que o Matplotlib faz quando o texto é muito grande
-            mini_table.auto_set_font_size(False)
-            mini_table.set_fontsize(9) # Tamanho fixo legível para os subplots de tamanho 22x10
-            mini_table.scale(1.0, 1.4) 
+            # Configurações de fonte e escala iniciais
+            mini_table.set_fontsize(10)
+            mini_table.scale(1.0, 1.) 
 
-            # Ajusta especificamente a altura das células do cabeçalho
-            for col_idx in range(2):
-                mini_table[0, col_idx].set_height(0.18)
-
-            # Se não for o primeiro Fold, ajusta o alinhamento para compensar a falta de Row Labels
-            if fold_idx > 0:
-                # Remove espaços fantasmas que empurram tabelas sem rótulos laterais
-                mini_table.scale(1.0, 1.0) 
+            # ---------------------------------------------------------
+            # CORREÇÃO PARA OS CABEÇALHOS (colLabels) NÃO FICAREM ESPREMIDOS
+            # ---------------------------------------------------------
+            # Aumenta especificamente a altura das células da linha do cabeçalho (linha 0)
+            for col_idx in range(2): # 2 é o número de colunas de dados
+                mini_table[0, col_idx].set_height(0.15) # Ajuste este valor se precisar de mais espaço
 
 
 
