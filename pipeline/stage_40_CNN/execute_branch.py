@@ -25,11 +25,11 @@ from tools import save_summary_as_pdf
 # ==========================================================
 
 N_FOLDS = 6
-N_EPOCHS = 60
+N_EPOCHS = 600
 BATCH_SIZE = 8
 LEARNING_RATE = 0.001
 
-# 20% dos 80% de desenvolvimento serão validação
+# Percentual de desenvolvimento que serão de validação
 VALIDATION_SIZE = 0.20
 
 RANDOM_STATE = 42
@@ -1472,4 +1472,4 @@ def execute_branch(
 
 if __name__ == "__main__":
 
-    execute_branch(branch = "space1_space2_frequency_time" , subjects=["sub-01"])
+    execute_branch(branch = "space1_space2_frequency_time")

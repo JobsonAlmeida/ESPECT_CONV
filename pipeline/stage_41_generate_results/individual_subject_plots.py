@@ -10,25 +10,32 @@ PROJECT_ROOT = current_file.parents[2]  # Mantido o seu padrão original
 
 INPUT_DIR = PROJECT_ROOT / "processed_data" / "stage_40_cnn"
 
+OUTPUT_DIR = (PROJECT_ROOT / "processed_data" / "stage_41_generate_results" / "individual_plots")
+
+OUTPUT_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
 FOLDS_DIR = INPUT_DIR / "folds"
 
 
 subjects = [f"sub-{i:02d}" for i in range(1, 11)]
 
-def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
+def individual_subject_plots(branch = "space1_space2_frequency_time", subjects = subjects ):
 
     for subject in subjects:
 
-        MODEL_DIR = INPUT_DIR / f"{branch}_models" / f"{subject}"
+        MODEL_DIR = INPUT_DIR / f"{branch}_branch" / f"{subject}"
                     
         match branch:
-            case "space_frequency":
+            case "space1_space2_frequency_time":
                 title = " Space x Space x Frequency - Channel: Time" 
             case _:
                raise ValueError(f"Invalid Branch {branch}")
 
 
-        fold_files = sorted(MODEL_DIR.glob("space_frequency_fold_*.pth"))
+        fold_files = sorted(MODEL_DIR.glob("space1_space2_frequency_time_fold_*.pth"))
         n_folds = len(fold_files)
 
        # --- 2. CRIAÇÃO DA ESTRUTURA (3 linhas,  n_folds colunas) ---
@@ -317,11 +324,11 @@ def individual_subject_plots(branch = "space_frequency", subjects = subjects ):
 
         # fig.subplots_adjust(top=0.94, bottom=0.05, left=0.08, right=0.95, hspace=0.4, wspace=0.3)
         plt.tight_layout()
-
+        plt.savefig(OUTPUT_DIR / f"{subject}.svg", bbox_inches='tight')
         plt.show()
 
 
 
 if __name__ == "__main__":
 
-    individual_subject_plots(branch="space_frequency", subjects=["sub-01",])
+    individual_subject_plots(branch="space1_space2_frequency_time")
