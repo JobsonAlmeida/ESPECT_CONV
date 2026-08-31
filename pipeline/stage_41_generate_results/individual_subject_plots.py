@@ -10,7 +10,7 @@ PROJECT_ROOT = current_file.parents[2]  # Mantido o seu padrão original
 
 INPUT_DIR = PROJECT_ROOT / "processed_data" / "stage_40_cnn"
 
-OUTPUT_DIR = (PROJECT_ROOT / "processed_data" / "stage_41_generate_results" / "individual_plots")
+OUTPUT_DIR = INPUT_DIR
 
 OUTPUT_DIR.mkdir(
     parents=True,
@@ -27,6 +27,7 @@ def individual_subject_plots(branch = "space1_space2_frequency_time", subjects =
     for subject in subjects:
 
         MODEL_DIR = INPUT_DIR / f"{branch}_branch" / f"{subject}"
+
                     
         match branch:
             case "space1_space2_frequency_time":
@@ -321,14 +322,31 @@ def individual_subject_plots(branch = "space1_space2_frequency_time", subjects =
         for col_idx in range(4): # 2 é o número de colunas de dados
             mini_table[0, col_idx].set_height(0.15) # Ajuste este valor se precisar de mais espaço
 
+        # ==========================================
+        # TABELA EXTRA
+        # ==========================================
+        
+        ax_table = axs[0, n_folds]
+        ax_table.axis('off')
 
+        # ==========================================
+        # SALVANDO OS DADOS
+        # ===========================================
         # fig.subplots_adjust(top=0.94, bottom=0.05, left=0.08, right=0.95, hspace=0.4, wspace=0.3)
         plt.tight_layout()
-        plt.savefig(OUTPUT_DIR / f"{subject}.svg", bbox_inches='tight')
+
+        SAVE_FIG = OUTPUT_DIR / f"{branch}_branch" / f"{subject}"
+
+        SAVE_FIG.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        plt.savefig(SAVE_FIG / f"{branch}_{subject}.svg" , bbox_inches='tight')
         plt.show()
 
 
 
 if __name__ == "__main__":
 
-    individual_subject_plots(branch="space1_space2_frequency_time")
+    individual_subject_plots(branch="space1_space2_frequency_time" , subjects=["sub-01"])

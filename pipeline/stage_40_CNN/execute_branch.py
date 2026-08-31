@@ -25,7 +25,7 @@ from tools import save_summary_as_pdf
 # ==========================================================
 
 N_FOLDS = 6
-N_EPOCHS = 600
+N_EPOCHS = 50
 BATCH_SIZE = 8
 LEARNING_RATE = 0.001
 
@@ -59,56 +59,52 @@ OUTPUT_DIR = (
 # ==========================================================
 class SpaceSpaceFrequencyTimeCNN(nn.Module):
 
-
    def __init__(self):
 
 
-       super().__init__()
+        super().__init__()
 
        # (batch, 9, 65, 21, 21)
 
-       self.conv1 = nn.Conv3d(
+        self.conv1 = nn.Conv3d(
            in_channels=9,
-           out_channels=8,
+           out_channels=6,
            kernel_size=3,
            padding=1
-       )
-       # (batch, 8, 65, 21, 21)
+        )
+        # (batch, 6, 65, 21, 21)
 
 
-       self.relu1 = nn.ReLU()
+        self.relu1 = nn.ReLU()
 
 
-       self.pool1 = nn.MaxPool3d(
+        self.pool1 = nn.MaxPool3d(
            kernel_size=(2, 2, 2)
-       )
-       # (batch, 8, 32, 10, 10)
+        )
+        # (batch, 6, 32, 10, 10)
 
 
-       self.conv2 = nn.Conv3d(
-           in_channels=8,
+        self.conv2 = nn.Conv3d(
+           in_channels=6,
            out_channels=4,
            kernel_size=3,
            padding=1
-       )
-       # (batch, 4, 32, 10, 10)
+         )
+        # (batch, 4, 32, 10, 10)
 
-       self.relu2 = nn.ReLU()
+        self.relu2 = nn.ReLU()
 
-
-       self.pool2 = nn.MaxPool3d(
+        self.pool2 = nn.MaxPool3d(
            kernel_size=(2, 2, 2)
-       )
-       # (batch, 4, 16, 5, 5)
+        )
+        # (batch, 4, 16, 5, 5)
 
+        self.flatten = nn.Flatten()
 
-       self.flatten = nn.Flatten()
-
-
-       self.classifier = nn.Linear(
+        self.classifier = nn.Linear(
            4 * 16 * 5 * 5,
            4
-       )
+        )
 
 
 
@@ -116,20 +112,20 @@ class SpaceSpaceFrequencyTimeCNN(nn.Module):
    def extract_features(self, x):
 
 
-       x = self.conv1(x)
-       x = self.relu1(x)
-       x = self.pool1(x)
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
 
 
-       x = self.conv2(x)
-       x = self.relu2(x)
-       x = self.pool2(x)
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
 
 
-       x = self.flatten(x)
+        x = self.flatten(x)
 
 
-       return x
+        return x
 
 
 
@@ -651,11 +647,11 @@ def execute_branch(
         # ==========================================================
         print("=== Verificando Estrutura da Rede ===")
         modelo_validador = SpaceSpaceFrequencyTimeCNN().to(device)
-        model_stats = summary(modelo_validador, input_size=(1, 9, 65, 21, 21), device=device, verbose=0)
-        save_summary_as_pdf(branch , model_stats, save_path= MODEL_DIR)
+        #model_stats = summary(modelo_validador, input_size=(1, 9, 65, 21, 21), device=device, verbose=0)
+        #save_summary_as_pdf(branch , model_stats, save_path= MODEL_DIR)
 
         # Chama a função para gerar a imagem
-        print(model_stats)
+        #print(model_stats)
 
         # Deleta a instância temporária para liberar memória da GPU imediatamente
         del modelo_validador 
@@ -1472,4 +1468,4 @@ def execute_branch(
 
 if __name__ == "__main__":
 
-    execute_branch(branch = "space1_space2_frequency_time")
+    execute_branch(branch = "space1_space2_frequency_time", subjects = ["sub-01"])
