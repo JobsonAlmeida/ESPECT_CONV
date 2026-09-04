@@ -490,12 +490,9 @@ def execute_branch(
             exist_ok=True
         )
 
-
         # ======================================================
         # REORGANIZAR AS DIMENSÕES
         # ======================================================
-
-
 
         match branch:
 
@@ -647,8 +644,8 @@ def execute_branch(
         # ==========================================================
         print("=== Verificando Estrutura da Rede ===")
         modelo_validador = SpaceSpaceFrequencyTimeCNN().to(device)
-        #model_stats = summary(modelo_validador, input_size=(1, 9, 65, 21, 21), device=device, verbose=0)
-        #save_summary_as_pdf(branch , model_stats, save_path= MODEL_DIR)
+        model_stats = summary(modelo_validador, input_size=(1, 9, 65, 21, 21), device=device, verbose=0)
+        save_summary_as_pdf(branch , model_stats, save_path= MODEL_DIR)
 
         # Chama a função para gerar a imagem
         #print(model_stats)
@@ -661,16 +658,7 @@ def execute_branch(
         # LOOP DOS 5 FOLDS
         # ======================================================
 
-        for fold, (
-            development_indices,
-            test_indices
-        ) in enumerate(
-            skf.split(
-                X,
-                labels
-            ),
-            start=1
-        ):
+        for fold, (development_indices, test_indices ) in enumerate( skf.split( X, labels), start=1 ):
 
 
             print()
