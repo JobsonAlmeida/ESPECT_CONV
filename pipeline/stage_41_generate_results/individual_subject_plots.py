@@ -43,13 +43,23 @@ def individual_subject_plots(branch = "space1_space2_frequency_time", subjects =
         match branch:
             case "space1_space2_frequency_time":
 
-                title = " Space x Space x Frequency - Channel: Time" 
+                title = " Space1 x Space2 x Frequency - Channel: Time" 
                 fold_files = sorted(MODEL_DIR.glob("space1_space2_frequency_time_fold_*.pth"))
 
             case "space1_space2_time_frequency":
 
-                title = " Space x Space x Time - Channel: Frequency " 
+                title = " Space1 x Space2 x Time - Channel: Frequency" 
                 fold_files = sorted(MODEL_DIR.glob("space1_space2_time_frequency_fold_*.pth"))
+
+            case "time_frequency_space2_space1":
+        
+                title = " Time x Frequency x Space2 - Channel: Space1" 
+                fold_files = sorted(MODEL_DIR.glob("time_frequency_space2_space1_fold_*.pth"))
+
+            case "time_frequency_space1_space2":
+        
+                title = " Time x Frequency x Space1 - Channel: Space2" 
+                fold_files = sorted(MODEL_DIR.glob("time_frequency_space1_space2_fold_*.pth"))
 
             case _:
                raise ValueError(f"Invalid Branch {branch}")

@@ -73,7 +73,7 @@ OUTPUT_DIR = (
 # ==========================================================
 # DEFINIR A REDE
 # ==========================================================
-class SpaceSpaceFrequencyTimeCNN(nn.Module):
+class Space1Space2FrequencyTimeCNN(nn.Module):
 
    def __init__(self):
 
@@ -169,7 +169,7 @@ class SpaceSpaceFrequencyTimeCNN(nn.Module):
 
 
 
-class SpaceSpaceTimeFrequencyCNN(nn.Module):
+class Space1Space2TimeFrequencyCNN(nn.Module):
 
    def __init__(self):
 
@@ -263,7 +263,202 @@ class SpaceSpaceTimeFrequencyCNN(nn.Module):
 
        return x
 
-   
+
+
+class TimeFrequencySpace2Space1CNN(nn.Module):
+
+   def __init__(self):
+
+
+        super().__init__()
+
+       # (batch, 21, 21, 65, 9)
+
+        self.conv1 = nn.Conv3d(
+           in_channels=21,
+           out_channels=10,
+           kernel_size=3,
+           padding=1
+        )
+        # (batch, 10, 21, 65, 9)
+
+
+        self.relu1 = nn.ReLU()
+
+
+        self.pool1 = nn.MaxPool3d(
+           kernel_size=(2, 2, 2)
+        )
+        # (batch, 10, 10, 32, 4)
+
+
+        self.conv2 = nn.Conv3d(
+           in_channels=10,
+           out_channels=5,
+           kernel_size=3,
+           padding=1
+         )
+        # (batch, 5, 10, 32, 4)
+
+        self.relu2 = nn.ReLU()
+
+        self.pool2 = nn.MaxPool3d(
+           kernel_size=(2, 2, 2)
+        )
+        # (batch, 5, 5, 16, 2)
+
+        self.flatten = nn.Flatten()
+
+        self.classifier = nn.Linear(
+            5 * 5 * 16 * 2,
+            4
+        )
+
+
+
+
+   def extract_features(self, x):
+
+
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+
+
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+
+
+        x = self.flatten(x)
+
+
+        return x
+
+
+
+
+   def forward(self, x):
+
+
+       x = self.conv1(x)
+       x = self.relu1(x)
+       x = self.pool1(x)
+
+
+       x = self.conv2(x)
+       x = self.relu2(x)
+       x = self.pool2(x)
+
+
+       x = self.flatten(x)
+
+
+       x = self.classifier(x)
+
+
+       return x
+
+
+
+class TimeFrequencySpace1Space2CNN(nn.Module):
+
+   def __init__(self):
+
+
+        super().__init__()
+
+       # (batch, 21, 21, 65, 9)
+
+        self.conv1 = nn.Conv3d(
+           in_channels=21,
+           out_channels=10,
+           kernel_size=3,
+           padding=1
+        )
+        # (batch, 10, 21, 65, 9)
+
+
+        self.relu1 = nn.ReLU()
+
+
+        self.pool1 = nn.MaxPool3d(
+           kernel_size=(2, 2, 2)
+        )
+        # (batch, 10, 10, 32, 4)
+
+
+        self.conv2 = nn.Conv3d(
+           in_channels=10,
+           out_channels=5,
+           kernel_size=3,
+           padding=1
+         )
+        # (batch, 5, 10, 32, 4)
+
+        self.relu2 = nn.ReLU()
+
+        self.pool2 = nn.MaxPool3d(
+           kernel_size=(2, 2, 2)
+        )
+        # (batch, 5, 5, 16, 2)
+
+        self.flatten = nn.Flatten()
+
+        self.classifier = nn.Linear(
+            5 * 5 * 16 * 2,
+            4
+        )
+
+
+
+
+   def extract_features(self, x):
+
+
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+
+
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+
+
+        x = self.flatten(x)
+
+
+        return x
+
+
+
+
+   def forward(self, x):
+
+
+       x = self.conv1(x)
+       x = self.relu1(x)
+       x = self.pool1(x)
+
+
+       x = self.conv2(x)
+       x = self.relu2(x)
+       x = self.pool2(x)
+
+
+       x = self.flatten(x)
+
+
+       x = self.classifier(x)
+
+
+       return x
+
+
+
+
+
 def test_model(model, model_state_dict, test_loader, device, criterion, fold_accuracies, fold_losses):
 
     # ==================================================
@@ -611,9 +806,15 @@ def execute_branch(
             case "space1_space2_frequency_time":
 
                 # Before:
-                # (epoch, row, column, frequency, time)
+                # (epoch, row (pos_y /space_2), column (pos_x / space_1), frequency, time)
+
                 # After:
-                # (epoch, time, frequency, row, column)
+                # N = Number → número de amostras no batch
+                # C = Channels → número de canais
+                # D = Depth → profundidade
+                # H = Height → altura
+                # W = Width → largura
+                # (epoch, time, frequency, space2, space1)
 
                 power_array = np.transpose(
                             power_array,
@@ -623,19 +824,57 @@ def execute_branch(
             case "space1_space2_time_frequency":
 
                 # Before:
-                # (epoch, row, column, frequency, time)
+                # (epoch, row (pos_y /space_2), column (pos_x / space_1), frequency, time)
+
                 # After:
-                # (epoch, frequency, time, row, column)
+                # N = Number → número de amostras no batch
+                # C = Channels → número de canais
+                # D = Depth → profundidade
+                # H = Height → altura
+                # W = Width → largura
+                # (epoch, frequency, time, space2, space1)
 
                 power_array = np.transpose(
                             power_array,
                             (0, 3, 4, 1, 2)
                 ) 
 
-            case "space1_frequency_time_space2":
-                None
-            case "space2_frequency_time_space1":
-                None
+            case "time_frequency_space2_space1":
+
+                # Before:
+                # (epoch, row (pos_y /space_2), column (pos_x / space_1), frequency, time)
+
+                # After:
+                # N = Number → número de amostras no batch
+                # C = Channels → número de canais
+                # D = Depth → profundidade
+                # H = Height → altura
+                # W = Width → largura
+                # (epoch, space1, space2,  frequency, time, )
+
+                power_array = np.transpose(
+                            power_array,
+                            (0, 2, 1, 3, 4)
+                ) 
+
+            case "time_frequency_space1_space2":
+
+                # Before:
+                # (epoch, row (pos_y /space_2), column (pos_x / space_1), frequency, time)
+
+                # After:
+                # N = Number → número de amostras no batch
+                # C = Channels → número de canais
+                # D = Depth → profundidade
+                # H = Height → altura
+                # W = Width → largura
+                # (epoch, space2, space1, frequency, time, )
+
+                power_array = np.transpose(
+                            power_array,
+                            (0, 1, 2, 3, 4)
+                ) 
+
             case _:
                 raise ValueError(f"Invalid branch {branch}")
 
@@ -771,18 +1010,24 @@ def execute_branch(
 
             case "space1_space2_frequency_time":
 
-                modelo_validador = SpaceSpaceFrequencyTimeCNN().to(device)
+                modelo_validador = Space1Space2FrequencyTimeCNN().to(device)
                 model_stats = summary(modelo_validador, input_size=(1, 9, 65, 21, 21), device=device, verbose=0)
                                
             case "space1_space2_time_frequency":
 
-                modelo_validador = SpaceSpaceTimeFrequencyCNN().to(device)
+                modelo_validador = Space1Space2TimeFrequencyCNN().to(device)
                 model_stats = summary(modelo_validador, input_size=(1, 65, 9, 21, 21), device=device, verbose=0)
 
-            case "space1_frequency_time_space2":
-                None
-            case "space2_frequency_time_space1":
-                None
+            case "time_frequency_space2_space1":
+
+                modelo_validador = TimeFrequencySpace2Space1CNN().to(device)
+                model_stats = summary(modelo_validador, input_size=(1, 21, 21, 65, 9), device=device, verbose=0)
+
+            case "time_frequency_space1_space2":
+
+                modelo_validador = TimeFrequencySpace1Space2CNN().to(device)
+                model_stats = summary(modelo_validador, input_size=(1, 21, 21, 65, 9), device=device, verbose=0)
+            
             case _:
                 raise ValueError(f"Invalid branch {branch}")
 
@@ -1072,16 +1317,20 @@ def execute_branch(
 
                 case "space1_space2_frequency_time":
 
-                    model = SpaceSpaceFrequencyTimeCNN().to(device)
+                    model = Space1Space2FrequencyTimeCNN().to(device)
                                 
                 case "space1_space2_time_frequency":
 
-                    model = SpaceSpaceTimeFrequencyCNN().to(device)
+                    model = Space1Space2TimeFrequencyCNN().to(device)
 
-                case "space1_frequency_time_space2":
-                    None
-                case "space2_frequency_time_space1":
-                    None
+                case "time_frequency_space2_space1":
+                                        
+                    model = TimeFrequencySpace2Space1CNN().to(device)
+
+                case "time_frequency_space1_space2":
+
+                    model = TimeFrequencySpace1Space2CNN().to(device)
+
                 case _:
                     raise ValueError(f"Invalid branch {branch}")
 
@@ -1649,4 +1898,4 @@ def execute_branch(
 
 if __name__ == "__main__":
 
-    execute_branch(branch = "space1_space2_time_frequency", N_EPOCHS = 600, subjects = ["sub-01"])
+    execute_branch(branch = "time_frequency_space1_space2", N_EPOCHS = 600, subjects = ["sub-01"])
