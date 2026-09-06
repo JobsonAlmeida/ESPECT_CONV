@@ -17,26 +17,45 @@ OUTPUT_DIR.mkdir(
     exist_ok=True
 )
 
-FOLDS_DIR = INPUT_DIR / "folds"
+FOLDS_DIR = INPUT_DIR / "fold_indices"
 
 
-subjects = [f"sub-{i:02d}" for i in range(1, 11)]
+DEFAULT_SUBJECTS = [f"sub-{i:02d}" for i in range(1, 11)]
 
-def individual_subject_plots(branch = "space1_space2_frequency_time", subjects = subjects ):
+def individual_subject_plots(branch = "space1_space2_frequency_time", subjects = None ):
 
+    # =================================
+    # CHECAGEM DA VARIÁVEL SUBJECT
+    # =================================
+    if isinstance(subjects, str):  #Se o usuário passou uma única string, transforma em lista com um elemento
+        subjects = [subjects]
+    
+    elif subjects is None: # Caso o usuário não passe nada, usa o comportamento padrão
+        subjects = DEFAULT_SUBJECTS 
+
+    # ============================
+    # LOOP PARA CADA SUJEITO
+    # ============================
     for subject in subjects:
 
         MODEL_DIR = INPUT_DIR / f"{branch}_branch" / f"{subject}"
-
                     
         match branch:
             case "space1_space2_frequency_time":
+
                 title = " Space x Space x Frequency - Channel: Time" 
+                fold_files = sorted(MODEL_DIR.glob("space1_space2_frequency_time_fold_*.pth"))
+
+            case "space1_space2_time_frequency":
+
+                title = " Space x Space x Time - Channel: Frequency " 
+                fold_files = sorted(MODEL_DIR.glob("space1_space2_time_frequency_fold_*.pth"))
+
             case _:
                raise ValueError(f"Invalid Branch {branch}")
 
 
-        fold_files = sorted(MODEL_DIR.glob("space1_space2_frequency_time_fold_*.pth"))
+
         n_folds = len(fold_files)
 
        # --- 2. CRIAÇÃO DA ESTRUTURA (3 linhas,  n_folds colunas) ---
@@ -343,10 +362,10 @@ def individual_subject_plots(branch = "space1_space2_frequency_time", subjects =
         )
 
         plt.savefig(SAVE_FIG / f"{branch}_{subject}.svg" , bbox_inches='tight')
-        plt.show()
+        #plt.show()
 
 
 
 if __name__ == "__main__":
 
-    individual_subject_plots(branch="space1_space2_frequency_time" , subjects=["sub-01"])
+    individual_subject_plots(branch="space1_space2_time_frequency" , subjects=["sub-01"])

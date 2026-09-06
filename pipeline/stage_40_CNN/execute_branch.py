@@ -1,6 +1,7 @@
 import copy
 import numpy as np
 from pathlib import Path
+import sys                        
 import matplotlib.pyplot as plt
 
 import torch
@@ -20,12 +21,29 @@ from torchinfo import summary
 
 from tools import save_summary_as_pdf
 
+
+# ==========================================================
+# CONFIGURAÇÕES DE CAMINHO & IMPORTS LOCAIS
+# ==========================================================
+
+current_file = Path(__file__).resolve()
+PROJECT_ROOT = current_file.parents[2]
+PIPELINE_ROOT = current_file.parents[1]  # Caminho até a pasta 'pipeline'
+
+# 2. Adiciona a pasta 'pipeline' ao sys.path para o Python achar a 'stage41'
+if str(PIPELINE_ROOT) not in sys.path:
+    sys.path.append(str(PIPELINE_ROOT))
+
+# 3. Agora o import funciona tanto no terminal quanto no debugger do VS Code
+from stage_41_generate_results.individual_subject_plots import individual_subject_plots
+
+
 # ==========================================================
 # CONFIGURAÇÕES
 # ==========================================================
 
 N_FOLDS = 6
-N_EPOCHS = 50
+N_EPOCHS = 600
 BATCH_SIZE = 8
 LEARNING_RATE = 0.001
 
@@ -34,10 +52,6 @@ VALIDATION_SIZE = 0.20
 
 RANDOM_STATE = 42
 RANDOM_STATE_LOADER = 42
-
-
-current_file = Path(__file__).resolve()
-PROJECT_ROOT = current_file.parents[2]
 
 
 INPUT_DIR = (
@@ -52,6 +66,8 @@ OUTPUT_DIR = (
     / "processed_data"
     / "stage_40_cnn"
 )
+
+
 
 
 # ==========================================================
@@ -104,6 +120,102 @@ class SpaceSpaceFrequencyTimeCNN(nn.Module):
         self.classifier = nn.Linear(
            4 * 16 * 5 * 5,
            4
+        )
+
+
+
+
+   def extract_features(self, x):
+
+
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool1(x)
+
+
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool2(x)
+
+
+        x = self.flatten(x)
+
+
+        return x
+
+
+
+
+   def forward(self, x):
+
+
+       x = self.conv1(x)
+       x = self.relu1(x)
+       x = self.pool1(x)
+
+
+       x = self.conv2(x)
+       x = self.relu2(x)
+       x = self.pool2(x)
+
+
+       x = self.flatten(x)
+
+
+       x = self.classifier(x)
+
+
+       return x
+
+
+
+class SpaceSpaceTimeFrequencyCNN(nn.Module):
+
+   def __init__(self):
+
+
+        super().__init__()
+
+       # (batch, 65, 9, 21, 21)
+
+        self.conv1 = nn.Conv3d(
+           in_channels=65,
+           out_channels=32,
+           kernel_size=3,
+           padding=1
+        )
+        # (batch, 32, 9, 21, 21)
+
+
+        self.relu1 = nn.ReLU()
+
+
+        self.pool1 = nn.MaxPool3d(
+           kernel_size=(2, 2, 2)
+        )
+        # (batch, 32, 4, 10, 10)
+
+
+        self.conv2 = nn.Conv3d(
+           in_channels=32,
+           out_channels=16,
+           kernel_size=3,
+           padding=1
+         )
+        # (batch, 16, 4, 10, 10)
+
+        self.relu2 = nn.ReLU()
+
+        self.pool2 = nn.MaxPool3d(
+           kernel_size=(2, 2, 2)
+        )
+        # (batch, 16, 2, 5, 5)
+
+        self.flatten = nn.Flatten()
+
+        self.classifier = nn.Linear(
+            16 * 2 * 5 * 5,
+            4
         )
 
 
@@ -480,7 +592,7 @@ def execute_branch(
 
         FOLDS_DIR = (
             OUTPUT_DIR
-            / "folds"
+            / "fold_indices"
             / subject
         )
 
@@ -509,7 +621,17 @@ def execute_branch(
                 ) 
                                
             case "space1_space2_time_frequency":
-                None                
+
+                # Before:
+                # (epoch, row, column, frequency, time)
+                # After:
+                # (epoch, frequency, time, row, column)
+
+                power_array = np.transpose(
+                            power_array,
+                            (0, 3, 4, 1, 2)
+                ) 
+
             case "space1_frequency_time_space2":
                 None
             case "space2_frequency_time_space1":
@@ -643,8 +765,27 @@ def execute_branch(
         # SALVANDO ESTRUTURA DA REDE
         # ==========================================================
         print("=== Verificando Estrutura da Rede ===")
-        modelo_validador = SpaceSpaceFrequencyTimeCNN().to(device)
-        model_stats = summary(modelo_validador, input_size=(1, 9, 65, 21, 21), device=device, verbose=0)
+
+
+        match branch:
+
+            case "space1_space2_frequency_time":
+
+                modelo_validador = SpaceSpaceFrequencyTimeCNN().to(device)
+                model_stats = summary(modelo_validador, input_size=(1, 9, 65, 21, 21), device=device, verbose=0)
+                               
+            case "space1_space2_time_frequency":
+
+                modelo_validador = SpaceSpaceTimeFrequencyCNN().to(device)
+                model_stats = summary(modelo_validador, input_size=(1, 65, 9, 21, 21), device=device, verbose=0)
+
+            case "space1_frequency_time_space2":
+                None
+            case "space2_frequency_time_space1":
+                None
+            case _:
+                raise ValueError(f"Invalid branch {branch}")
+
         save_summary_as_pdf(branch , model_stats, save_path= MODEL_DIR)
 
         # Chama a função para gerar a imagem
@@ -658,8 +799,8 @@ def execute_branch(
         # LOOP DOS 5 FOLDS
         # ======================================================
 
-        for fold, (development_indices, test_indices ) in enumerate( skf.split( X, labels), start=1 ):
-
+        #for fold, (development_indices, test_indices ) in enumerate( skf.split( X, labels), start=1 ):
+        for fold in range(1, N_FOLDS + 1):
 
             print()
             print("=" * 70)
@@ -668,21 +809,56 @@ def execute_branch(
             )
             print("=" * 70)
 
+            # ======================================================
+            # CARREGAR OS ÍNDICES DESTE FOLD
+            # ======================================================
+
+            fold_data = np.load(
+                FOLDS_DIR / f"fold_{fold}.npz"
+            )
+
+            train_indices = fold_data["train_indices"]
+            test_indices = fold_data["test_indices"]
+            val_indices = fold_data["val_indices"]
+
 
             # ==================================================
             # DIVIDIR A PORCENTAGEM DE DESENVOLVIMENTO EM 
             # TREINAMENTO E VALIDAÇÃO
             # ==================================================  
 
-            train_indices, val_indices = train_test_split(
-                development_indices,
-                test_size=VALIDATION_SIZE,
-                stratify=labels[
-                    development_indices
-                ],
-                random_state=RANDOM_STATE
-            )
+            # train_indices, val_indices = train_test_split(
+            #     development_indices,
+            #     test_size=VALIDATION_SIZE,
+            #     stratify=labels[
+            #         development_indices
+            #     ],
+            #     random_state=RANDOM_STATE
+            # )
 
+            # ======================================================
+            # 8.1 SEPARAR TREINO E TESTE
+            # ======================================================
+
+            # X_train = X[train_indices]
+            # y_train = y[train_indices]
+
+
+            # X_test = X[test_indices]
+            # y_test = y[test_indices]
+
+            # X_val = X[val_indices]
+
+
+            # --------------------------------
+            # Normalização
+            # --------------------------------
+            # power_max = X_train.max()
+            # X_train = X_train / power_max
+            # X_test = X_test / power_max
+
+            # print("Treino:", X_train.shape)
+            # print("Teste:", X_test.shape)
 
             # ==================================================
             # MOSTRAR TAMANHOS
@@ -889,13 +1065,27 @@ def execute_branch(
             )
 
 
-            model = SpaceSpaceFrequencyTimeCNN().to(
-                device
-            )
+            # ===============================================
+            # SELECIONA O MODELO
+            # ===============================================
+            match branch:
 
-           
+                case "space1_space2_frequency_time":
 
+                    model = SpaceSpaceFrequencyTimeCNN().to(device)
+                                
+                case "space1_space2_time_frequency":
 
+                    model = SpaceSpaceTimeFrequencyCNN().to(device)
+
+                case "space1_frequency_time_space2":
+                    None
+                case "space2_frequency_time_space1":
+                    None
+                case _:
+                    raise ValueError(f"Invalid branch {branch}")
+
+                
             # ==================================================
             # FUNÇÃO DE PERDA
             # ==================================================
@@ -1446,8 +1636,11 @@ def execute_branch(
 
         print_folds_summary("maximum_accuracy", subject, fold_accuracies_ma, fold_losses_ma)
 
-        
+        # =====================================
+        # SAVA IMAGEM DE RESULTADOS
+        # =====================================
 
+        individual_subject_plots(branch=branch , subjects=subject)
 
 
 # ==========================================================
@@ -1456,4 +1649,4 @@ def execute_branch(
 
 if __name__ == "__main__":
 
-    execute_branch(branch = "space1_space2_frequency_time", subjects = ["sub-01"])
+    execute_branch(branch = "space1_space2_time_frequency", N_EPOCHS = 600, subjects = ["sub-01"])
