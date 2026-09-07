@@ -35,7 +35,7 @@ if str(PIPELINE_ROOT) not in sys.path:
     sys.path.append(str(PIPELINE_ROOT))
 
 # 3. Agora o import funciona tanto no terminal quanto no debugger do VS Code
-from stage_41_generate_results.individual_subject_plots import individual_subject_plots
+from fusion_individual_subject_plots import fusion_individual_subject_plots
 
 
 # ==========================================================
@@ -43,12 +43,15 @@ from stage_41_generate_results.individual_subject_plots import individual_subjec
 # ==========================================================
 
 N_FOLDS = 6
-N_EPOCHS = 600
+N_EPOCHS_ESTAGE_1 = 600
+N_EPOCHS_STAGE_2 = 100
 BATCH_SIZE = 8
-LEARNING_RATE = 0.001
+#LEARNING_RATE = 0.001
 
-# Percentual de desenvolvimento que serão de validação
-VALIDATION_SIZE = 0.20
+LEARNING_RATE_STAGE_1 = 0.001
+LEARNING_RATE_STAGE_2 = 0.0001
+
+
 
 RANDOM_STATE = 42
 RANDOM_STATE_LOADER = 42
@@ -57,14 +60,14 @@ RANDOM_STATE_LOADER = 42
 INPUT_DIR = (
     PROJECT_ROOT
     / "processed_data"
-    / "stage_30_array_assembly"
+    / "stage_40_cnn"
 )
 
 
 OUTPUT_DIR = (
     PROJECT_ROOT
     / "processed_data"
-    / "stage_40_cnn"
+    / "stage_50_fusion"
 )
 
 
@@ -456,7 +459,173 @@ class TimeFrequencySpace1Space2CNN(nn.Module):
        return x
 
 
+class FusionModel(nn.Module):
 
+    def __init__(
+        self,
+        space_frequency_model,
+        space_time_model
+    ):
+
+        super().__init__()
+
+        self.space_frequency_model = space_frequency_model
+        self.space_time_model = space_time_model
+
+
+        # ==================================================
+        # PROJEÇÕES
+        # ==================================================
+
+        # 3200 -> 128
+        self.sf_projection = nn.Sequential(
+            nn.Linear(3200, 128),
+            nn.ReLU()
+        )
+
+        # 1800 -> 128
+        self.st_projection = nn.Sequential(
+            nn.Linear(1800, 128),
+            nn.ReLU()
+        )
+
+
+        # ==================================================
+        # GATE
+        # ==================================================
+
+        # Recebe:
+        #
+        # SF = 128
+        # ST = 128
+        #
+        # concatenação = 256
+        #
+        # Produz 128 valores de gate
+
+        self.gate = nn.Linear(
+            256,
+            128
+        )
+
+
+        # ==================================================
+        # CLASSIFICADOR
+        # ==================================================
+
+        # A representação fundida possui
+        # 128 características
+
+        self.classifier = nn.Linear(
+            128,
+            4
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Linear(128, 64),
+            nn.Linear(64, 4),
+        )
+
+
+    def forward(
+        self,
+        x_space_frequency,
+        x_space_time
+    ):
+
+        # ==================================================
+        # EXTRAIR CARACTERÍSTICAS DOS DOIS RAMOS
+        # ==================================================
+
+        sf = (
+            self.space_frequency_model
+            .extract_features(
+                x_space_frequency
+            )
+        )
+
+        # (batch, 3200)
+
+
+        st = (
+            self.space_time_model
+            .extract_features(
+                x_space_time
+            )
+        )
+
+        # (batch, 1800)
+
+
+        # ==================================================
+        # PROJETAR PARA 128 CARACTERÍSTICAS
+        # ==================================================
+
+        sf = self.sf_projection(sf)
+
+        # (batch, 128)
+
+
+        st = self.st_projection(st)
+
+        # (batch, 128)
+
+
+        # ==================================================
+        # CONCATENAR
+        # ==================================================
+
+        combined = torch.cat(
+            (sf, st),
+            dim=1
+        )
+
+        # (batch, 256)
+
+
+        # ==================================================
+        # CALCULAR O GATE
+        # ==================================================
+
+        gate_logits = self.gate(
+            combined
+        )
+
+        # (batch, 128)
+
+
+        gate = torch.sigmoid(
+            gate_logits
+        )
+
+        # (batch, 128)
+        #
+        # Cada valor está entre 0 e 1.
+
+
+        # ==================================================
+        # GATED FUSION
+        # ==================================================
+
+        fused = (
+            gate * sf
+            + (1 - gate) * st
+        )
+
+        # (batch, 128)
+
+
+        # ==================================================
+        # CLASSIFICAÇÃO
+        # ==================================================
+
+        outputs = self.classifier(
+            fused
+        )
+
+        # (batch, 4)
+
+        return outputs
 
 
 def test_model(model, model_state_dict, test_loader, device, criterion, fold_accuracies, fold_losses):
@@ -702,14 +871,16 @@ def print_folds_summary(model_type, subject, fold_accuracies, fold_losses, ):
 
 subjects = [f"sub-{i:02d}" for i in range(1, 11)]
 
-def execute_branch(
-        branch,
+def execute_fusion(
+        fusion_model,
         subjects = subjects,
         N_FOLDS = N_FOLDS,
-        N_EPOCHS = N_EPOCHS,
+        N_EPOCHS_STAGE_1 = N_EPOCHS_ESTAGE_1,
+        N_EPOCHS_STAGE_2 = N_EPOCHS_STAGE_2,
         BATCH_SIZE = BATCH_SIZE,
-        LEARNING_RATE = LEARNING_RATE,
-        VALIDATION_SIZE = VALIDATION_SIZE,
+        LEARNING_RATE_STAGE_1 = LEARNING_RATE_STAGE_1,
+        LEARNING_RATE_STAGE_2 = LEARNING_RATE_STAGE_2
+       
         RANDOM_STATE = RANDOM_STATE,
         RANDOM_STATE_LOADER = RANDOM_STATE_LOADER,
 ):
@@ -717,6 +888,9 @@ def execute_branch(
     torch.manual_seed(
         RANDOM_STATE
     )
+
+    branch_s1_s2_f_t = "space1_space2_frequency_time"
+    branch_s1_s2_t_f = "space1_space2_time_frequency"
 
     # ==========================================================
     # LOOP DOS SUJEITOS
@@ -758,28 +932,41 @@ def execute_branch(
 
 
         # ======================================================
-        # DIRETÓRIO DOS MODELOS
+        # DIRETÓRIOS DOS MODELOS
         # ======================================================
 
-        MODEL_DIR = (
+        # S1_S2_F_T:
+
+        S1_S2_F_T_MODEL_DIR = (
             OUTPUT_DIR
-            / f"{branch}_branch"
+            / f"{branch_s1_s2_f_t}_branch"
         )
 
-        MODEL_DIR.mkdir(
-            parents=True,
-            exist_ok=True
-        )
-
-        SUB_DIR = (
-            MODEL_DIR
+        S1_S2_F_T_SUB_DIR = (
+            S1_S2_F_T_MODEL_DIR
             / subject
         )
 
-        SUB_DIR.mkdir(
-            parents=True,
-            exist_ok=True
+        # S1_S2_T_F:
+        
+        S1_S2_T_F_MODEL_DIR = (
+            OUTPUT_DIR
+            / f"{branch_s1_s2_t_f}_branch"
         )
+
+        S1_S2_T_F_SUB_DIR = (
+            S1_S2_T_F_MODEL_DIR
+            / subject
+        )
+
+        # Fusion
+        FUSION_MODEL_DIR = (
+            OUTPUT_DIR
+            / f"{fusion_model}_fusion"
+        )
+
+        
+
 
         # ======================================================
         # DIRETÓRIO DOS ÍNDICES DOS FOLDS
@@ -801,96 +988,67 @@ def execute_branch(
         # REORGANIZAR AS DIMENSÕES
         # ======================================================
 
-        match branch:
+        power_array_s1_s2_f_t = np.transpose(
+                                    power_array,
+                                    (0, 4, 3, 1, 2)
+                                ) 
 
-            case "space1_space2_frequency_time":
+        power_array_s1_s2_t_f = np.transpose(
+                                    power_array,
+                                    (0, 3, 4, 1, 2)
+                                ) 
 
-                # Before:
-                # (epoch, row (pos_y /space_2), column (pos_x / space_1), frequency, time)
+        power_array_t_f_s2_s1 = np.transpose(
+                                    power_array,
+                                    (0, 2, 1, 3, 4)
+                                ) 
 
-                # After:
-                # N = Number → número de amostras no batch
-                # C = Channels → número de canais
-                # D = Depth → profundidade
-                # H = Height → altura
-                # W = Width → largura
-                # (epoch, time, frequency, space2, space1)
+        power_array_t_f_s1_s2 = np.transpose(
+                                    power_array,
+                                    (0, 1, 2, 3, 4)
+                                ) 
 
-                power_array = np.transpose(
-                            power_array,
-                            (0, 4, 3, 1, 2)
-                ) 
-                               
-            case "space1_space2_time_frequency":
-
-                # Before:
-                # (epoch, row (pos_y /space_2), column (pos_x / space_1), frequency, time)
-
-                # After:
-                # N = Number → número de amostras no batch
-                # C = Channels → número de canais
-                # D = Depth → profundidade
-                # H = Height → altura
-                # W = Width → largura
-                # (epoch, frequency, time, space2, space1)
-
-                power_array = np.transpose(
-                            power_array,
-                            (0, 3, 4, 1, 2)
-                ) 
-
-            case "time_frequency_space2_space1":
-
-                # Before:
-                # (epoch, row (pos_y /space_2), column (pos_x / space_1), frequency, time)
-
-                # After:
-                # N = Number → número de amostras no batch
-                # C = Channels → número de canais
-                # D = Depth → profundidade
-                # H = Height → altura
-                # W = Width → largura
-                # (epoch, space1, space2,  frequency, time, )
-
-                power_array = np.transpose(
-                            power_array,
-                            (0, 2, 1, 3, 4)
-                ) 
-
-            case "time_frequency_space1_space2":
-
-                # Before:
-                # (epoch, row (pos_y /space_2), column (pos_x / space_1), frequency, time)
-
-                # After:
-                # N = Number → número de amostras no batch
-                # C = Channels → número de canais
-                # D = Depth → profundidade
-                # H = Height → altura
-                # W = Width → largura
-                # (epoch, space2, space1, frequency, time, )
-
-                power_array = np.transpose(
-                            power_array,
-                            (0, 1, 2, 3, 4)
-                ) 
-
-            case _:
-                raise ValueError(f"Invalid branch {branch}")
+        
 
         print(
-            "Power reorganizado:",
-            power_array.shape
+            "Power Space1 x Space2 x Frequency x Time reorganizado:",
+            power_array_s1_s2_f_t.shape
         )
 
+        print(
+            "Power Space1 x Space2 x Time x Frequency reorganizado:",
+            power_array_s1_s2_t_f.shape
+        )
+        
+        print(
+            "Power Time x Frequency x Space2 x Space1 reorganizado:",
+            power_array_t_f_s2_s1.shape
+        )
+
+        print(
+            "Power Time x Frequency x Space1 x Space2 reorganizado:",
+            power_array_t_f_s1_s2.shape
+        )
 
         # ======================================================
         # CONVERTER PARA TENSOR
         # ======================================================
 
-        X = torch.from_numpy(
-            power_array
+        X_s1_s2_f_t = torch.from_numpy(
+            power_array_s1_s2_f_t
         ).float()
+
+        X_s1_s2_t_f = torch.from_numpy(
+            power_array_s1_s2_t_f
+        ).float()
+
+        X_t_f_s2_s1 = torch.from_numpy(
+            power_array_t_f_s2_s1
+        ).float()
+
+        X_t_f_s1_s2 = torch.from_numpy(
+            power_array_t_f_s1_s2
+        ).float()     
 
 
         y = torch.from_numpy(
@@ -899,9 +1057,25 @@ def execute_branch(
 
 
         print(
-            "X:",
-            X.shape
+            "X_s1_s2_f_t:",
+            X_s1_s2_f_t.shape
         )
+
+        print(
+            "X_s1_s2_t_f:",
+            X_s1_s2_t_f.shape
+        )
+
+        print(
+            "X_t_f_s2_s1:",
+            X_t_f_s2_s1.shape
+        )
+
+        print(
+            "X_t_f_s1_s2:",
+            X_t_f_s1_s2.shape
+        )
+
 
         print(
             "y:",
@@ -909,38 +1083,38 @@ def execute_branch(
         )
 
 
-        print(
-            "Min:",
-            X.min()
-        )
+        # print(
+        #     "Min:",
+        #     X.min()
+        # )
 
-        print(
-            "Max:",
-            X.max()
-        )
+        # print(
+        #     "Max:",
+        #     X.max()
+        # )
 
-        print(
-            "Mean:",
-            X.mean()
-        )
+        # print(
+        #     "Mean:",
+        #     X.mean()
+        # )
 
-        print(
-            "Std:",
-            X.std()
-        )
-
-
-        print(
-            "Valores diferentes de zero:",
-            torch.count_nonzero(X).item()
-        )
+        # print(
+        #     "Std:",
+        #     X.std()
+        # )
 
 
-        print(
-            "Proporção diferente de zero:",
-            torch.count_nonzero(X).item()
-            / X.numel()
-        )
+        # print(
+        #     "Valores diferentes de zero:",
+        #     torch.count_nonzero(X).item()
+        # )
+
+
+        # print(
+        #     "Proporção diferente de zero:",
+        #     torch.count_nonzero(X).item()
+        #     / X.numel()
+        # )
 
 
         # ======================================================
@@ -981,16 +1155,6 @@ def execute_branch(
 
 
         # ======================================================
-        # CRIAR OS 5 FOLDS EXTERNOS
-        # ======================================================
-
-        # skf = StratifiedKFold(
-        #     n_splits=N_FOLDS,
-        #     shuffle=True,
-        #     random_state=RANDOM_STATE
-        # )
-
-        # ======================================================
         # ARMAZENAR RESULTADOS DOS FOLDS
         # ======================================================
 
@@ -1006,32 +1170,34 @@ def execute_branch(
         print("=== Verificando Estrutura da Rede ===")
 
 
-        match branch:
+        match fusion_model:
 
-            case "space1_space2_frequency_time":
+            case "fusion_mul":
 
-                modelo_validador = Space1Space2FrequencyTimeCNN().to(device)
-                model_stats = summary(modelo_validador, input_size=(1, 9, 65, 21, 21), device=device, verbose=0)
+                None
+
+                # modelo_validador = Space1Space2FrequencyTimeCNN().to(device)
+                # model_stats = summary(modelo_validador, input_size=(1, 9, 65, 21, 21), device=device, verbose=0)
                                
-            case "space1_space2_time_frequency":
+            # case "space1_space2_time_frequency":
 
-                modelo_validador = Space1Space2TimeFrequencyCNN().to(device)
-                model_stats = summary(modelo_validador, input_size=(1, 65, 9, 21, 21), device=device, verbose=0)
+            #     modelo_validador = Space1Space2TimeFrequencyCNN().to(device)
+            #     model_stats = summary(modelo_validador, input_size=(1, 65, 9, 21, 21), device=device, verbose=0)
 
-            case "time_frequency_space2_space1":
+            # case "time_frequency_space2_space1":
 
-                modelo_validador = TimeFrequencySpace2Space1CNN().to(device)
-                model_stats = summary(modelo_validador, input_size=(1, 21, 21, 65, 9), device=device, verbose=0)
+            #     modelo_validador = TimeFrequencySpace2Space1CNN().to(device)
+            #     model_stats = summary(modelo_validador, input_size=(1, 21, 21, 65, 9), device=device, verbose=0)
 
-            case "time_frequency_space1_space2":
+            # case "time_frequency_space1_space2":
 
-                modelo_validador = TimeFrequencySpace1Space2CNN().to(device)
-                model_stats = summary(modelo_validador, input_size=(1, 21, 21, 65, 9), device=device, verbose=0)
+            #     modelo_validador = TimeFrequencySpace1Space2CNN().to(device)
+            #     model_stats = summary(modelo_validador, input_size=(1, 21, 21, 65, 9), device=device, verbose=0)
             
             case _:
-                raise ValueError(f"Invalid branch {branch}")
+                raise ValueError(f"Invalid branch {fusion_model}")
 
-        save_summary_as_pdf(branch , model_stats, save_path= MODEL_DIR)
+        save_summary_as_pdf(fusion_model , model_stats, save_path= MODEL_DIR)
 
         # Chama a função para gerar a imagem
         #print(model_stats)
@@ -1063,8 +1229,8 @@ def execute_branch(
             )
 
             train_indices = fold_data["train_indices"]
-            test_indices = fold_data["test_indices"]
             val_indices = fold_data["val_indices"]
+            test_indices = fold_data["test_indices"]
 
 
             # ==================================================
@@ -1109,44 +1275,44 @@ def execute_branch(
             # MOSTRAR TAMANHOS
             # ==================================================
 
-            print(
-                "Total:",
-                len(X)
-            )
+            # print(
+            #     "Total:",
+            #     len(X)
+            # )
 
-            print(
-                "Treinamento:",
-                len(train_indices)
-            )
+            # print(
+            #     "Treinamento:",
+            #     len(train_indices)
+            # )
 
-            print(
-                "Validação:",
-                len(val_indices)
-            )
+            # print(
+            #     "Validação:",
+            #     len(val_indices)
+            # )
 
-            print(
-                "Teste:",
-                len(test_indices)
-            )
+            # print(
+            #     "Teste:",
+            #     len(test_indices)
+            # )
 
 
-            print(
-                "Treinamento (%):",
-                len(train_indices)
-                / len(X)
-            )
+            # print(
+            #     "Treinamento (%):",
+            #     len(train_indices)
+            #     / len(X)
+            # )
 
-            print(
-                "Validação (%):",
-                len(val_indices)
-                / len(X)
-            )
+            # print(
+            #     "Validação (%):",
+            #     len(val_indices)
+            #     / len(X)
+            # )
 
-            print(
-                "Teste (%):",
-                len(test_indices)
-                / len(X)
-            )
+            # print(
+            #     "Teste (%):",
+            #     len(test_indices)
+            #     / len(X)
+            # )
 
 
             # ==================================================
@@ -1172,36 +1338,101 @@ def execute_branch(
             # SEPARAR OS DADOS
             # ==================================================
 
-            X_train = X[
-                train_indices
-            ]
+            # X_train = X[
+            #     train_indices
+            # ]
 
-            y_train = y[
-                train_indices
-            ]
-
-
-            X_val = X[
-                val_indices
-            ]
-
-            y_val = y[
-                val_indices
-            ]
+            # y_train = y[
+            #     train_indices
+            # ]
 
 
-            X_test = X[
-                test_indices
-            ]
+            # X_val = X[
+            #     val_indices
+            # ]
 
-            y_test = y[
-                test_indices
-            ]
+            # y_val = y[
+            #     val_indices
+            # ]
+
+
+            # X_test = X[
+            #     test_indices
+            # ]
+
+            # y_test = y[
+            #     test_indices
+            # ]
+
+            # ======================================================
+            # 9.2 SEPARAR DADOS DE S1_S2_F_T
+            # ======================================================
+
+            X_s1_s2_f_t_train = (X_s1_s2_f_t[train_indices])
+            X_s1_s2_f_t_val = (X_s1_s2_f_t[val_indices])
+            X_s1_s2_f_t_test = (X_s1_s2_f_t[test_indices])
+
+            # ======================================================
+            # 9.3 SEPARAR DADOS DE S1_S2_T_F
+            # ======================================================
+
+            X_s1_s2_t_f_train = (X_s1_s2_t_f[train_indices])
+            X_s1_s2_t_f_val = (X_s1_s2_t_f[val_indices])
+            X_s1_s2_t_f_test = (X_s1_s2_t_f[test_indices])
+
+            # ======================================================
+            # 9.4 LABELS
+            # ======================================================
+
+            y_train = y[train_indices]
+            y_val = y[val_indices]
+            y_test = y[test_indices]
+
+
+            # ======================================================
+            # 9.5 CARREGAR CHECKPOINT S1_S2_F_T
+            # ======================================================
+
+            checkpoint_s1_s2_f_t = torch.load(
+                S1_S2_F_T_SUB_DIR
+                / f"space1_space2_frequency_time_fold_{fold}.pth",
+                map_location=device,
+                weights_only=False
+            )
+
+            power_max_s1_s2_f_t = (
+                checkpoint_s1_s2_f_t["power_max"].item()
+            )
+
+            # ======================================================
+            # 9.5 CARREGAR CHECKPOINT S1_S2_T_F
+            # ======================================================
+
+            checkpoint_s1_s2_t_f = torch.load(
+                S1_S2_T_F_SUB_DIR
+                / f"space1_space2_time_frequency_fold_{fold}.pth",
+                map_location=device,
+                weights_only=False
+            )
+
+            power_max_s1_s2_t_f = (
+                checkpoint_s1_s2_t_f["power_max"].item()
+            )
+
 
 
             # ==================================================
             # NORMALIZAÇÃO
             # ==================================================
+
+            X_s1_s2_f_t_train = X_s1_s2_f_t_train / power_max_s1_s2_f_t
+            X_s1_s2_f_t_val = X_s1_s2_f_t_val / power_max_s1_s2_f_t
+            X_s1_s2_f_t_test = X_s1_s2_f_t_test / power_max_s1_s2_f_t
+
+            X_s1_s2_t_f_train = X_s1_s2_t_f_train / power_max_s1_s2_t_f
+            X_s1_s2_t_f_val = X_s1_s2_t_f_val / power_max_s1_s2_t_f
+            X_s1_s2_t_f_test = X_s1_s2_t_f_test / power_max_s1_s2_t_f
+
 
             # Muito importante:
             #
@@ -1229,19 +1460,37 @@ def execute_branch(
             )
 
 
+            # X_s1_s2_f_t
             print(
-                "X_train:",
-                X_train.shape
+                "X_s1_s2_f_t_train:",
+                X_s1_s2_f_t_train.shape
             )
 
             print(
-                "X_val:",
-                X_val.shape
+                "X_s1_s2_f_t_val:",
+                X_s1_s2_f_t_val.shape
             )
 
             print(
-                "X_test:",
-                X_test.shape
+                "X_s1_s2_f_t:",
+                X_s1_s2_f_t_test.shape
+            )
+
+
+            #X_s1_s2_t_f
+            print(
+                "X_s1_s2_t_f_train:",
+                X_s1_s2_t_f_train.shape
+            )
+
+            print(
+                "X_s1_s2_t_f__val:",
+                X_s1_s2_t_f_val.shape
+            )
+
+            print(
+                "X_s1_s2_t_f:",
+                X_s1_s2_t_f_test.shape
             )
 
 
@@ -1250,19 +1499,22 @@ def execute_branch(
             # ==================================================
 
             train_dataset = TensorDataset(
-                X_train,
+                X_s1_s2_f_t_train,
+                X_s1_s2_t_f_train,
                 y_train
             )
 
 
             val_dataset = TensorDataset(
-                X_val,
+                X_s1_s2_f_t_val,
+                X_s1_s2_t_f_val,
                 y_val
             )
 
 
             test_dataset = TensorDataset(
-                X_test,
+                X_s1_s2_f_t_test,
+                X_s1_s2_t_f_test,
                 y_test
             )
 
@@ -1301,46 +1553,105 @@ def execute_branch(
             )
 
 
+
+
+
             # ==================================================
-            # CRIAR NOVO MODELO PARA ESTE FOLD
+            # CRIAR UMA NOVA REDE PARA ESTE FOLD
             # ==================================================
 
             torch.manual_seed(
                 RANDOM_STATE
             )
 
+            # ======================================================
+            # 9.8 CARREGAR MODELO S1_S2_F_T
+            # ======================================================
+
+            model_s1_s2_f_t = (
+                Space1Space2FrequencyTimeCNN()
+                .to(device)
+            )
+
+            model_s1_s2_f_t.load_state_dict(
+                checkpoint_s1_s2_f_t[
+                    "model_state_dict"
+                ]
+            )
+
+            # ======================================================
+            # 9.9 CARREGAR MODELO S1_S2_T_F
+            # ======================================================
+
+            model_s1_s2_t_f = (
+                Space1Space2TimeFrequencyCNN()
+                .to(device)
+            )
+
+            model_s1_s2_t_f.load_state_dict(
+                checkpoint_s1_s2_t_f[
+                    "model_state_dict"
+                ]
+            )
+
+            # ======================================================
+            # 9.10 CONGELAR OS RAMOS
+            # ======================================================
+
+            for parameter in model_s1_s2_f_t.parameters():
+
+                parameter.requires_grad = False
+
+
+            for parameter in model_s1_s2_t_f.parameters():
+
+                parameter.requires_grad = False
+
 
             # ===============================================
-            # SELECIONA O MODELO
+            # SELECIONA O MODELO DE FUSÃO
             # ===============================================
-            match branch:
+            match fusion_model:
 
-                case "space1_space2_frequency_time":
+                case "fusion_mul":
 
-                    model = Space1Space2FrequencyTimeCNN().to(device)
+                    model = FusionModel(
+                        model_s1_s2_f_t, 
+                        model_s1_s2_t_f
+                    ).to(device)
+
+
+                    
                                 
-                case "space1_space2_time_frequency":
+                # case "space1_space2_time_frequency":
 
-                    model = Space1Space2TimeFrequencyCNN().to(device)
+                #     model = Space1Space2TimeFrequencyCNN().to(device)
 
-                case "time_frequency_space2_space1":
+                # case "time_frequency_space2_space1":
                                         
-                    model = TimeFrequencySpace2Space1CNN().to(device)
+                #     model = TimeFrequencySpace2Space1CNN().to(device)
 
-                case "time_frequency_space1_space2":
+                # case "time_frequency_space1_space2":
 
-                    model = TimeFrequencySpace1Space2CNN().to(device)
+                #     model = TimeFrequencySpace1Space2CNN().to(device)
 
                 case _:
-                    raise ValueError(f"Invalid branch {branch}")
+                    raise ValueError(f"Invalid branch {fusion_model}")
 
-                
+
+
+
+            
             # ==================================================
             # FUNÇÃO DE PERDA
             # ==================================================
 
             criterion = nn.CrossEntropyLoss()
 
+            # ======================================================
+            # ESTÁGIO 1
+            # TREINAR SOMENTE O CLASSIFICADOR DE FUSÃO
+            # ======================================================
 
             # ==================================================
             # OTIMIZADOR
@@ -1348,7 +1659,7 @@ def execute_branch(
 
             optimizer = torch.optim.Adam(
                 model.parameters(),
-                lr=LEARNING_RATE
+                lr=LEARNING_RATE_STAGE_1
             )
 
 
@@ -1360,7 +1671,6 @@ def execute_branch(
 
             val_accuracies_epoch = []
 
-
             train_losses_epoch = []
 
             val_losses_epoch = []
@@ -1371,9 +1681,7 @@ def execute_branch(
             # ==================================================
 
             # menor loss
-            min_val_loss = float(
-                "inf"
-            )
+            min_val_loss = float("inf")
             min_val_loss_epoch = 0
             min_val_loss_model_state = None
 
@@ -1384,10 +1692,10 @@ def execute_branch(
             max_val_accuracy_state = None
 
             # ==================================================
-            # TREINAMENTO
+            # TREINAMENTO - ESTAGIO 1
             # ==================================================
 
-            for epoch in range(N_EPOCHS):
+            for epoch in range(N_EPOCHS_STAGE_1):
 
 
                 # ==============================================
@@ -1396,21 +1704,28 @@ def execute_branch(
 
                 model.train()
 
+                # Os dois extratores permanecem congelados
+                # e em modo de avaliação
+                model_s1_s2_f_t.eval()
+                model_s1_s2_t_f.eval()
 
                 train_total_loss = 0.0
-
                 train_correct = 0
-
                 train_total = 0
 
 
                 for (
-                    X_batch,
-                    y_batch
-                ) in train_loader:
+                        X_s1_s2_f_t_batch,
+                        X_s1_s2_t_f_batch,
+                        y_batch
+                    ) in train_loader:
 
 
-                    X_batch = X_batch.to(
+                    X_s1_s2_f_t_batch = X_s1_s2_f_t_batch.to(
+                        device
+                    )
+
+                    X_s1_s2_t_f_batch = X_s1_s2_t_f_batch.to(
                         device
                     )
 
@@ -1431,7 +1746,8 @@ def execute_branch(
                     # ------------------------------------------
 
                     outputs = model(
-                        X_batch
+                        X_s1_s2_f_t_batch, 
+                        X_s1_s2_t_f_batch
                     )
 
 
@@ -1652,12 +1968,314 @@ def execute_branch(
 
                 print(
                     f"Fold {fold} | "
-                    f"Epoch {epoch + 1:03d}/{N_EPOCHS} | "
+                    f"Epoch {epoch + 1:03d}/{N_EPOCHS_STAGE_1} | "
                     f"Train Loss: {train_loss:.4f} | "
                     f"Val Loss: {val_loss:.4f} | "
                     f"Train Acc: {train_accuracy:.4f} | "
                     f"Val Acc: {val_accuracy:.4f}"
                 )
+
+
+            # # ======================================================
+            # # ESTÁGIO 2
+            # # DESCONGELAR OS DOIS RAMOS
+            # # ======================================================
+
+            # for parameter in model_s1_s2_f_t.parameters():
+            #     parameter.requires_grad = True
+
+            # for parameter in model_s1_s2_t_f.parameters():
+            #     parameter.requires_grad = True
+
+
+            # # ======================================================
+            # # NOVO OTIMIZADOR PARA FINE-TUNING
+            # # ======================================================
+
+            # optimizer = torch.optim.Adam(
+            #     fusion_model.parameters(),
+            #     lr=LEARNING_RATE_STAGE_2
+            # )
+
+            # # ==================================================
+            # # TREINAMENTO ESTAGIO 2 - FINE TUNNING
+            # # ==================================================
+
+            # for epoch in range(N_EPOCHS_STAGE_2):
+
+            #     model.train()
+
+            #     train_total_loss = 0.0
+            #     train_correct = 0
+            #     train_total = 0
+
+
+            #     for (
+            #             X_s1_s2_f_t_batch,
+            #             X_s1_s2_t_f_batch,
+            #             y_batch
+            #         ) in train_loader:
+
+
+            #         X_s1_s2_f_t_batch = X_s1_s2_f_t_batch.to(
+            #             device
+            #         )
+
+            #         X_s1_s2_t_f_batch = X_s1_s2_t_f_batch.to(
+            #             device
+            #         )
+
+            #         y_batch = y_batch.to(
+            #             device
+            #         )
+
+
+            #         # ------------------------------------------
+            #         # ZERAR GRADIENTES
+            #         # ------------------------------------------
+
+            #         optimizer.zero_grad()
+
+
+            #         # ------------------------------------------
+            #         # FORWARD
+            #         # ------------------------------------------
+
+            #         outputs = model(
+            #             X_s1_s2_f_t_batch, 
+            #             X_s1_s2_t_f_batch
+            #         )
+
+
+            #         # ------------------------------------------
+            #         # LOSS
+            #         # ------------------------------------------
+
+            #         loss = criterion(
+            #             outputs,
+            #             y_batch
+            #         )
+
+
+            #         # ------------------------------------------
+            #         # BACKPROPAGATION
+            #         # ------------------------------------------
+
+            #         loss.backward()
+
+
+            #         # ------------------------------------------
+            #         # ATUALIZAR PESOS
+            #         # ------------------------------------------
+
+            #         optimizer.step()
+
+
+            #         # ------------------------------------------
+            #         # ACUMULAR LOSS
+            #         # ------------------------------------------
+
+            #         train_total_loss += (
+            #             loss.item()
+            #         )
+
+
+            #         # ------------------------------------------
+            #         # PREVISÕES
+            #         # ------------------------------------------
+
+            #         predictions = outputs.argmax(
+            #             dim=1
+            #         )
+
+
+            #         # ------------------------------------------
+            #         # ACERTOS
+            #         # ------------------------------------------
+
+            #         train_correct += (
+            #             predictions
+            #             == y_batch
+            #         ).sum().item()
+
+
+            #         train_total += (
+            #             y_batch.size(0)
+            #         )
+
+
+            #     # ==============================================
+            #     # RESULTADOS DE TREINAMENTO
+            #     # ==============================================
+
+            #     train_loss = (
+            #         train_total_loss
+            #         / len(train_loader)
+            #     )
+
+
+            #     train_accuracy = (
+            #         train_correct
+            #         / train_total
+            #     )
+
+
+            #     # ==============================================
+            #     # VALIDAÇÃO DA ÉPOCA
+            #     # ==============================================
+
+            #     model.eval()
+
+
+            #     val_total_loss = 0.0
+
+            #     val_correct = 0
+
+            #     val_total = 0
+
+
+            #     with torch.no_grad():
+
+
+            #         for (
+            #             X_batch,
+            #             y_batch
+            #         ) in val_loader:
+
+
+            #             X_batch = X_batch.to(
+            #                 device
+            #             )
+
+            #             y_batch = y_batch.to(
+            #                 device
+            #             )
+
+
+            #             outputs = model(
+            #                 X_batch
+            #             )
+
+
+            #             loss = criterion(
+            #                 outputs,
+            #                 y_batch
+            #             )
+
+
+            #             val_total_loss += (
+            #                 loss.item()
+            #             )
+
+
+            #             predictions = outputs.argmax(
+            #                 dim=1
+            #             )
+
+
+            #             val_correct += (
+            #                 predictions
+            #                 == y_batch
+            #             ).sum().item()
+
+
+            #             val_total += (
+            #                 y_batch.size(0)
+            #             )
+
+
+            #     # ==============================================
+            #     # RESULTADOS DE VALIDAÇÃO
+            #     # ==============================================
+
+            #     val_loss = (
+            #         val_total_loss
+            #         / len(val_loader)
+            #     )
+
+
+            #     val_accuracy = (
+            #         val_correct
+            #         / val_total
+            #     )
+
+
+            #     # ==============================================
+            #     # GUARDAR HISTÓRICO
+            #     # ==============================================
+
+            #     train_accuracies_epoch.append(
+            #         train_accuracy
+            #     )
+
+
+            #     val_accuracies_epoch.append(
+            #         val_accuracy
+            #     )
+
+
+            #     train_losses_epoch.append(
+            #         train_loss
+            #     )
+
+
+            #     val_losses_epoch.append(
+            #         val_loss
+            #     )
+
+
+            #     # ==============================================
+            #     # VERIFICAR SE É O MELHOR MODELO
+            #     # ==============================================
+
+            #     # menor loss
+            #     if val_loss < min_val_loss:
+
+            #         min_val_loss = (
+            #             val_loss
+            #         )
+
+
+            #         min_val_loss_epoch = (
+            #             epoch
+            #         )
+
+            #         min_val_loss_model_state = copy.deepcopy(
+            #             model.state_dict()
+            #         )
+
+            #     #maior acurácia
+            #     if (val_accuracy > max_val_accuracy or
+            #          ( val_accuracy == max_val_accuracy and val_loss < best_val_loss_to_max_accuracy)
+            #         ):
+                    
+            #         max_val_accuracy = val_accuracy
+            #         best_val_loss_to_max_accuracy = val_loss
+            #         max_val_accuracy_epoch = epoch
+
+            #         max_val_accuracy_model_state = copy.deepcopy(
+            #             model.state_dict()
+            #         )
+
+
+            #     # ==============================================
+            #     # MOSTRAR RESULTADOS
+            #     # ==============================================
+
+            #     print(
+            #         f"Fold {fold} | "
+            #         f"Epoch {epoch + 1:03d}/{N_EPOCHS_STAGE_1} | "
+            #         f"Train Loss: {train_loss:.4f} | "
+            #         f"Val Loss: {val_loss:.4f} | "
+            #         f"Train Acc: {train_accuracy:.4f} | "
+            #         f"Val Acc: {val_accuracy:.4f}"
+            #     )
+
+
+            
+
+
+
 
 
             # ==============================
@@ -1873,7 +2491,7 @@ def execute_branch(
                 },
 
                 SUB_DIR
-                / f"{branch}_fold_{fold}.pth"
+                / f"{fusion_model}_fold_{fold}.pth"
             )
 
             
@@ -1889,7 +2507,7 @@ def execute_branch(
         # SAVA IMAGEM DE RESULTADOS
         # =====================================
 
-        individual_subject_plots(branch=branch , subjects=subject)
+        individual_subject_plots_fusion(branch=fusion_model , subjects=subject)
 
 
 # ==========================================================
@@ -1898,4 +2516,4 @@ def execute_branch(
 
 if __name__ == "__main__":
 
-    execute_branch(branch = "space1_space2_frequency_time", N_EPOCHS = 600, subjects = ["sub-01"])
+    execute_fusion(fusion_model = "space1_space2_frequency_time", N_EPOCHS_STAGE_1 = 600, subjects = ["sub-01"])

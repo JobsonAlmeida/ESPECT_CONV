@@ -3,12 +3,10 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 
-
-# --- 1. CONFIGURAÇÃO DE CAMINHOS ---
 current_file = Path(__file__).resolve()
-PROJECT_ROOT = current_file.parents[2]  # Mantido o seu padrão original
+PROJECT_ROOT = current_file.parents[2]  
 
-INPUT_DIR = PROJECT_ROOT / "processed_data" / "stage_40_cnn"
+INPUT_DIR = PROJECT_ROOT / "processed_data" / "stage_40_execute_branch"
 
 OUTPUT_DIR = INPUT_DIR
 
@@ -22,7 +20,7 @@ FOLDS_DIR = INPUT_DIR / "fold_indices"
 
 DEFAULT_SUBJECTS = [f"sub-{i:02d}" for i in range(1, 11)]
 
-def individual_subject_plots(branch = "space1_space2_frequency_time", subjects = None ):
+def fusion_individual_subject_plots(branch = "space1_space2_frequency_time", subjects = None ):
 
     # =================================
     # CHECAGEM DA VARIÁVEL SUBJECT
@@ -378,4 +376,4 @@ def individual_subject_plots(branch = "space1_space2_frequency_time", subjects =
 
 if __name__ == "__main__":
 
-    individual_subject_plots(branch="space1_space2_time_frequency" , subjects=["sub-01"])
+    fusion_individual_subject_plots(branch="space1_space2_time_frequency" , subjects=["sub-01"])
