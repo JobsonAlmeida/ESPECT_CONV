@@ -1,0 +1,2582 @@
+import copy
+import numpy as np
+from pathlib import Path
+import sys                        
+import torch
+import torch.nn as nn
+
+from torch.utils.data import (
+    TensorDataset,
+    DataLoader
+)
+
+from torchinfo import summary
+
+
+# ==========================================================
+# CONFIGURAÇÕES DE CAMINHO & IMPORTS LOCAIS
+# ==========================================================
+
+current_file = Path(__file__).resolve()
+PROJECT_ROOT = current_file.parents[2]
+PIPELINE_ROOT = current_file.parents[1]  # Caminho até a pasta 'pipeline'
+
+# Adiciona a pasta 'pipeline' ao sys.path para o Python achar a 'stage40'
+# Agora o import funciona tanto no terminal quanto no debugger do VS Code
+
+if str(PIPELINE_ROOT) not in sys.path:
+    sys.path.append(str(PIPELINE_ROOT))
+
+from pipeline.stage_40_execute_branch.tools import save_summary_as_pdf
+
+
+from pipeline.stage_40_execute_branch.branch_cnn_models import Space1Space2FrequencyTimeCNN
+from pipeline.stage_40_execute_branch.branch_cnn_models import Space1Space2TimeFrequencyCNN
+from pipeline.stage_40_execute_branch.branch_cnn_models import TimeFrequencySpace2Space1CNN
+from pipeline.stage_40_execute_branch.branch_cnn_models import TimeFrequencySpace1Space2CNN
+
+from fusion_cnn_models import GatedFusion
+
+from fusion_individual_subject_plots import fusion_individual_subject_plots
+
+# ==========================================================
+# CONFIGURAÇÕES
+# ==========================================================
+
+N_FOLDS = 6
+N_EPOCHS_ESTAGE_1 = 600
+N_EPOCHS_STAGE_2 = 100
+BATCH_SIZE = 8
+LEARNING_RATE_STAGE_1 = 0.001
+LEARNING_RATE_STAGE_2 = 0.0001
+
+RANDOM_STATE = 42
+RANDOM_STATE_LOADER = 42
+
+INPUT_DIR = (
+    PROJECT_ROOT
+    / "processed_data"
+    / "stage_40_execute_branch"
+)
+
+OUTPUT_DIR = (
+    PROJECT_ROOT
+    / "processed_data"
+    / "stage_50_execute_fusion"
+)
+
+
+def test_model(model, model_state_dict, test_loader, device, criterion, fold_accuracies, fold_losses):
+
+    # ==================================================
+    # TESTE COM O MODELO ESCOLHIDO
+    # ==================================================
+
+    # O conjunto de teste aparece SOMENTE agora,
+    # depois que o modelo já foi escolhido.
+
+    model.load_state_dict(
+        model_state_dict
+    )
+
+    model.eval()
+
+    test_total_loss = 0.0
+
+    test_correct = 0
+
+    test_total = 0
+
+    all_predictions = []
+
+    all_labels = []
+
+    with torch.no_grad():
+
+
+        for (
+            X_batch,
+            y_batch
+        ) in test_loader:
+
+
+            X_batch = X_batch.to(
+                device
+            )
+
+            y_batch = y_batch.to(
+                device
+            )
+
+
+            outputs = model(
+                X_batch
+            )
+
+
+            loss = criterion(
+                outputs,
+                y_batch
+            )
+
+
+            test_total_loss += (
+                loss.item()
+            )
+
+
+            predictions = outputs.argmax(
+                dim=1
+            )
+
+
+            test_correct += (
+                predictions
+                == y_batch
+            ).sum().item()
+
+
+            test_total += (
+                y_batch.size(0)
+            )
+
+
+            all_predictions.extend(
+                predictions
+                .cpu()
+                .numpy()
+            )
+
+
+            all_labels.extend(
+                y_batch
+                .cpu()
+                .numpy()
+            )
+
+
+    # ==================================================
+    # RESULTADOS DO TESTE
+    # ==================================================
+
+    test_loss = (
+        test_total_loss
+        / len(test_loader)
+    )
+
+
+    test_accuracy = (
+        test_correct
+        / test_total
+    )
+
+
+    fold_accuracies.append( #acurácias por fold
+        test_accuracy
+    )
+
+
+    fold_losses.append(
+        test_loss
+    )
+
+    return model, test_loss, test_accuracy, fold_losses, fold_accuracies, all_labels, all_predictions
+
+
+
+def print_fold_results(model_type, fold, best_epoch, focus_property, test_loss, test_accuracy, all_labels, all_predictions):
+
+    print()
+
+    match model_type:
+        case "minimum_loss":
+            message = "--- TEST WITH MINIMUM LOSS ---"
+            property_message =  f"Minimum Validation Loss: {focus_property:.6f}"
+
+        case "maximum_accuracy":
+            message = "--- TEST WITH MAXIMUM ACCURACY ---"
+            property_message =  f"Maximum Accuracy: {focus_property:.6f}"
+
+        case _ : 
+            raise ValueError(f"Invalid model_type {model_type}")
+
+
+
+    print(message)
+
+    print(
+        f"Fold {fold}"
+    )
+
+    print(f"Best Epoch: {best_epoch}")
+
+
+    print(property_message)
+
+
+    print(
+        f"Test Loss: "
+        f"{test_loss:.6f}"
+    )
+
+
+    print(
+        f"Test Accuracy: "
+        f"{test_accuracy:.4f}"
+    )
+
+
+    print(
+        "Classes previstas:",
+        np.bincount(
+            all_predictions,
+            minlength=4
+        )
+    )
+
+
+    print(
+        "Classes reais:",
+        np.bincount(
+            all_labels,
+            minlength=4
+        )
+    )
+
+
+def print_folds_summary(model_type, subject, fold_accuracies, fold_losses, ):
+
+    match model_type:
+        case "minimum_loss":
+            message = f"Test Summary - Lowest Loss Model - {subject}"
+
+        case "maximum_accuracy":
+            message = f"Test Summary - Maximum Accuracy Model - {subject}"
+
+        case _:
+             raise ValueError(f"Invalid model_type {model_type}")
+
+    fold_accuracies = np.array(
+        fold_accuracies
+    )
+
+    fold_losses = np.array(
+        fold_losses
+    )
+
+
+    print()
+    print("=" * 70)
+    print(message)
+    print("=" * 70)
+
+
+    for fold, accuracy in enumerate(
+        fold_accuracies,
+        start=1
+    ):
+
+        print(
+            f"Fold {fold}: "
+            f"{accuracy:.4f}"
+        )
+
+
+    print()
+
+
+    print(
+        "Acurácia média:",
+        fold_accuracies.mean()
+    )
+
+
+    print(
+        "Desvio padrão:",
+        fold_accuracies.std()
+    )
+
+
+    print(
+        "Test Loss média:",
+        fold_losses.mean()
+    )
+
+
+# ==========================================================
+# MAIN FUNCTION
+# ==========================================================
+
+subjects = [f"sub-{i:02d}" for i in range(1, 11)]
+
+def execute_fusion(
+        fusion,
+        subjects = subjects,
+        N_FOLDS = N_FOLDS,
+        N_EPOCHS_STAGE_1 = N_EPOCHS_ESTAGE_1,
+        N_EPOCHS_STAGE_2 = N_EPOCHS_STAGE_2,
+        BATCH_SIZE = BATCH_SIZE,
+        LEARNING_RATE_STAGE_1 = LEARNING_RATE_STAGE_1,
+        LEARNING_RATE_STAGE_2 = LEARNING_RATE_STAGE_2,       
+        RANDOM_STATE = RANDOM_STATE,
+        RANDOM_STATE_LOADER = RANDOM_STATE_LOADER,
+):
+
+    torch.manual_seed(
+        RANDOM_STATE
+    )
+
+    branch_s1_s2_f_t = "space1_space2_frequency_time"
+    branch_s1_s2_t_f = "space1_space2_time_frequency"
+
+    # ==========================================================
+    # LOOP DOS SUJEITOS
+    # ==========================================================
+
+    for subject in subjects:
+
+        print()
+        print("#" * 70)
+        print(f"SUJEITO: {subject}")
+        print("#" * 70)
+
+
+        # ======================================================
+        # CARREGAR OS DADOS
+        # ======================================================
+
+        power_array = np.load(
+            INPUT_DIR
+            / f"{subject}_power.npy"
+        )
+
+
+        labels = np.load(
+            INPUT_DIR
+            / f"{subject}_labels.npy"
+        )
+
+
+        print(
+            "Power:",
+            power_array.shape
+        )
+
+        print(
+            "Labels:",
+            labels.shape
+        )
+
+
+        # ======================================================
+        # DIRETÓRIOS DOS MODELOS
+        # ======================================================
+
+        # S1_S2_F_T:
+
+        S1_S2_F_T_MODEL_DIR = (
+            OUTPUT_DIR
+            / f"{branch_s1_s2_f_t}_branch"
+        )
+
+        S1_S2_F_T_SUB_DIR = (
+            S1_S2_F_T_MODEL_DIR
+            / subject
+        )
+
+        # S1_S2_T_F:
+        
+        S1_S2_T_F_MODEL_DIR = (
+            OUTPUT_DIR
+            / f"{branch_s1_s2_t_f}_branch"
+        )
+
+        S1_S2_T_F_SUB_DIR = (
+            S1_S2_T_F_MODEL_DIR
+            / subject
+        )
+
+        # Fusion
+        MODEL_DIR = (
+            OUTPUT_DIR
+            / f"{fusion}_fusion"
+        )
+
+        SUB_DIR = (
+            MODEL_DIR
+            / subject
+        )
+
+        SUB_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        # ======================================================
+        # DIRETÓRIO DOS ÍNDICES DOS FOLDS
+        # ======================================================
+
+        FOLDS_DIR = (
+            OUTPUT_DIR
+            / "fold_indices"
+            / subject
+        )
+
+
+        FOLDS_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        # ======================================================
+        # REORGANIZAR AS DIMENSÕES
+        # ======================================================
+
+        power_array_s1_s2_f_t = np.transpose(
+                                    power_array,
+                                    (0, 4, 3, 1, 2)
+                                ) 
+
+        power_array_s1_s2_t_f = np.transpose(
+                                    power_array,
+                                    (0, 3, 4, 1, 2)
+                                ) 
+
+        power_array_t_f_s2_s1 = np.transpose(
+                                    power_array,
+                                    (0, 2, 1, 3, 4)
+                                ) 
+
+        power_array_t_f_s1_s2 = np.transpose(
+                                    power_array,
+                                    (0, 1, 2, 3, 4)
+                                ) 
+
+        print(
+            "Power Space1 x Space2 x Frequency x Time reorganizado:",
+            power_array_s1_s2_f_t.shape
+        )
+
+        print(
+            "Power Space1 x Space2 x Time x Frequency reorganizado:",
+            power_array_s1_s2_t_f.shape
+        )
+        
+        print(
+            "Power Time x Frequency x Space2 x Space1 reorganizado:",
+            power_array_t_f_s2_s1.shape
+        )
+
+        print(
+            "Power Time x Frequency x Space1 x Space2 reorganizado:",
+            power_array_t_f_s1_s2.shape
+        )
+
+        # ======================================================
+        # CONVERTER PARA TENSOR
+        # ======================================================
+
+        X_s1_s2_f_t = torch.from_numpy(
+            power_array_s1_s2_f_t
+        ).float()
+
+        X_s1_s2_t_f = torch.from_numpy(
+            power_array_s1_s2_t_f
+        ).float()
+
+        X_t_f_s2_s1 = torch.from_numpy(
+            power_array_t_f_s2_s1
+        ).float()
+
+        X_t_f_s1_s2 = torch.from_numpy(
+            power_array_t_f_s1_s2
+        ).float()     
+
+
+        y = torch.from_numpy(
+            labels
+        ).long()
+
+
+        print(
+            "X_s1_s2_f_t:",
+            X_s1_s2_f_t.shape
+        )
+
+        print(
+            "X_s1_s2_t_f:",
+            X_s1_s2_t_f.shape
+        )
+
+        print(
+            "X_t_f_s2_s1:",
+            X_t_f_s2_s1.shape
+        )
+
+        print(
+            "X_t_f_s1_s2:",
+            X_t_f_s1_s2.shape
+        )
+
+
+        print(
+            "y:",
+            y.shape
+        )
+
+
+        # print(
+        #     "Min:",
+        #     X.min()
+        # )
+
+        # print(
+        #     "Max:",
+        #     X.max()
+        # )
+
+        # print(
+        #     "Mean:",
+        #     X.mean()
+        # )
+
+        # print(
+        #     "Std:",
+        #     X.std()
+        # )
+
+
+        # print(
+        #     "Valores diferentes de zero:",
+        #     torch.count_nonzero(X).item()
+        # )
+
+
+        # print(
+        #     "Proporção diferente de zero:",
+        #     torch.count_nonzero(X).item()
+        #     / X.numel()
+        # )
+
+
+        # ======================================================
+        # CPU OU GPU
+        # ======================================================
+
+        device = torch.device(
+            "cuda"
+            if torch.cuda.is_available()
+            else "cpu"
+        )
+
+
+        print(
+            "Device:",
+            device
+        )
+
+
+        print(
+            "CUDA disponível:",
+            torch.cuda.is_available()
+        )
+
+
+        print(
+            "Versão CUDA:",
+            torch.version.cuda
+        )
+
+
+        if torch.cuda.is_available():
+
+            print(
+                "GPU:",
+                torch.cuda.get_device_name(0)
+            )
+
+
+        # ======================================================
+        # ARMAZENAR RESULTADOS DOS FOLDS
+        # ======================================================
+
+        fold_accuracies_ml = []
+        fold_losses_ml = []
+
+        fold_accuracies_ma = []
+        fold_losses_ma = []   
+
+        # ======================================================
+        # LOOP DOS 5 FOLDS
+        # ======================================================
+
+        for fold in range(1, N_FOLDS + 1):
+
+            print()
+            print("=" * 70)
+            print(
+                f"FOLD {fold}/{N_FOLDS}"
+            )
+            print("=" * 70)
+
+            # ======================================================
+            # CARREGAR OS ÍNDICES DESTE FOLD
+            # ======================================================
+
+            fold_data = np.load(
+                FOLDS_DIR / f"fold_{fold}.npz"
+            )
+
+            train_indices = fold_data["train_indices"]
+            val_indices = fold_data["val_indices"]
+            test_indices = fold_data["test_indices"]
+
+
+
+            # ==================================================
+            # MOSTRAR TAMANHOS
+            # ==================================================
+
+            X = X_s1_s2_f_t
+
+            print(
+                "Total:",
+                len(X)
+            )
+
+            print(
+                "Treinamento:",
+                len(train_indices)
+            )
+
+            print(
+                "Validação:",
+                len(val_indices)
+            )
+
+            print(
+                "Teste:",
+                len(test_indices)
+            )
+
+
+            print(
+                "Treinamento (%):",
+                len(train_indices)
+                / len(X)
+            )
+
+            print(
+                "Validação (%):",
+                len(val_indices)
+                / len(X)
+            )
+
+            print(
+                "Teste (%):",
+                len(test_indices)
+                / len(X)
+            )
+
+            # ======================================================
+            # 9.2 SEPARAR DADOS DE S1_S2_F_T
+            # ======================================================
+
+            X_s1_s2_f_t_train = (X_s1_s2_f_t[train_indices])
+            X_s1_s2_f_t_val = (X_s1_s2_f_t[val_indices])
+            X_s1_s2_f_t_test = (X_s1_s2_f_t[test_indices])
+
+            # ======================================================
+            # 9.3 SEPARAR DADOS DE S1_S2_T_F
+            # ======================================================
+
+            X_s1_s2_t_f_train = (X_s1_s2_t_f[train_indices])
+            X_s1_s2_t_f_val = (X_s1_s2_t_f[val_indices])
+            X_s1_s2_t_f_test = (X_s1_s2_t_f[test_indices])
+
+            # ======================================================
+            # 9.4 LABELS
+            # ======================================================
+
+            y_train = y[train_indices]
+            y_val = y[val_indices]
+            y_test = y[test_indices]
+
+
+            # ======================================================
+            # 9.5 CARREGAR CHECKPOINT S1_S2_F_T
+            # ======================================================
+
+            checkpoint_s1_s2_f_t = torch.load(
+                S1_S2_F_T_SUB_DIR
+                / f"space1_space2_frequency_time_fold_{fold}.pth",
+                map_location=device,
+                weights_only=False
+            )
+
+            power_max_s1_s2_f_t = (
+                checkpoint_s1_s2_f_t["power_max"].item()
+            )
+
+            # ======================================================
+            # 9.5 CARREGAR CHECKPOINT S1_S2_T_F
+            # ======================================================
+
+            checkpoint_s1_s2_t_f = torch.load(
+                S1_S2_T_F_SUB_DIR
+                / f"space1_space2_time_frequency_fold_{fold}.pth",
+                map_location=device,
+                weights_only=False
+            )
+
+            power_max_s1_s2_t_f = (
+                checkpoint_s1_s2_t_f["power_max"].item()
+            )
+
+
+
+            # ==================================================
+            # NORMALIZAÇÃO
+            # ==================================================
+
+            X_s1_s2_f_t_train = X_s1_s2_f_t_train / power_max_s1_s2_f_t
+            X_s1_s2_f_t_val = X_s1_s2_f_t_val / power_max_s1_s2_f_t
+            X_s1_s2_f_t_test = X_s1_s2_f_t_test / power_max_s1_s2_f_t
+
+            X_s1_s2_t_f_train = X_s1_s2_t_f_train / power_max_s1_s2_t_f
+            X_s1_s2_t_f_val = X_s1_s2_t_f_val / power_max_s1_s2_t_f
+            X_s1_s2_t_f_test = X_s1_s2_t_f_test / power_max_s1_s2_t_f
+
+
+            # Muito importante:
+            #
+            # power_max é obtido SOMENTE
+            # a partir do conjunto de treinamento.
+
+            power_max = X_train.max()
+
+
+            X_train = (
+                X_train
+                / power_max
+            )
+
+
+            X_val = (
+                X_val
+                / power_max
+            )
+
+
+            X_test = (
+                X_test
+                / power_max
+            )
+
+
+            # X_s1_s2_f_t
+            print(
+                "X_s1_s2_f_t_train:",
+                X_s1_s2_f_t_train.shape
+            )
+
+            print(
+                "X_s1_s2_f_t_val:",
+                X_s1_s2_f_t_val.shape
+            )
+
+            print(
+                "X_s1_s2_f_t:",
+                X_s1_s2_f_t_test.shape
+            )
+
+
+            #X_s1_s2_t_f
+            print(
+                "X_s1_s2_t_f_train:",
+                X_s1_s2_t_f_train.shape
+            )
+
+            print(
+                "X_s1_s2_t_f__val:",
+                X_s1_s2_t_f_val.shape
+            )
+
+            print(
+                "X_s1_s2_t_f:",
+                X_s1_s2_t_f_test.shape
+            )
+
+
+            # ==================================================
+            # DATASETS
+            # ==================================================
+
+            train_dataset = TensorDataset(
+                X_s1_s2_f_t_train,
+                X_s1_s2_t_f_train,
+                y_train
+            )
+
+
+            val_dataset = TensorDataset(
+                X_s1_s2_f_t_val,
+                X_s1_s2_t_f_val,
+                y_val
+            )
+
+
+            test_dataset = TensorDataset(
+                X_s1_s2_f_t_test,
+                X_s1_s2_t_f_test,
+                y_test
+            )
+
+
+            # ==================================================
+            # DATALOADERS
+            # ==================================================
+
+            generator = torch.Generator()
+
+
+            generator.manual_seed(
+                RANDOM_STATE_LOADER
+            )
+
+
+            train_loader = DataLoader(
+                train_dataset,
+                batch_size=BATCH_SIZE,
+                shuffle=True,
+                generator=generator
+            )
+
+
+            val_loader = DataLoader(
+                val_dataset,
+                batch_size=BATCH_SIZE,
+                shuffle=False
+            )
+
+
+            test_loader = DataLoader(
+                test_dataset,
+                batch_size=BATCH_SIZE,
+                shuffle=False
+            )
+
+
+
+
+
+            # ==================================================
+            # CRIAR UMA NOVA REDE PARA ESTE FOLD
+            # ==================================================
+
+            torch.manual_seed(
+                RANDOM_STATE
+            )
+
+            # ======================================================
+            # 9.8 CARREGAR MODELO S1_S2_F_T
+            # ======================================================
+
+            model_s1_s2_f_t = (
+                Space1Space2FrequencyTimeCNN()
+                .to(device)
+            )
+
+            model_s1_s2_f_t.load_state_dict(
+                checkpoint_s1_s2_f_t[
+                    "model_state_dict"
+                ]
+            )
+
+            # ======================================================
+            # 9.9 CARREGAR MODELO S1_S2_T_F
+            # ======================================================
+
+            model_s1_s2_t_f = (
+                Space1Space2TimeFrequencyCNN()
+                .to(device)
+            )
+
+            model_s1_s2_t_f.load_state_dict(
+                checkpoint_s1_s2_t_f[
+                    "model_state_dict"
+                ]
+            )
+
+            # ======================================================
+            # 9.10 CONGELAR OS RAMOS
+            # ======================================================
+
+            for parameter in model_s1_s2_f_t.parameters():
+
+                parameter.requires_grad = False
+
+
+            for parameter in model_s1_s2_t_f.parameters():
+
+                parameter.requires_grad = False
+
+            # ===============================================
+            # SELECIONA O MODELO
+            # ===============================================
+
+            match fusion:
+
+                case "gated_fusion":
+
+                    model = GatedFusion(
+                        model_s1_s2_f_t,
+                        model_s1_s2_t_f
+                    ).to(device)
+
+                    if fold == 1:
+
+                        model_stats = summary(
+                            model, 
+                            input_size=[
+                                (1, 9, 65, 21, 21),
+                                (1, 65, 9, 21, 21)], 
+                            device=device, 
+                            verbose=0
+                        )
+                        
+                        save_summary_as_pdf(fusion , model_stats, save_path= MODEL_DIR)
+
+                case _:
+                    raise ValueError(f"Invalid branch {fusion}")
+                
+               
+            # ==================================================
+            # FUNÇÃO DE PERDA
+            # ==================================================
+
+            criterion = nn.CrossEntropyLoss()
+
+            # ====================================================================
+            # ESTÁGIO 1 DO TREINAMENTO - TREINAR SOMENTE O CLASSIFICADOR DE FUSÃO
+            # ====================================================================
+
+            # ==================================================
+            # OTIMIZADOR
+            # ==================================================
+
+            optimizer = torch.optim.Adam(
+                filter(
+                    lambda parameter: parameter.requires_grad,
+                    model.parameters()
+                ),
+                lr=LEARNING_RATE_STAGE_1
+            )
+
+
+            # ==================================================
+            # HISTÓRICO DO FOLD
+            # ==================================================
+
+            train_accuracies_epoch = []
+
+            val_accuracies_epoch = []
+
+            train_losses_epoch = []
+
+            val_losses_epoch = []
+
+
+            # ==================================================
+            # INICIALIZAÇÃO PARA O MELHOR MODELO
+            # ==================================================
+
+            # menor loss
+            min_val_loss = float("inf")
+            min_val_loss_epoch = 0
+            min_val_loss_model_state_stage_1 = None
+
+            # máxima acurácia
+            max_val_accuracy = -1
+            best_val_loss_to_max_accuracy = float("inf")
+            max_val_accuracy_epoch = 0
+            max_val_accuracy_model_state_stage_1 = None
+
+            # ==================================================
+            # TREINAMENTO - ESTAGIO 1
+            # ==================================================
+
+            for epoch in range(N_EPOCHS_STAGE_1):
+
+
+                # ==============================================
+                # TREINAMENTO DA ÉPOCA
+                # ==============================================
+
+                model.train()
+
+                # Os dois extratores permanecem congelados
+                # e em modo de avaliação
+                model_s1_s2_f_t.eval()
+                model_s1_s2_t_f.eval()
+
+                train_total_loss = 0.0
+                train_correct = 0
+                train_total = 0
+
+
+                for (
+                        X_s1_s2_f_t_batch,
+                        X_s1_s2_t_f_batch,
+                        y_batch
+                    ) in train_loader:
+
+
+                    X_s1_s2_f_t_batch = X_s1_s2_f_t_batch.to(
+                        device
+                    )
+
+                    X_s1_s2_t_f_batch = X_s1_s2_t_f_batch.to(
+                        device
+                    )
+
+                    y_batch = y_batch.to(
+                        device
+                    )
+
+
+                    # ------------------------------------------
+                    # ZERAR GRADIENTES
+                    # ------------------------------------------
+
+                    optimizer.zero_grad()
+
+
+                    # ------------------------------------------
+                    # FORWARD
+                    # ------------------------------------------
+
+                    outputs = model(
+                        X_s1_s2_f_t_batch, 
+                        X_s1_s2_t_f_batch
+                    )
+
+
+                    # ------------------------------------------
+                    # LOSS
+                    # ------------------------------------------
+
+                    loss = criterion(
+                        outputs,
+                        y_batch
+                    )
+
+
+                    # ------------------------------------------
+                    # BACKPROPAGATION
+                    # ------------------------------------------
+
+                    loss.backward()
+
+
+                    # ------------------------------------------
+                    # ATUALIZAR PESOS
+                    # ------------------------------------------
+
+                    optimizer.step()
+
+
+                    # ------------------------------------------
+                    # ACUMULAR LOSS
+                    # ------------------------------------------
+
+                    train_total_loss += (
+                        loss.item()
+                    )
+
+
+                    # ------------------------------------------
+                    # PREVISÕES
+                    # ------------------------------------------
+
+                    predictions = outputs.argmax(
+                        dim=1
+                    )
+
+
+                    # ------------------------------------------
+                    # ACERTOS
+                    # ------------------------------------------
+
+                    train_correct += (
+                        predictions
+                        == y_batch
+                    ).sum().item()
+
+
+                    train_total += (
+                        y_batch.size(0)
+                    )
+
+
+                # ==============================================
+                # RESULTADOS DE TREINAMENTO
+                # ==============================================
+
+                train_loss = (
+                    train_total_loss
+                    / len(train_loader)
+                )
+
+
+                train_accuracy = (
+                    train_correct
+                    / train_total
+                )
+
+
+                # ==============================================
+                # VALIDAÇÃO DA ÉPOCA
+                # ==============================================
+
+                model.eval()
+
+
+                val_total_loss = 0.0
+
+                val_correct = 0
+
+                val_total = 0
+
+
+                with torch.no_grad():
+
+
+                    for (
+                        X_s1_s2_f_t_batch,
+                        X_s1_s2_t_f_batch,
+                        y_batch
+                    ) in val_loader:
+
+                        X_s1_s2_f_t_batch = X_s1_s2_f_t_batch.to(device)
+                        X_s1_s2_t_f_batch = X_s1_s2_t_f_batch.to(device)
+                        y_batch = y_batch.to(device)
+
+
+                        outputs = model(
+                            X_batch
+                        )
+
+
+                        loss = criterion(
+                            outputs,
+                            y_batch
+                        )
+
+
+                        val_total_loss += (
+                            loss.item()
+                        )
+
+
+                        predictions = outputs.argmax(
+                            dim=1
+                        )
+
+
+                        val_correct += (
+                            predictions
+                            == y_batch
+                        ).sum().item()
+
+
+                        val_total += (
+                            y_batch.size(0)
+                        )
+
+
+                # ==============================================
+                # RESULTADOS DE VALIDAÇÃO
+                # ==============================================
+
+                val_loss = (
+                    val_total_loss
+                    / len(val_loader)
+                )
+
+
+                val_accuracy = (
+                    val_correct
+                    / val_total
+                )
+
+
+                # ==============================================
+                # GUARDAR HISTÓRICO
+                # ==============================================
+
+                train_accuracies_epoch.append(
+                    train_accuracy
+                )
+
+
+                val_accuracies_epoch.append(
+                    val_accuracy
+                )
+
+
+                train_losses_epoch.append(
+                    train_loss
+                )
+
+
+                val_losses_epoch.append(
+                    val_loss
+                )
+
+
+                # ==============================================
+                # VERIFICAR SE É O MELHOR MODELO
+                # ==============================================
+
+                # menor loss
+                if val_loss < min_val_loss:
+
+                    min_val_loss = (
+                        val_loss
+                    )
+
+
+                    min_val_loss_epoch = (
+                        epoch
+                    )
+
+                    min_val_loss_model_state_stage_1 = copy.deepcopy(
+                        model.state_dict()
+                    )
+
+                #maior acurácia
+                if (val_accuracy > max_val_accuracy or
+                     ( val_accuracy == max_val_accuracy and val_loss < best_val_loss_to_max_accuracy)
+                    ):
+                    
+                    max_val_accuracy = val_accuracy
+                    best_val_loss_to_max_accuracy = val_loss
+                    max_val_accuracy_epoch = epoch
+
+                    max_val_accuracy_model_state_stage_1 = copy.deepcopy(
+                        model.state_dict()
+                    )
+
+
+                # ==============================================
+                # MOSTRAR RESULTADOS
+                # ==============================================
+
+                print(
+                    f"Fold {fold} | "
+                    f"Epoch {epoch + 1:03d}/{N_EPOCHS_STAGE_1} | "
+                    f"Train Loss: {train_loss:.4f} | "
+                    f"Val Loss: {val_loss:.4f} | "
+                    f"Train Acc: {train_accuracy:.4f} | "
+                    f"Val Acc: {val_accuracy:.4f}"
+                )
+
+
+            # ==============================
+            # TESTE DO MODELO DE MENOR LOSS
+            # ==============================
+
+            model_ml, test_loss_ml, test_accuracy_ml, fold_losses_ml, fold_accuracies_ml, all_labels_ml, all_predictions_ml = test_model(model, min_val_loss_model_state,
+                test_loader,
+                device,
+                criterion,
+                fold_accuracies_ml,
+                fold_losses_ml,
+            )
+
+            # ===================================
+            # TESTE DO MODELO DE MAIOR ACURÁCIA
+            # ===================================
+
+            model_ma, test_loss_ma, test_accuracy_ma, fold_losses_ma, fold_accuracies_ma, all_labels_ma, all_predictions_ma = test_model(model, max_val_accuracy_model_state,
+                test_loader,
+                device,
+                criterion,
+                fold_accuracies_ma,
+                fold_losses_ma,
+            )
+
+            # ==============================================
+            # SALVANDO RESULTADOS DO ESTAGIO 1
+            # ==============================================
+
+            stage_1_results = {
+
+                # ------------------------------------------
+                # HISTÓRICO DAS LOSSES
+                # ------------------------------------------
+
+                "train_losses_epoch":
+                    train_losses_epoch,
+
+                "val_losses_epoch":
+                    val_losses_epoch,
+
+                "min_val_loss":
+                    min_val_loss,
+
+                "min_val_loss_epoch":
+                    min_val_loss_epoch,
+
+                # ------------------------------------------
+                # HISTÓRICO DAS ACURÁCIAS
+                # ------------------------------------------
+
+                "train_accuracies_epoch":
+                    train_accuracies_epoch,
+
+                "val_accuracies_epoch":
+                    val_accuracies_epoch,
+
+                "max_val_accuracy" : 
+                    max_val_accuracy,
+
+                "max_val_accuracy_epoch": 
+                    max_val_accuracy_epoch,
+
+                # # ------------------------------------------
+                # # MELHOR MODELO PARA O PONTO DE MÍNIMO LOSS
+                # # ------------------------------------------
+
+                # "min_val_loss_model_state": 
+                #     min_val_loss_model_state_stage_1,
+
+                # # ----------------------------------------------
+                # # MELHOR MODELO PARA O PONTO DE MÁXIMA ACURÁCIA
+                # # ----------------------------------------------
+
+                # "max_val_accuracy_model_state":
+                #     max_val_accuracy_model_state_stage_1,
+
+                # ======================================
+                # TEST RESULTS USING MINIMUM LOSS MODEL
+                # ======================================
+
+                "minimum_loss_model_test_results": {
+
+                    # ------------------------------------------
+                    # MELHOR MODELO PARA O MENOR CUSTO
+                    # ------------------------------------------
+
+                    "model_state_dict":
+                        model_ml.state_dict(),
+                        
+                    # ---------------------
+                    # RESULTADOS
+                    # ----------------------
+                    
+                    "test_loss":
+                        test_loss_ml,
+
+                    "test_accuracy":
+                        test_accuracy_ml,
+
+                    "all_predictions":
+                        np.array(
+                            all_predictions_ml
+                        ),
+
+                    "all_labels":
+                        np.array(
+                            all_labels_ml
+                        ),
+
+                    "fold_accuracies": np.array(fold_accuracies_ml),
+
+                    "fold_losses": np.array(fold_losses_ml),
+                },
+
+                # ==========================================
+                # TEST RESULTS USING MAXIMUM ACURRACY MODEL
+                # ==========================================
+
+                "maximum_accuracy_model_test_results": {
+
+                    # ------------------------------------------
+                    # MELHOR MODELO PARA A MAXIMA ACURÁCIA
+                    # ------------------------------------------
+
+                    "model_state_dict":
+                        model_ma.state_dict(),
+
+                    # ---------------------
+                    # RESULTADOS
+                    # ----------------------
+                    
+                    "test_loss":
+                        test_loss_ma,
+
+                    "test_accuracy":
+                        test_accuracy_ma,
+
+                    "all_predictions":
+                        np.array(
+                            all_predictions_ma
+                        ),
+
+                    "all_labels":
+                        np.array(
+                            all_labels_ma
+                        ),
+
+                    "fold_accuracies": np.array(fold_accuracies_ma),
+
+                    "fold_losses": np.array(fold_losses_ma),
+                },
+                
+                
+            }            
+
+
+            # =================================================================
+            # ESTÁGIO 2 DO TREINAMENTO - TREINAR TODA A REDE DE FUSÃO
+            # =================================================================
+
+
+            # =====================================================================
+            # ESTÁGIO 2 COM O MODELO DE MENOR LOSS OBTIDO NO ESTAGIO 1 DO TREINAMENTO
+            # =====================================================================
+
+            # ======================================================
+            # DESCONGELAR OS DOIS RAMOS
+            # ======================================================
+
+            for parameter in model_s1_s2_f_t.parameters():
+                parameter.requires_grad = True
+
+            for parameter in model_s1_s2_t_f.parameters():
+                parameter.requires_grad = True
+
+            # =====================================================================
+            # CARREGANDO O MODELO DE MENOR LOSS OBTIDO NO ESTAGIO 1 DO TREINAMENTO
+            # =====================================================================
+
+            model.load_state_dict(
+                min_val_loss_model_state_stage_1
+            )
+
+
+            # ======================================================
+            # NOVO OTIMIZADOR PARA FINE-TUNING
+            # ======================================================
+
+            optimizer = torch.optim.Adam(
+                model.parameters(),
+                lr=LEARNING_RATE_STAGE_2
+            )
+
+
+
+            # ==================================================
+            # HISTÓRICO DO FOLD
+            # ==================================================
+
+            train_accuracies_epoch = []
+
+            val_accuracies_epoch = []
+
+            train_losses_epoch = []
+
+            val_losses_epoch = []
+
+
+            # ==================================================
+            # INICIALIZAÇÃO PARA O MELHOR MODELO
+            # ==================================================
+
+            # menor loss
+            min_val_loss = float("inf")
+            min_val_loss_epoch = 0
+            min_val_loss_model_state = None
+
+            # máxima acurácia
+            max_val_accuracy = -1
+            best_val_loss_to_max_accuracy = float("inf")
+            max_val_accuracy_epoch = 0
+            max_val_accuracy_model_state = None
+   
+            # ==================================================
+            # TREINAMENTO ESTAGIO 2 - FINE TUNNING
+            # ==================================================
+
+            for epoch in range(N_EPOCHS_STAGE_2):
+
+                model.train()
+
+                train_total_loss = 0.0
+                train_correct = 0
+                train_total = 0
+
+
+                for (
+                        X_s1_s2_f_t_batch,
+                        X_s1_s2_t_f_batch,
+                        y_batch
+                    ) in train_loader:
+
+
+                    X_s1_s2_f_t_batch = X_s1_s2_f_t_batch.to(
+                        device
+                    )
+
+                    X_s1_s2_t_f_batch = X_s1_s2_t_f_batch.to(
+                        device
+                    )
+
+                    y_batch = y_batch.to(
+                        device
+                    )
+
+
+                    # ------------------------------------------
+                    # ZERAR GRADIENTES
+                    # ------------------------------------------
+
+                    optimizer.zero_grad()
+
+
+                    # ------------------------------------------
+                    # FORWARD
+                    # ------------------------------------------
+
+                    outputs = model(
+                        X_s1_s2_f_t_batch, 
+                        X_s1_s2_t_f_batch
+                    )
+
+
+                    # ------------------------------------------
+                    # LOSS
+                    # ------------------------------------------
+
+                    loss = criterion(
+                        outputs,
+                        y_batch
+                    )
+
+
+                    # ------------------------------------------
+                    # BACKPROPAGATION
+                    # ------------------------------------------
+
+                    loss.backward()
+
+
+                    # ------------------------------------------
+                    # ATUALIZAR PESOS
+                    # ------------------------------------------
+
+                    optimizer.step()
+
+
+                    # ------------------------------------------
+                    # ACUMULAR LOSS
+                    # ------------------------------------------
+
+                    train_total_loss += (
+                        loss.item()
+                    )
+
+
+                    # ------------------------------------------
+                    # PREVISÕES
+                    # ------------------------------------------
+
+                    predictions = outputs.argmax(
+                        dim=1
+                    )
+
+
+                    # ------------------------------------------
+                    # ACERTOS
+                    # ------------------------------------------
+
+                    train_correct += (
+                        predictions
+                        == y_batch
+                    ).sum().item()
+
+
+                    train_total += (
+                        y_batch.size(0)
+                    )
+
+
+                # ==============================================
+                # RESULTADOS DE TREINAMENTO
+                # ==============================================
+
+                train_loss = (
+                    train_total_loss
+                    / len(train_loader)
+                )
+
+
+                train_accuracy = (
+                    train_correct
+                    / train_total
+                )
+
+
+                # ==============================================
+                # VALIDAÇÃO DA ÉPOCA
+                # ==============================================
+
+                model.eval()
+
+
+                val_total_loss = 0.0
+
+                val_correct = 0
+
+                val_total = 0
+
+
+                with torch.no_grad():
+
+
+                    for (
+                        X_batch,
+                        y_batch
+                    ) in val_loader:
+
+
+                        X_batch = X_batch.to(
+                            device
+                        )
+
+                        y_batch = y_batch.to(
+                            device
+                        )
+
+
+                        outputs = model(
+                            X_batch
+                        )
+
+
+                        loss = criterion(
+                            outputs,
+                            y_batch
+                        )
+
+
+                        val_total_loss += (
+                            loss.item()
+                        )
+
+
+                        predictions = outputs.argmax(
+                            dim=1
+                        )
+
+
+                        val_correct += (
+                            predictions
+                            == y_batch
+                        ).sum().item()
+
+
+                        val_total += (
+                            y_batch.size(0)
+                        )
+
+
+                # ==============================================
+                # RESULTADOS DE VALIDAÇÃO
+                # ==============================================
+
+                val_loss = (
+                    val_total_loss
+                    / len(val_loader)
+                )
+
+
+                val_accuracy = (
+                    val_correct
+                    / val_total
+                )
+
+
+                # ==============================================
+                # GUARDAR HISTÓRICO
+                # ==============================================
+
+                train_accuracies_epoch.append(
+                    train_accuracy
+                )
+
+
+                val_accuracies_epoch.append(
+                    val_accuracy
+                )
+
+
+                train_losses_epoch.append(
+                    train_loss
+                )
+
+
+                val_losses_epoch.append(
+                    val_loss
+                )
+
+
+                # ==============================================
+                # VERIFICAR SE É O MELHOR MODELO
+                # ==============================================
+
+                # menor loss
+                if val_loss < min_val_loss:
+
+                    min_val_loss = (
+                        val_loss
+                    )
+
+
+                    min_val_loss_epoch = (
+                        epoch
+                    )
+
+                    min_val_loss_model_state = copy.deepcopy(
+                        model.state_dict()
+                    )
+
+                #maior acurácia
+                if (val_accuracy > max_val_accuracy or
+                     ( val_accuracy == max_val_accuracy and val_loss < best_val_loss_to_max_accuracy)
+                    ):
+                    
+                    max_val_accuracy = val_accuracy
+                    best_val_loss_to_max_accuracy = val_loss
+                    max_val_accuracy_epoch = epoch
+
+                    max_val_accuracy_model_state = copy.deepcopy(
+                        model.state_dict()
+                    )
+
+
+                # ==============================================
+                # MOSTRAR RESULTADOS
+                # ==============================================
+
+                print(
+                    f"Fold {fold} | "
+                    f"Epoch {epoch + 1:03d}/{N_EPOCHS_STAGE_1} | "
+                    f"Train Loss: {train_loss:.4f} | "
+                    f"Val Loss: {val_loss:.4f} | "
+                    f"Train Acc: {train_accuracy:.4f} | "
+                    f"Val Acc: {val_accuracy:.4f}"
+                )
+
+            # ==============================
+            # TESTE DO MODELO DE MENOR LOSS
+            # ==============================
+
+            model_ml, test_loss_ml, test_accuracy_ml, fold_losses_ml, fold_accuracies_ml, all_labels_ml, all_predictions_ml = test_model(model, min_val_loss_model_state,
+                test_loader,
+                device,
+                criterion,
+                fold_accuracies_ml,
+                fold_losses_ml,
+            )
+
+            # ===================================
+            # TESTE DO MODELO DE MAIOR ACURÁCIA
+            # ===================================
+
+            model_ma, test_loss_ma, test_accuracy_ma, fold_losses_ma, fold_accuracies_ma, all_labels_ma, all_predictions_ma = test_model(model, max_val_accuracy_model_state,
+                test_loader,
+                device,
+                criterion,
+                fold_accuracies_ma,
+                fold_losses_ma,
+            )
+
+            # =============================================================
+            # IMPRIMINDO OS RESULTADOS DE TESTE DE CADA MODELO POR FOLD 
+            # =============================================================
+
+            print_fold_results(
+                "minimum_loss", 
+                fold, 
+                min_val_loss_epoch, 
+                min_val_loss, 
+                test_loss_ml,
+                test_accuracy_ml, 
+                all_labels_ml, 
+                all_predictions_ml )
+
+            print_fold_results(
+                "maximum_accuracy", 
+                fold, 
+                max_val_accuracy_epoch, 
+                max_val_accuracy, 
+                test_loss_ma,
+                test_accuracy_ma, 
+                all_labels_ma, 
+                all_predictions_ma )
+
+            # ==============================================
+            # SALVANDO RESULTADOS DO ESTAGIO 2 COM O MODELO DE MENOR LOSS
+            # ==============================================
+
+            stage_2_ml_results = {
+
+                # ------------------------------------------
+                # HISTÓRICO DAS LOSSES
+                # ------------------------------------------
+
+                "train_losses_epoch":
+                    train_losses_epoch,
+
+                "val_losses_epoch":
+                    val_losses_epoch,
+
+                "min_val_loss":
+                    min_val_loss,
+
+                "min_val_loss_epoch":
+                    min_val_loss_epoch,
+
+                # ------------------------------------------
+                # HISTÓRICO DAS ACURÁCIAS
+                # ------------------------------------------
+
+                "train_accuracies_epoch":
+                    train_accuracies_epoch,
+
+                "val_accuracies_epoch":
+                    val_accuracies_epoch,
+
+                "max_val_accuracy" : 
+                    max_val_accuracy,
+
+                "max_val_accuracy_epoch": 
+                    max_val_accuracy_epoch,
+
+                # ------------------------------------------
+                # MELHOR MODELO PARA O PONTO DE MÍNIMO LOSS
+                # ------------------------------------------
+
+                "min_val_loss_model_state": 
+                    min_val_loss_model_state,
+
+                # ----------------------------------------------
+                # MELHOR MODELO PARA O PONTO DE MÁXIMA ACURÁCIA
+                # ----------------------------------------------
+
+                "max_val_accuracy_model_state":
+                    max_val_accuracy_model_state,
+
+                # ======================================
+                # TEST RESULTS USING MINIMUM LOSS MODEL
+                # ======================================
+
+                "minimum_loss_model_test_results": {
+
+                    # ------------------------------------------
+                    # MELHOR MODELO PARA O MENOR CUSTO
+                    # ------------------------------------------
+
+                    "model_state_dict":
+                        model_ml.state_dict(),
+                        
+                    # ---------------------
+                    # RESULTADOS
+                    # ----------------------
+                    
+                    "test_loss":
+                        test_loss_ml,
+
+                    "test_accuracy":
+                        test_accuracy_ml,
+
+                    "all_predictions":
+                        np.array(
+                            all_predictions_ml
+                        ),
+
+                    "all_labels":
+                        np.array(
+                            all_labels_ml
+                        ),
+
+                    "fold_accuracies": np.array(fold_accuracies_ml),
+
+                    "fold_losses": np.array(fold_losses_ml),
+                },
+
+                # ==========================================
+                # TEST RESULTS USING MAXIMUM ACURRACY MODEL
+                # ==========================================
+
+                "maximum_accuracy_model_test_results": {
+
+                    # ------------------------------------------
+                    # MELHOR MODELO PARA A MAXIMA ACURÁCIA
+                    # ------------------------------------------
+
+                    "model_state_dict":
+                        model_ma.state_dict(),
+
+                    # ---------------------
+                    # RESULTADOS
+                    # ----------------------
+                    
+                    "test_loss":
+                        test_loss_ma,
+
+                    "test_accuracy":
+                        test_accuracy_ma,
+
+                    "all_predictions":
+                        np.array(
+                            all_predictions_ma
+                        ),
+
+                    "all_labels":
+                        np.array(
+                            all_labels_ma
+                        ),
+
+                    "fold_accuracies": np.array(fold_accuracies_ma),
+
+                    "fold_losses": np.array(fold_losses_ma),
+                },
+
+                
+                
+            }   
+
+
+            # =====================================================================
+            # ESTÁGIO 2 COM O MODELO DE MÁXIMA ACURÁCIA LOSS OBTIDO NO ESTAGIO 1 DO TREINAMENTO
+            # =====================================================================
+
+            # ======================================================
+            # DESCONGELAR OS DOIS RAMOS
+            # ======================================================
+
+            for parameter in model_s1_s2_f_t.parameters():
+                parameter.requires_grad = True
+
+            for parameter in model_s1_s2_t_f.parameters():
+                parameter.requires_grad = True
+
+            # =====================================================================
+            # CARREGANDO O MODELO DE MÁXIMA ACURÁCIA OBTIDO NO ESTAGIO 1 DO TREINAMENTO
+            # =====================================================================
+
+            model.load_state_dict(
+                max_val_accuracy_model_state_stage_1
+            )
+
+
+            # ======================================================
+            # NOVO OTIMIZADOR PARA FINE-TUNING
+            # ======================================================
+
+            optimizer = torch.optim.Adam(
+                model.parameters(),
+                lr=LEARNING_RATE_STAGE_2
+            )
+
+
+
+            # ==================================================
+            # HISTÓRICO DO FOLD
+            # ==================================================
+
+            train_accuracies_epoch = []
+
+            val_accuracies_epoch = []
+
+            train_losses_epoch = []
+
+            val_losses_epoch = []
+
+
+            # ==================================================
+            # INICIALIZAÇÃO PARA O MELHOR MODELO
+            # ==================================================
+
+            # menor loss
+            min_val_loss = float("inf")
+            min_val_loss_epoch = 0
+            min_val_loss_model_state = None
+
+            # máxima acurácia
+            max_val_accuracy = -1
+            best_val_loss_to_max_accuracy = float("inf")
+            max_val_accuracy_epoch = 0
+            max_val_accuracy_model_state = None
+   
+            # ==================================================
+            # TREINAMENTO ESTAGIO 2 - FINE TUNNING
+            # ==================================================
+
+            for epoch in range(N_EPOCHS_STAGE_2):
+
+                model.train()
+
+                train_total_loss = 0.0
+                train_correct = 0
+                train_total = 0
+
+
+                for (
+                        X_s1_s2_f_t_batch,
+                        X_s1_s2_t_f_batch,
+                        y_batch
+                    ) in train_loader:
+
+
+                    X_s1_s2_f_t_batch = X_s1_s2_f_t_batch.to(
+                        device
+                    )
+
+                    X_s1_s2_t_f_batch = X_s1_s2_t_f_batch.to(
+                        device
+                    )
+
+                    y_batch = y_batch.to(
+                        device
+                    )
+
+
+                    # ------------------------------------------
+                    # ZERAR GRADIENTES
+                    # ------------------------------------------
+
+                    optimizer.zero_grad()
+
+
+                    # ------------------------------------------
+                    # FORWARD
+                    # ------------------------------------------
+
+                    outputs = model(
+                        X_s1_s2_f_t_batch, 
+                        X_s1_s2_t_f_batch
+                    )
+
+
+                    # ------------------------------------------
+                    # LOSS
+                    # ------------------------------------------
+
+                    loss = criterion(
+                        outputs,
+                        y_batch
+                    )
+
+
+                    # ------------------------------------------
+                    # BACKPROPAGATION
+                    # ------------------------------------------
+
+                    loss.backward()
+
+
+                    # ------------------------------------------
+                    # ATUALIZAR PESOS
+                    # ------------------------------------------
+
+                    optimizer.step()
+
+
+                    # ------------------------------------------
+                    # ACUMULAR LOSS
+                    # ------------------------------------------
+
+                    train_total_loss += (
+                        loss.item()
+                    )
+
+
+                    # ------------------------------------------
+                    # PREVISÕES
+                    # ------------------------------------------
+
+                    predictions = outputs.argmax(
+                        dim=1
+                    )
+
+
+                    # ------------------------------------------
+                    # ACERTOS
+                    # ------------------------------------------
+
+                    train_correct += (
+                        predictions
+                        == y_batch
+                    ).sum().item()
+
+
+                    train_total += (
+                        y_batch.size(0)
+                    )
+
+
+                # ==============================================
+                # RESULTADOS DE TREINAMENTO
+                # ==============================================
+
+                train_loss = (
+                    train_total_loss
+                    / len(train_loader)
+                )
+
+
+                train_accuracy = (
+                    train_correct
+                    / train_total
+                )
+
+
+                # ==============================================
+                # VALIDAÇÃO DA ÉPOCA
+                # ==============================================
+
+                model.eval()
+
+
+                val_total_loss = 0.0
+
+                val_correct = 0
+
+                val_total = 0
+
+
+                with torch.no_grad():
+
+
+                    for (
+                        X_batch,
+                        y_batch
+                    ) in val_loader:
+
+
+                        X_batch = X_batch.to(
+                            device
+                        )
+
+                        y_batch = y_batch.to(
+                            device
+                        )
+
+
+                        outputs = model(
+                            X_batch
+                        )
+
+
+                        loss = criterion(
+                            outputs,
+                            y_batch
+                        )
+
+
+                        val_total_loss += (
+                            loss.item()
+                        )
+
+
+                        predictions = outputs.argmax(
+                            dim=1
+                        )
+
+
+                        val_correct += (
+                            predictions
+                            == y_batch
+                        ).sum().item()
+
+
+                        val_total += (
+                            y_batch.size(0)
+                        )
+
+
+                # ==============================================
+                # RESULTADOS DE VALIDAÇÃO
+                # ==============================================
+
+                val_loss = (
+                    val_total_loss
+                    / len(val_loader)
+                )
+
+
+                val_accuracy = (
+                    val_correct
+                    / val_total
+                )
+
+
+                # ==============================================
+                # GUARDAR HISTÓRICO
+                # ==============================================
+
+                train_accuracies_epoch.append(
+                    train_accuracy
+                )
+
+
+                val_accuracies_epoch.append(
+                    val_accuracy
+                )
+
+
+                train_losses_epoch.append(
+                    train_loss
+                )
+
+
+                val_losses_epoch.append(
+                    val_loss
+                )
+
+
+                # ==============================================
+                # VERIFICAR SE É O MELHOR MODELO
+                # ==============================================
+
+                # menor loss
+                if val_loss < min_val_loss:
+
+                    min_val_loss = (
+                        val_loss
+                    )
+
+
+                    min_val_loss_epoch = (
+                        epoch
+                    )
+
+                    min_val_loss_model_state = copy.deepcopy(
+                        model.state_dict()
+                    )
+
+                #maior acurácia
+                if (val_accuracy > max_val_accuracy or
+                     ( val_accuracy == max_val_accuracy and val_loss < best_val_loss_to_max_accuracy)
+                    ):
+                    
+                    max_val_accuracy = val_accuracy
+                    best_val_loss_to_max_accuracy = val_loss
+                    max_val_accuracy_epoch = epoch
+
+                    max_val_accuracy_model_state = copy.deepcopy(
+                        model.state_dict()
+                    )
+
+
+                # ==============================================
+                # MOSTRAR RESULTADOS
+                # ==============================================
+
+                print(
+                    f"Fold {fold} | "
+                    f"Epoch {epoch + 1:03d}/{N_EPOCHS_STAGE_1} | "
+                    f"Train Loss: {train_loss:.4f} | "
+                    f"Val Loss: {val_loss:.4f} | "
+                    f"Train Acc: {train_accuracy:.4f} | "
+                    f"Val Acc: {val_accuracy:.4f}"
+                )
+
+            # ==============================
+            # TESTE DO MODELO DE MENOR LOSS
+            # ==============================
+
+            model_ml, test_loss_ml, test_accuracy_ml, fold_losses_ml, fold_accuracies_ml, all_labels_ml, all_predictions_ml = test_model(model, min_val_loss_model_state,
+                test_loader,
+                device,
+                criterion,
+                fold_accuracies_ml,
+                fold_losses_ml,
+            )
+
+            # ===================================
+            # TESTE DO MODELO DE MAIOR ACURÁCIA
+            # ===================================
+
+            model_ma, test_loss_ma, test_accuracy_ma, fold_losses_ma, fold_accuracies_ma, all_labels_ma, all_predictions_ma = test_model(model, max_val_accuracy_model_state,
+                test_loader,
+                device,
+                criterion,
+                fold_accuracies_ma,
+                fold_losses_ma,
+            )
+
+            # =============================================================
+            # IMPRIMINDO OS RESULTADOS DE TESTE DE CADA MODELO POR FOLD 
+            # =============================================================
+
+            print_fold_results(
+                "minimum_loss", 
+                fold, 
+                min_val_loss_epoch, 
+                min_val_loss, 
+                test_loss_ml,
+                test_accuracy_ml, 
+                all_labels_ml, 
+                all_predictions_ml )
+
+            print_fold_results(
+                "maximum_accuracy", 
+                fold, 
+                max_val_accuracy_epoch, 
+                max_val_accuracy, 
+                test_loss_ma,
+                test_accuracy_ma, 
+                all_labels_ma, 
+                all_predictions_ma )
+
+            # ==============================================
+            # SALVANDO RESULTADOS DO ESTAGIO 2 COM O MODELO 
+            # DE MÁXIMA ACURÁCIA
+            # ==============================================
+
+            stage_2_ma_results = {
+
+                # ------------------------------------------
+                # HISTÓRICO DAS LOSSES
+                # ------------------------------------------
+
+                "train_losses_epoch":
+                    train_losses_epoch,
+
+                "val_losses_epoch":
+                    val_losses_epoch,
+
+                "min_val_loss":
+                    min_val_loss,
+
+                "min_val_loss_epoch":
+                    min_val_loss_epoch,
+
+                # ------------------------------------------
+                # HISTÓRICO DAS ACURÁCIAS
+                # ------------------------------------------
+
+                "train_accuracies_epoch":
+                    train_accuracies_epoch,
+
+                "val_accuracies_epoch":
+                    val_accuracies_epoch,
+
+                "max_val_accuracy" : 
+                    max_val_accuracy,
+
+                "max_val_accuracy_epoch": 
+                    max_val_accuracy_epoch,
+
+                # ------------------------------------------
+                # MELHOR MODELO PARA O PONTO DE MÍNIMO LOSS
+                # ------------------------------------------
+
+                "min_val_loss_model_state": 
+                    min_val_loss_model_state,
+
+                # ----------------------------------------------
+                # MELHOR MODELO PARA O PONTO DE MÁXIMA ACURÁCIA
+                # ----------------------------------------------
+
+                "max_val_accuracy_model_state":
+                    max_val_accuracy_model_state,
+
+                # ======================================
+                # TEST RESULTS USING MINIMUM LOSS MODEL
+                # ======================================
+
+                "minimum_loss_model_test_results": {
+
+                    # ------------------------------------------
+                    # MELHOR MODELO PARA O MENOR CUSTO
+                    # ------------------------------------------
+
+                    "model_state_dict":
+                        model_ml.state_dict(),
+                        
+                    # ---------------------
+                    # RESULTADOS
+                    # ----------------------
+                    
+                    "test_loss":
+                        test_loss_ml,
+
+                    "test_accuracy":
+                        test_accuracy_ml,
+
+                    "all_predictions":
+                        np.array(
+                            all_predictions_ml
+                        ),
+
+                    "all_labels":
+                        np.array(
+                            all_labels_ml
+                        ),
+
+                    "fold_accuracies": np.array(fold_accuracies_ml),
+
+                    "fold_losses": np.array(fold_losses_ml),
+                },
+
+                # ==========================================
+                # TEST RESULTS USING MAXIMUM ACURRACY MODEL
+                # ==========================================
+
+                "maximum_accuracy_model_test_results": {
+
+                    # ------------------------------------------
+                    # MELHOR MODELO PARA A MAXIMA ACURÁCIA
+                    # ------------------------------------------
+
+                    "model_state_dict":
+                        model_ma.state_dict(),
+
+                    # ---------------------
+                    # RESULTADOS
+                    # ----------------------
+                    
+                    "test_loss":
+                        test_loss_ma,
+
+                    "test_accuracy":
+                        test_accuracy_ma,
+
+                    "all_predictions":
+                        np.array(
+                            all_predictions_ma
+                        ),
+
+                    "all_labels":
+                        np.array(
+                            all_labels_ma
+                        ),
+
+                    "fold_accuracies": np.array(fold_accuracies_ma),
+
+                    "fold_losses": np.array(fold_losses_ma),
+                },
+
+                
+                
+            }   
+            
+
+            # ==================================================
+            # SALVAR O CHECKPOINT DO FOLD
+            # ==================================================
+
+            torch.save(
+                { 
+
+                    # =============================
+                    # DADOS DO FOLD 
+                    # =============================
+
+                    # ------------------------------------------
+                    # FOLD
+                    # ------------------------------------------
+
+                    "fold":
+                        fold,
+
+                    # ------------------------------------------
+                    # NÚMERO DE AMOSTRAS DO FOLD
+                    #-------------------------------------------
+
+                    "total_training_samples": len(train_indices),
+
+                    "total_validation_samples": len(val_indices),
+
+                    "total_test_samples":  len(test_indices),
+
+                    "total_samples":  len(X),
+
+
+                    # ------------------------------------------
+                    # NORMALIZAÇÃO
+                    # ------------------------------------------
+
+                    "power_max":
+                        power_max.item(),
+                  
+                    # ------------------------------------------
+                    # ÍNDICES
+                    # ------------------------------------------
+
+                    "train_indices":
+                        train_indices,
+
+                    "val_indices":
+                        val_indices,
+
+                    "test_indices":
+                        test_indices,
+
+                    # ==============================================
+                    # RESULTADOS DO ESTÁGIO 1
+                    # ==============================================
+
+                    "stage_1_results": stage_1_results,
+
+                    # ==============================================
+                    # RESULTADOS DO ESTÁGIO 2 OBTIDO COM O 
+                    # MODELO DE MÍNIMO LOSS NO ESTÁGIO 1
+                    # ==============================================
+
+                    "stage_2_ml_results": stage_2_ml_results,
+
+                    # ==============================================
+                    # RESULTADOS DO ESTÁGIO 2 OBTIDO COM O 
+                    # MODELO DE MÁXIMA ACURÁCIA NO ESTÁGIO 1
+                    # ==============================================
+
+                    "stage_2_ma_results": stage_2_ma_results,
+
+    
+                },
+
+                SUB_DIR
+                / f"{fusion}_fold_{fold}.pth"
+            )
+
+            
+        # ==========================================================
+        # RESULTADOS DOS 5 FOLDS
+        # ==========================================================
+
+        print_folds_summary("minimum_loss", subject, fold_accuracies_ml, fold_losses_ml)
+
+        print_folds_summary("maximum_accuracy", subject, fold_accuracies_ma, fold_losses_ma)
+
+        # =====================================
+        # SALVA IMAGEM DE RESULTADOS
+        # =====================================
+
+        fusion_individual_subject_plots(branch=fusion , subjects=subject)
+
+
+# ==========================================================
+# EXECUTAR
+# ==========================================================
+
+if __name__ == "__main__":
+
+    execute_fusion(fusion = "space1_space2_frequency_time", N_EPOCHS_STAGE_1 = 600, subjects = ["sub-01"])

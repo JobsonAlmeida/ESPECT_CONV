@@ -1,379 +1,1355 @@
 from pathlib import Path
+
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
 
-current_file = Path(__file__).resolve()
-PROJECT_ROOT = current_file.parents[2]  
 
-INPUT_DIR = PROJECT_ROOT / "processed_data" / "stage_40_execute_branch"
+# ==========================================================
+# CAMINHOS
+# ==========================================================
+
+current_file = Path(__file__).resolve()
+
+PROJECT_ROOT = current_file.parents[2]
+
+
+INPUT_DIR = (
+    PROJECT_ROOT
+    / "processed_data"
+    / "stage_40_execute_branch"
+)
+
 
 OUTPUT_DIR = INPUT_DIR
+
 
 OUTPUT_DIR.mkdir(
     parents=True,
     exist_ok=True
 )
 
-FOLDS_DIR = INPUT_DIR / "fold_indices"
+
+DEFAULT_SUBJECTS = [
+    f"sub-{i:02d}"
+    for i in range(1, 11)
+]
 
 
-DEFAULT_SUBJECTS = [f"sub-{i:02d}" for i in range(1, 11)]
+# ==========================================================
+# FUNÇÃO PRINCIPAL
+# ==========================================================
 
-def individual_subject_plots(branch = "space1_space2_frequency_time", subjects = None ):
+def individual_subject_plots(
+    branch="space1_space2_frequency_time",
+    subjects=None,
+):
 
-    # =================================
-    # CHECAGEM DA VARIÁVEL SUBJECT
-    # =================================
-    if isinstance(subjects, str):  #Se o usuário passou uma única string, transforma em lista com um elemento
-        subjects = [subjects]
-    
-    elif subjects is None: # Caso o usuário não passe nada, usa o comportamento padrão
-        subjects = DEFAULT_SUBJECTS 
+    # ======================================================
+    # CHECAGEM DA VARIÁVEL SUBJECTS
+    # ======================================================
 
-    # ============================
+    if isinstance(
+        subjects,
+        str
+    ):
+
+        # Se o usuário passar uma única string,
+        # transforma em uma lista com um elemento.
+
+        subjects = [
+            subjects
+        ]
+
+
+    elif subjects is None:
+
+        subjects = (
+            DEFAULT_SUBJECTS
+        )
+
+
+    # ======================================================
     # LOOP PARA CADA SUJEITO
-    # ============================
+    # ======================================================
+
     for subject in subjects:
 
-        MODEL_DIR = INPUT_DIR / f"{branch}_branch" / f"{subject}"
-                    
+        MODEL_DIR = (
+            INPUT_DIR
+            / f"{branch}_branch"
+            / subject
+        )
+
+
+        # ==================================================
+        # CONFIGURAÇÕES ESPECÍFICAS DE CADA RAMO
+        # ==================================================
+
         match branch:
+
             case "space1_space2_frequency_time":
 
-                title = " Space1 x Space2 x Frequency - Channel: Time" 
-                fold_files = sorted(MODEL_DIR.glob("space1_space2_frequency_time_fold_*.pth"))
+                title = (
+                    "Space1 x Space2 x Frequency "
+                    "- Channel: Time"
+                )
+
 
             case "space1_space2_time_frequency":
 
-                title = " Space1 x Space2 x Time - Channel: Frequency" 
-                fold_files = sorted(MODEL_DIR.glob("space1_space2_time_frequency_fold_*.pth"))
+                title = (
+                    "Space1 x Space2 x Time "
+                    "- Channel: Frequency"
+                )
+
 
             case "time_frequency_space2_space1":
-        
-                title = " Time x Frequency x Space2 - Channel: Space1" 
-                fold_files = sorted(MODEL_DIR.glob("time_frequency_space2_space1_fold_*.pth"))
+
+                title = (
+                    "Time x Frequency x Space2 "
+                    "- Channel: Space1"
+                )
+
 
             case "time_frequency_space1_space2":
-        
-                title = " Time x Frequency x Space1 - Channel: Space2" 
-                fold_files = sorted(MODEL_DIR.glob("time_frequency_space1_space2_fold_*.pth"))
+
+                title = (
+                    "Time x Frequency x Space1 "
+                    "- Channel: Space2"
+                )
+
 
             case _:
-               raise ValueError(f"Invalid Branch {branch}")
+
+                raise ValueError(
+                    f"Invalid branch: {branch}"
+                )
 
 
+        # ==================================================
+        # LOCALIZAR CHECKPOINTS DOS FOLDS
+        # ==================================================
 
-        n_folds = len(fold_files)
-
-       # --- 2. CRIAÇÃO DA ESTRUTURA (3 linhas,  n_folds colunas) ---
-        fig, axs = plt.subplots(3, n_folds + 1, figsize=(22, 10))
-
-        fig.suptitle(f"{title} / {subject.capitalize()}", fontsize=12, fontweight='bold')
-
-        # ========================================
-        # LOOP PARA CARREGAR E PLOTAR OS FOLDS
-        # ========================================
-
-        for fold_idx in range(n_folds):
-            fold_num = fold_idx + 1
-            file_name = f"{branch}_fold_{fold_num}.pth"
-            file_path = MODEL_DIR / file_name
-            
-            if not file_path.exists():
-                print(f"Aviso: Arquivo do Fold {fold_num} não encontrado. Pulando...")
-                continue
-
-            checkpoint = torch.load(file_path, map_location="cpu", weights_only=False)
-            
-            train_losses_epoch = checkpoint["train_losses_epoch"]
-            val_losses_epoch = checkpoint["val_losses_epoch"]
-            train_accuracies_epoch = checkpoint["train_accuracies_epoch"]
-            val_accuracies_epoch = checkpoint["val_accuracies_epoch"]
-
-            min_val_loss_epoch = checkpoint["min_val_loss_epoch"]
-            max_val_accuracy_epoch = checkpoint["max_val_accuracy_epoch"]
-
-            fold_accuracies_ml = checkpoint["minimum_loss_model_test_results"]["fold_accuracies"]
-            fold_accuracies_ma = checkpoint["maximum_accuracy_model_test_results"]["fold_accuracies"]
-
-            fold_losses = checkpoint["minimum_loss_model_test_results"]["fold_losses"]
-            fold_losses = checkpoint["maximum_accuracy_model_test_results"]["fold_losses"]
+        fold_files = list(
+            MODEL_DIR.glob(
+                f"{branch}_fold_*.pth"
+            )
+        )
 
 
-            all_labels_ml = checkpoint["minimum_loss_model_test_results"]["all_labels"]
-            all_labels_ma = checkpoint["maximum_accuracy_model_test_results"]["all_labels"]
+        # --------------------------------------------------
+        # Ordenação numérica do fold
+        #
+        # Evita:
+        #
+        # fold_1
+        # fold_10
+        # fold_2
+        # ...
+        # --------------------------------------------------
+
+        fold_files = sorted(
+            fold_files,
+            key=lambda path: int(
+                path.stem
+                .split("_fold_")[-1]
+            )
+        )
 
 
-            all_predictions_ml = checkpoint["minimum_loss_model_test_results"]["all_predictions"]
-            all_predictions_ma = checkpoint["maximum_accuracy_model_test_results"]["all_predictions"]
-            
-            epochs = range(1, len(train_losses_epoch) + 1)
-            
-            # ---------------------------------------
-            # PLOT DA LINHA DE CIMA: LOSS (Linha 0)
-            # ---------------------------------------
+        n_folds = len(
+            fold_files
+        )
 
-            ax_loss = axs[0, fold_idx]
-            ax_loss.plot(epochs, train_losses_epoch, color='sandybrown', label='Train')
-            ax_loss.plot(epochs, val_losses_epoch, color='royalblue', label='Validation')
-            
-            # Adiciona a linha vertical na melhor época para o gráfico de Loss
-            ax_loss.axvline(x=min_val_loss_epoch + 1 , color='forestgreen', linestyle=':', linewidth=2, label='Min Val Loss')
-            ax_loss.axvline(x=max_val_accuracy_epoch + 1 , color='violet', linestyle=':', linewidth=2, label='Max Val Acc')
 
-            
-            ax_loss.set_title(f"Fold {fold_num} - Loss", fontsize=11, fontweight='bold')
-            ax_loss.grid(True, linestyle=':', alpha=0.5)
-            ax_loss.set_xticklabels([]) 
-            
-            if fold_idx == 0:
-                ax_loss.set_ylabel("Loss", fontsize=12)
-                ax_loss.legend(loc='best')
+        if n_folds == 0:
 
-            # -------------------------------------------
-            # PLOT DA LINHA DO MEIO: ACURÁCIA (Linha 1)
-            # -------------------------------------------
+            print(
+                f"No fold files found for "
+                f"{subject} / {branch}"
+            )
 
-            ax_acc = axs[1, fold_idx]
-            ax_acc.plot(epochs, train_accuracies_epoch, color='sandybrown', label='Train')
-            ax_acc.plot(epochs, val_accuracies_epoch, color='royalblue', label='Validation')
-            
-            # Adiciona a linha vertical na melhor época para o gráfico de Acurácia
-            ax_acc.axvline(x=min_val_loss_epoch + 1, color='forestgreen', linestyle=':', linewidth=2, label='Min Val Loss')
-            ax_acc.axvline(x=max_val_accuracy_epoch + 1 , color='violet', linestyle=':', linewidth=2, label='Max Val Acc')
+            continue
 
-            
-            ax_acc.set_title(f"Fold {fold_num} - Accuracy", fontsize=11, fontweight='bold')
-            ax_acc.set_xlabel("Epochs")
-            ax_acc.grid(True, linestyle=':', alpha=0.5)
-            
-            if fold_idx == 0:
-                ax_acc.set_ylabel("Accuracy", fontsize=12)
-                ax_acc.legend(loc='best') 
 
-            # ===================================================
-            # CONSTRUÇÃO DA MINI-TABELA INDIVIDUAL: (Linha 2)
-            # ===================================================
+        # ==================================================
+        # ARQUIVO DE RESUMO
+        # ==================================================
 
-            ax_table = axs[2, fold_idx]
-            ax_table.axis('off')
+        summary_file = (
+            MODEL_DIR
+            / f"{branch}_summary.pth"
+        )
 
-            val_loss_best_epoch_ml = val_losses_epoch[min_val_loss_epoch]
-            val_loss_best_epoch_ma = val_losses_epoch[max_val_accuracy_epoch]
 
-            val_accuracy_best_epoch_ml = val_accuracies_epoch[min_val_loss_epoch]
-            val_accuracy_best_epoch_ma = val_accuracies_epoch[max_val_accuracy_epoch]
+        if not summary_file.exists():
 
-            test_loss_ml = checkpoint["minimum_loss_model_test_results"]["test_loss"]
-            test_loss_ma = checkpoint["maximum_accuracy_model_test_results"]["test_loss"]
+            raise FileNotFoundError(
+                f"Summary file not found:\n"
+                f"{summary_file}"
+            )
 
-            test_accuracy_ml = checkpoint["minimum_loss_model_test_results"]["test_accuracy"]
-            test_accuracy_ma = checkpoint["maximum_accuracy_model_test_results"]["test_accuracy"]
-        
-            cell_text = [
-                [str(min_val_loss_epoch + 1), str(max_val_accuracy_epoch + 1)],
-                [f"{val_loss_best_epoch_ml:.4f}", f"{val_loss_best_epoch_ma:.4f}"],
-                [f"{val_accuracy_best_epoch_ml:.4f}", f"{val_accuracy_best_epoch_ma:.4f}"],
-                [f"{test_loss_ml:.4f}", f"{test_loss_ma:.4f}"],
-                [f"{test_accuracy_ml:.4f}", f"{test_accuracy_ma:.4f}"],
-                [np.bincount(all_labels_ml, minlength=4), np.bincount(all_labels_ma, minlength=4)],
-                [np.bincount(all_predictions_ml, minlength=4), np.bincount(all_predictions_ma, minlength=4),],
+
+        # ==================================================
+        # CARREGAR RESUMO DOS FOLDS
+        # ==================================================
+
+        summary_checkpoint = torch.load(
+            summary_file,
+            map_location="cpu",
+            weights_only=False
+        )
+
+
+        fold_accuracies_ml = np.asarray(
+            summary_checkpoint[
+                "minimum_loss_model"
+            ][
+                "fold_accuracies"
+            ],
+            dtype=np.float64
+        )
+
+
+        fold_losses_ml = np.asarray(
+            summary_checkpoint[
+                "minimum_loss_model"
+            ][
+                "fold_losses"
+            ],
+            dtype=np.float64
+        )
+
+
+        fold_accuracies_ma = np.asarray(
+            summary_checkpoint[
+                "maximum_accuracy_model"
+            ][
+                "fold_accuracies"
+            ],
+            dtype=np.float64
+        )
+
+
+        fold_losses_ma = np.asarray(
+            summary_checkpoint[
+                "maximum_accuracy_model"
+            ][
+                "fold_losses"
+            ],
+            dtype=np.float64
+        )
+
+
+        # ==================================================
+        # VERIFICAÇÃO DO RESUMO
+        # ==================================================
+
+        if len(
+            fold_accuracies_ml
+        ) != n_folds:
+
+            raise ValueError(
+                "Number of minimum-loss accuracies "
+                "in summary differs from number "
+                "of fold files."
+            )
+
+
+        if len(
+            fold_accuracies_ma
+        ) != n_folds:
+
+            raise ValueError(
+                "Number of maximum-accuracy accuracies "
+                "in summary differs from number "
+                "of fold files."
+            )
+
+
+        # ==================================================
+        # CRIAR FIGURA
+        #
+        # 3 linhas
+        #
+        # n_folds colunas para os folds
+        # +
+        # 1 coluna para informações gerais
+        # ==================================================
+
+        fig, axs = plt.subplots(
+            3,
+            n_folds + 1,
+            figsize=(22, 10)
+        )
+
+
+        fig.suptitle(
+            f"{title} / {subject.capitalize()}",
+            fontsize=12,
+            fontweight="bold"
+        )
+
+
+        # ==================================================
+        # ARRAYS PARA NÚMERO DE AMOSTRAS
+        # ==================================================
+
+        n_training_samples = []
+
+        n_validation_samples = []
+
+        n_test_samples = []
+
+        n_total_samples = []
+
+
+        # ==================================================
+        # LOOP DOS FOLDS
+        # ==================================================
+
+        for fold_idx, file_path in enumerate(
+            fold_files
+        ):
+
+            # --------------------------------------------------
+            # Extrair número real do fold do nome do arquivo
+            # --------------------------------------------------
+
+            fold_num = int(
+                file_path.stem
+                .split("_fold_")[-1]
+            )
+
+
+            # ==================================================
+            # CARREGAR CHECKPOINT
+            # ==================================================
+
+            checkpoint = torch.load(
+                file_path,
+                map_location="cpu",
+                weights_only=False
+            )
+
+
+            # ==================================================
+            # HISTÓRICO DE TREINAMENTO / VALIDAÇÃO
+            # ==================================================
+
+            train_losses_epoch = np.asarray(
+                checkpoint[
+                    "train_losses_epoch"
+                ],
+                dtype=np.float64
+            )
+
+
+            val_losses_epoch = np.asarray(
+                checkpoint[
+                    "val_losses_epoch"
+                ],
+                dtype=np.float64
+            )
+
+
+            train_accuracies_epoch = np.asarray(
+                checkpoint[
+                    "train_accuracies_epoch"
+                ],
+                dtype=np.float64
+            )
+
+
+            val_accuracies_epoch = np.asarray(
+                checkpoint[
+                    "val_accuracies_epoch"
+                ],
+                dtype=np.float64
+            )
+
+
+            # ==================================================
+            # MODELO DE MENOR VALIDATION LOSS
+            # ==================================================
+
+            minimum_loss_model = checkpoint[
+                "minimum_loss_model"
             ]
-            
-            row_labels = ["Best Epoch", "Val Loss", "Val Acc", "Test Loss", "Test Acc", "Test Labels", "Test Predictions"] if fold_idx == 0 else None
-            
+
+
+            min_val_loss_epoch = int(
+                minimum_loss_model[
+                    "epoch"
+                ]
+            )
+
+
+            min_val_loss = float(
+                minimum_loss_model[
+                    "validation_loss"
+                ]
+            )
+
+
+            val_accuracy_at_min_loss = float(
+                minimum_loss_model[
+                    "validation_accuracy"
+                ]
+            )
+
+
+            test_loss_ml = float(
+                minimum_loss_model[
+                    "test_loss"
+                ]
+            )
+
+
+            test_accuracy_ml = float(
+                minimum_loss_model[
+                    "test_accuracy"
+                ]
+            )
+
+
+            all_labels_ml = np.asarray(
+                minimum_loss_model[
+                    "all_labels"
+                ],
+                dtype=np.int64
+            )
+
+
+            all_predictions_ml = np.asarray(
+                minimum_loss_model[
+                    "all_predictions"
+                ],
+                dtype=np.int64
+            )
+
+
+            # ==================================================
+            # MODELO DE MAIOR VALIDATION ACCURACY
+            # ==================================================
+
+            maximum_accuracy_model = checkpoint[
+                "maximum_accuracy_model"
+            ]
+
+
+            max_val_accuracy_epoch = int(
+                maximum_accuracy_model[
+                    "epoch"
+                ]
+            )
+
+
+            max_val_accuracy = float(
+                maximum_accuracy_model[
+                    "validation_accuracy"
+                ]
+            )
+
+
+            val_loss_at_max_accuracy = float(
+                maximum_accuracy_model[
+                    "validation_loss"
+                ]
+            )
+
+
+            test_loss_ma = float(
+                maximum_accuracy_model[
+                    "test_loss"
+                ]
+            )
+
+
+            test_accuracy_ma = float(
+                maximum_accuracy_model[
+                    "test_accuracy"
+                ]
+            )
+
+
+            all_labels_ma = np.asarray(
+                maximum_accuracy_model[
+                    "all_labels"
+                ],
+                dtype=np.int64
+            )
+
+
+            all_predictions_ma = np.asarray(
+                maximum_accuracy_model[
+                    "all_predictions"
+                ],
+                dtype=np.int64
+            )
+
+
+            # ==================================================
+            # NÚMERO DE AMOSTRAS
+            #
+            # Agora usamos diretamente as informações salvas
+            # no checkpoint.
+            #
+            # Não é necessário abrir novamente fold_X.npz.
+            # ==================================================
+
+            n_training_samples.append(
+                checkpoint[
+                    "total_training_samples"
+                ]
+            )
+
+
+            n_validation_samples.append(
+                checkpoint[
+                    "total_validation_samples"
+                ]
+            )
+
+
+            n_test_samples.append(
+                checkpoint[
+                    "total_test_samples"
+                ]
+            )
+
+
+            n_total_samples.append(
+                checkpoint[
+                    "total_samples"
+                ]
+            )
+
+
+            # ==================================================
+            # ÉPOCAS
+            # ==================================================
+
+            epochs = range(
+                1,
+                len(
+                    train_losses_epoch
+                ) + 1
+            )
+
+
+            # ==================================================
+            # GRÁFICO DE LOSS
+            # LINHA 0
+            # ==================================================
+
+            ax_loss = axs[
+                0,
+                fold_idx
+            ]
+
+
+            ax_loss.plot(
+                epochs,
+                train_losses_epoch,
+                color="sandybrown",
+                label="Train"
+            )
+
+
+            ax_loss.plot(
+                epochs,
+                val_losses_epoch,
+                color="royalblue",
+                label="Validation"
+            )
+
+
+            # --------------------------------------------------
+            # Época de menor validation loss
+            # --------------------------------------------------
+
+            ax_loss.axvline(
+                x=min_val_loss_epoch + 1,
+                color="forestgreen",
+                linestyle=":",
+                linewidth=2,
+                label="Min Val Loss"
+            )
+
+
+            # --------------------------------------------------
+            # Época de maior validation accuracy
+            # --------------------------------------------------
+
+            ax_loss.axvline(
+                x=max_val_accuracy_epoch + 1,
+                color="violet",
+                linestyle=":",
+                linewidth=2,
+                label="Max Val Acc"
+            )
+
+
+            ax_loss.set_title(
+                f"Fold {fold_num} - Loss",
+                fontsize=11,
+                fontweight="bold"
+            )
+
+
+            ax_loss.grid(
+                True,
+                linestyle=":",
+                alpha=0.5
+            )
+
+
+            ax_loss.tick_params(
+                axis="x",
+                labelbottom=False
+            )
+
+
+            if fold_idx == 0:
+
+                ax_loss.set_ylabel(
+                    "Loss",
+                    fontsize=12
+                )
+
+
+                ax_loss.legend(
+                    loc="best"
+                )
+
+
+            # ==================================================
+            # GRÁFICO DE ACURÁCIA
+            # LINHA 1
+            # ==================================================
+
+            ax_acc = axs[
+                1,
+                fold_idx
+            ]
+
+
+            ax_acc.plot(
+                epochs,
+                train_accuracies_epoch,
+                color="sandybrown",
+                label="Train"
+            )
+
+
+            ax_acc.plot(
+                epochs,
+                val_accuracies_epoch,
+                color="royalblue",
+                label="Validation"
+            )
+
+
+            # --------------------------------------------------
+            # Época de menor loss
+            # --------------------------------------------------
+
+            ax_acc.axvline(
+                x=min_val_loss_epoch + 1,
+                color="forestgreen",
+                linestyle=":",
+                linewidth=2,
+                label="Min Val Loss"
+            )
+
+
+            # --------------------------------------------------
+            # Época de maior accuracy
+            # --------------------------------------------------
+
+            ax_acc.axvline(
+                x=max_val_accuracy_epoch + 1,
+                color="violet",
+                linestyle=":",
+                linewidth=2,
+                label="Max Val Acc"
+            )
+
+
+            ax_acc.set_title(
+                f"Fold {fold_num} - Accuracy",
+                fontsize=11,
+                fontweight="bold"
+            )
+
+
+            ax_acc.set_xlabel(
+                "Epochs"
+            )
+
+
+            ax_acc.grid(
+                True,
+                linestyle=":",
+                alpha=0.5
+            )
+
+
+            if fold_idx == 0:
+
+                ax_acc.set_ylabel(
+                    "Accuracy",
+                    fontsize=12
+                )
+
+
+                ax_acc.legend(
+                    loc="best"
+                )
+
+
+            # ==================================================
+            # MINI-TABELA DO FOLD
+            # LINHA 2
+            # ==================================================
+
+            ax_table = axs[
+                2,
+                fold_idx
+            ]
+
+
+            ax_table.axis(
+                "off"
+            )
+
+
+            # --------------------------------------------------
+            # OBSERVAÇÃO
+            #
+            # Estes valores agora são lidos diretamente do
+            # checkpoint do melhor modelo.
+            #
+            # Não precisamos recalculá-los usando os arrays.
+            # --------------------------------------------------
+
+            cell_text = [
+
+                [
+                    str(
+                        min_val_loss_epoch + 1
+                    ),
+
+                    str(
+                        max_val_accuracy_epoch + 1
+                    ),
+                ],
+
+                [
+                    f"{min_val_loss:.4f}",
+
+                    f"{val_loss_at_max_accuracy:.4f}",
+                ],
+
+                [
+                    f"{val_accuracy_at_min_loss:.4f}",
+
+                    f"{max_val_accuracy:.4f}",
+                ],
+
+                [
+                    f"{test_loss_ml:.4f}",
+
+                    f"{test_loss_ma:.4f}",
+                ],
+
+                [
+                    f"{test_accuracy_ml:.4f}",
+
+                    f"{test_accuracy_ma:.4f}",
+                ],
+
+                [
+                    np.bincount(
+                        all_labels_ml,
+                        minlength=4
+                    ),
+
+                    np.bincount(
+                        all_labels_ma,
+                        minlength=4
+                    ),
+                ],
+
+                [
+                    np.bincount(
+                        all_predictions_ml,
+                        minlength=4
+                    ),
+
+                    np.bincount(
+                        all_predictions_ma,
+                        minlength=4
+                    ),
+                ],
+            ]
+
+
+            if fold_idx == 0:
+
+                row_labels = [
+
+                    "Best Epoch",
+
+                    "Val Loss",
+
+                    "Val Acc",
+
+                    "Test Loss",
+
+                    "Test Acc",
+
+                    "Test Labels",
+
+                    "Test Predictions",
+                ]
+
+            else:
+
+                row_labels = None
+
+
             mini_table = ax_table.table(
+
                 cellText=cell_text,
+
                 rowLabels=row_labels,
-                colLabels=[f"Min\nVal Loss", "Max\nVal Acc"],  
-                loc='center',
-                cellLoc='center',
-                colWidths=[0.45, 0.45] #colWidths para travar o tamanho horizontal de todas as colunas
+
+                colLabels=[
+                    "Min\nVal Loss",
+                    "Max\nVal Acc"
+                ],
+
+                loc="center",
+
+                cellLoc="center",
+
+                colWidths=[
+                    0.45,
+                    0.45
+                ]
             )
-            
-            # Desativa o auto-ajuste de fonte automático que o Matplotlib faz quando o texto é muito grande
-            mini_table.auto_set_font_size(False)
-            mini_table.set_fontsize(9) # Tamanho fixo legível para os subplots de tamanho 22x10
-            mini_table.scale(1.0, 1.4) 
 
-            # Ajusta especificamente a altura das células do cabeçalho
-            for col_idx in range(2):
-                mini_table[0, col_idx].set_height(0.18)
 
-            # Se não for o primeiro Fold, ajusta o alinhamento para compensar a falta de Row Labels
+            mini_table.auto_set_font_size(
+                False
+            )
+
+
+            mini_table.set_fontsize(
+                9
+            )
+
+
+            mini_table.scale(
+                1.0,
+                1.4
+            )
+
+
+            # --------------------------------------------------
+            # Aumentar cabeçalho
+            # --------------------------------------------------
+
+            for col_idx in range(
+                2
+            ):
+
+                mini_table[
+                    0,
+                    col_idx
+                ].set_height(
+                    0.18
+                )
+
+
+            # --------------------------------------------------
+            # Nos folds sem rowLabels não precisamos reservar
+            # o mesmo espaço lateral.
+            # --------------------------------------------------
+
             if fold_idx > 0:
-                # Remove espaços fantasmas que empurram tabelas sem rótulos laterais
-                mini_table.scale(1.0, 1.0) 
+
+                mini_table.scale(
+                    1.0,
+                    1.0
+                )
 
 
-        # ==========================================
-        #  TABELA DE RESULTADO FINAL DE TESTE
-        # ==========================================
+        # ==================================================
+        # TRANSFORMAR NÚMERO DE AMOSTRAS EM ARRAYS
+        # ==================================================
 
-        file_name = fold_files[-1]
-
-        ax_table = axs[2, n_folds]
-        ax_table.axis('off')
-        cell_text = []
-
-        # 1. Adicione o segundo valor dentro dos colchetes para cada Fold
-        cell_text = [ 
-            [f"{fold_accuracies_ml[fold_idx]:.4f}", f"{fold_accuracies_ma[fold_idx]:.4f}"] 
-            for fold_idx in range(n_folds)
-        ]
-
-        fold_accuracies_mean_ml = f"{fold_accuracies_ml.mean():.4f}"
-        fold_accuracies_std_ml = f"{fold_accuracies_ml.std():.4f}"
-
-        # Suas novas métricas de média e desvio padrão para a nova coluna
-        fold_accuracies_mean_ma = f"{fold_accuracies_ma.mean():.4f}"
-        fold_accuracies_std_ma = f"{fold_accuracies_ma.std():.4f}"
-
-        # 2. Adicione os valores correspondentes para as linhas Mean e Std
-        cell_text.append([fold_accuracies_mean_ml, fold_accuracies_mean_ma])
-        cell_text.append([fold_accuracies_std_ml, fold_accuracies_std_ma])
-
-        row_labels = [f"Fold {fold_idx+1}" for fold_idx in range(n_folds)]
-        row_labels.append("Mean")
-        row_labels.append("Std")
-
-        # 3. Adicione o nome da nova coluna na lista colLabels
-        mini_table = ax_table.table(
-            cellText=cell_text,
-            rowLabels=row_labels,
-            colLabels=[f"Min\nVal Loss", "Max\nVal Acc"],  
-            loc='center',
-            cellLoc='center',
-            colWidths=[0.45, 0.45] 
+        n_training_samples = np.asarray(
+            n_training_samples,
+            dtype=np.int64
         )
 
-        # Desativa o auto-ajuste de fonte automático que o Matplotlib faz quando o texto é muito grande
-        mini_table.auto_set_font_size(False)
-        mini_table.set_fontsize(9) # Tamanho fixo legível para os subplots de tamanho 22x10
-        mini_table.scale(1.0, 1.4) 
 
-        num_rows = len(cell_text)
-
-        # ---------------------------------------------------------
-        # CORREÇÃO PARA OS CABEÇALHOS (colLabels) NÃO FICAREM ESPREMIDOS
-        # ---------------------------------------------------------
-        # Aumenta especificamente a altura das células da linha do cabeçalho (linha 0)
-        for col_idx in range(2): # 2 é o número de colunas de dados
-            mini_table[0, col_idx].set_height(0.15) # Ajuste este valor se precisar de mais espaço
-
-        # Estilizando a Coluna 0 (Antiga) - Ajustado os índices de linha
-        # O Matplotlib Table usa indexação baseada em (linha, coluna) considerando o cabeçalho
-        mini_table[num_rows-1, 0].get_text().set_weight('bold')
-        mini_table[num_rows, 0].get_text().set_weight('bold')
-        mini_table[num_rows-1, 0].set_facecolor('#e6f2ff')
-        mini_table[num_rows, 0].set_facecolor('#e6f2ff')
-
-        # Estilizando a Coluna 1 (Nova Coluna)
-        mini_table[num_rows-1, 1].get_text().set_weight('bold')
-        mini_table[num_rows, 1].get_text().set_weight('bold')
-        mini_table[num_rows-1, 1].set_facecolor('#e6f2ff')
-        mini_table[num_rows, 1].set_facecolor('#e6f2ff')
-
-        # Modificar os rótulos laterais (Row Labels na Coluna -1)
-        mini_table[num_rows-1, -1].get_text().set_weight('bold')
-        mini_table[num_rows, -1].get_text().set_weight('bold')
+        n_validation_samples = np.asarray(
+            n_validation_samples,
+            dtype=np.int64
+        )
 
 
-        # ==========================================
-        #  TABELA DE NÚMERO DE AMOSTRAS POR FOLD
-        # ==========================================
+        n_test_samples = np.asarray(
+            n_test_samples,
+            dtype=np.int64
+        )
 
-        ax_table = axs[1, n_folds]
-        ax_table.axis('off')
-        cell_text = []
 
-        n_training_samples = np.array([])
-        n_validation_samples = np.array([])
-        n_test_samples = np.array([])
-        n_total_samples = np.array([])
+        n_total_samples = np.asarray(
+            n_total_samples,
+            dtype=np.int64
+        )
 
-        for fold in range(1, n_folds + 1):
 
-            fold_data = np.load(
-                FOLDS_DIR / subject /  f"fold_{fold}.npz"
+        # ==================================================
+        # TABELA FINAL DE RESULTADOS DE TESTE
+        #
+        # LINHA 2 / ÚLTIMA COLUNA
+        #
+        # Agora os resultados vêm do *_summary.pth
+        # ==================================================
+
+        ax_table = axs[
+            2,
+            n_folds
+        ]
+
+
+        ax_table.axis(
+            "off"
+        )
+
+
+        cell_text = [
+
+            [
+                f"{fold_accuracies_ml[fold_idx]:.4f}",
+
+                f"{fold_accuracies_ma[fold_idx]:.4f}",
+            ]
+
+            for fold_idx in range(
+                n_folds
+            )
+        ]
+
+
+        # --------------------------------------------------
+        # Média
+        # --------------------------------------------------
+
+        fold_accuracies_mean_ml = (
+            fold_accuracies_ml.mean()
+        )
+
+
+        fold_accuracies_mean_ma = (
+            fold_accuracies_ma.mean()
+        )
+
+
+        # --------------------------------------------------
+        # Desvio padrão
+        # --------------------------------------------------
+
+        fold_accuracies_std_ml = (
+            fold_accuracies_ml.std()
+        )
+
+
+        fold_accuracies_std_ma = (
+            fold_accuracies_ma.std()
+        )
+
+
+        # --------------------------------------------------
+        # Adicionar média e desvio padrão
+        # --------------------------------------------------
+
+        cell_text.append(
+
+            [
+                f"{fold_accuracies_mean_ml:.4f}",
+
+                f"{fold_accuracies_mean_ma:.4f}",
+            ]
+        )
+
+
+        cell_text.append(
+
+            [
+                f"{fold_accuracies_std_ml:.4f}",
+
+                f"{fold_accuracies_std_ma:.4f}",
+            ]
+        )
+
+
+        row_labels = [
+
+            f"Fold {fold_idx + 1}"
+
+            for fold_idx in range(
+                n_folds
+            )
+        ]
+
+
+        row_labels.append(
+            "Mean"
+        )
+
+
+        row_labels.append(
+            "Std"
+        )
+
+
+        mini_table = ax_table.table(
+
+            cellText=cell_text,
+
+            rowLabels=row_labels,
+
+            colLabels=[
+                "Min\nVal Loss",
+                "Max\nVal Acc"
+            ],
+
+            loc="center",
+
+            cellLoc="center",
+
+            colWidths=[
+                0.45,
+                0.45
+            ]
+        )
+
+
+        mini_table.auto_set_font_size(
+            False
+        )
+
+
+        mini_table.set_fontsize(
+            9
+        )
+
+
+        mini_table.scale(
+            1.0,
+            1.4
+        )
+
+
+        num_rows = len(
+            cell_text
+        )
+
+
+        # --------------------------------------------------
+        # AUMENTAR CABEÇALHO
+        # --------------------------------------------------
+
+        for col_idx in range(
+            2
+        ):
+
+            mini_table[
+                0,
+                col_idx
+            ].set_height(
+                0.15
             )
 
-            n_training_samples = np.append(n_training_samples, len(fold_data["train_indices"]))
-            n_validation_samples = np.append(n_validation_samples, len(fold_data["val_indices"]))
-            n_test_samples = np.append(n_test_samples, len(fold_data["test_indices"]))
 
-        n_total_samples = np.sum([n_training_samples, n_validation_samples, n_test_samples], axis=0)
+        # --------------------------------------------------
+        # DESTACAR MEAN E STD
+        #
+        # No matplotlib:
+        #
+        # linha 0 = cabeçalho
+        # linhas 1..n = dados
+        #
+        # Portanto:
+        #
+        # Mean = num_rows - 1
+        # Std  = num_rows
+        # --------------------------------------------------
 
-        cell_text = [ 
-            [f"{n_training_samples[fold_idx]:.0f}", f"{n_validation_samples[fold_idx]:.0f}", f"{n_test_samples[fold_idx]:.0f}", f"{n_total_samples[fold_idx]:.0f}",  ] 
-            for fold_idx in range(n_folds)
-        ]
-
-        # fold_accuracies_mean_ml = f"{fold_accuracies_ml.mean():.4f}"
-        # fold_accuracies_std_ml = f"{fold_accuracies_ml.std():.4f}"
-
-        # # Suas novas métricas de média e desvio padrão para a nova coluna
-        # fold_accuracies_mean_ma = f"{fold_accuracies_ma.mean():.4f}"
-        # fold_accuracies_std_ma = f"{fold_accuracies_ma.std():.4f}"
-
-        # # 2. Adicione os valores correspondentes para as linhas Mean e Std
-        # cell_text.append([fold_accuracies_mean_ml, fold_accuracies_mean_ma])
-        # cell_text.append([fold_accuracies_std_ml, fold_accuracies_std_ma])
-
-        row_labels = [f"Fold {fold_idx+1}" for fold_idx in range(n_folds)]
-        # row_labels.append("Mean")
-        # row_labels.append("Std")
-
-        # 3. Adicione o nome da nova coluna na lista colLabels
-        mini_table = ax_table.table(
-            cellText=cell_text,
-            rowLabels=row_labels,
-            colLabels=[f"Train", "Val", "Test", "Total"],  
-            loc='center',
-            cellLoc='center',
-            colWidths=[0.24, 0.24, 0.24, 0.24] 
+        mean_row = (
+            num_rows - 1
         )
 
-            # Desativa o auto-ajuste de fonte automático que o Matplotlib faz quando o texto é muito grande
-        mini_table.auto_set_font_size(False)
-        mini_table.set_fontsize(9) # Tamanho fixo legível para os subplots de tamanho 22x10
-        mini_table.scale(1.0, 1.4) 
 
-        num_rows = len(cell_text)
+        std_row = (
+            num_rows
+        )
 
-        # ---------------------------------------------------------
-        # CORREÇÃO PARA OS CABEÇALHOS (colLabels) NÃO FICAREM ESPREMIDOS
-        # ---------------------------------------------------------
-        # Aumenta especificamente a altura das células da linha do cabeçalho (linha 0)
-        for col_idx in range(4): # 2 é o número de colunas de dados
-            mini_table[0, col_idx].set_height(0.15) # Ajuste este valor se precisar de mais espaço
 
-        # ==========================================
+        for column in [
+            0,
+            1
+        ]:
+
+            mini_table[
+                mean_row,
+                column
+            ].get_text().set_weight(
+                "bold"
+            )
+
+
+            mini_table[
+                std_row,
+                column
+            ].get_text().set_weight(
+                "bold"
+            )
+
+
+            mini_table[
+                mean_row,
+                column
+            ].set_facecolor(
+                "#e6f2ff"
+            )
+
+
+            mini_table[
+                std_row,
+                column
+            ].set_facecolor(
+                "#e6f2ff"
+            )
+
+
+        # --------------------------------------------------
+        # DESTACAR ROW LABELS
+        # --------------------------------------------------
+
+        mini_table[
+            mean_row,
+            -1
+        ].get_text().set_weight(
+            "bold"
+        )
+
+
+        mini_table[
+            std_row,
+            -1
+        ].get_text().set_weight(
+            "bold"
+        )
+
+
+        # ==================================================
+        # TABELA DE NÚMERO DE AMOSTRAS
+        #
+        # LINHA 1 / ÚLTIMA COLUNA
+        # ==================================================
+
+        ax_table = axs[
+            1,
+            n_folds
+        ]
+
+
+        ax_table.axis(
+            "off"
+        )
+
+
+        cell_text = [
+
+            [
+                f"{n_training_samples[fold_idx]:d}",
+
+                f"{n_validation_samples[fold_idx]:d}",
+
+                f"{n_test_samples[fold_idx]:d}",
+
+                f"{n_total_samples[fold_idx]:d}",
+            ]
+
+            for fold_idx in range(
+                n_folds
+            )
+        ]
+
+
+        row_labels = [
+
+            f"Fold {fold_idx + 1}"
+
+            for fold_idx in range(
+                n_folds
+            )
+        ]
+
+
+        mini_table = ax_table.table(
+
+            cellText=cell_text,
+
+            rowLabels=row_labels,
+
+            colLabels=[
+                "Train",
+                "Val",
+                "Test",
+                "Total"
+            ],
+
+            loc="center",
+
+            cellLoc="center",
+
+            colWidths=[
+                0.24,
+                0.24,
+                0.24,
+                0.24
+            ]
+        )
+
+
+        mini_table.auto_set_font_size(
+            False
+        )
+
+
+        mini_table.set_fontsize(
+            9
+        )
+
+
+        mini_table.scale(
+            1.0,
+            1.4
+        )
+
+
+        # --------------------------------------------------
+        # Aumentar cabeçalho
+        # --------------------------------------------------
+
+        for col_idx in range(
+            4
+        ):
+
+            mini_table[
+                0,
+                col_idx
+            ].set_height(
+                0.15
+            )
+
+
+        # ==================================================
         # TABELA EXTRA
-        # ==========================================
-        
-        ax_table = axs[0, n_folds]
-        ax_table.axis('off')
+        #
+        # LINHA 0 / ÚLTIMA COLUNA
+        #
+        # Mantida vazia como no código original.
+        # ==================================================
 
-        # ==========================================
-        # SALVANDO OS DADOS
-        # ===========================================
-        # fig.subplots_adjust(top=0.94, bottom=0.05, left=0.08, right=0.95, hspace=0.4, wspace=0.3)
+        ax_table = axs[
+            0,
+            n_folds
+        ]
+
+
+        ax_table.axis(
+            "off"
+        )
+
+
+        # ==================================================
+        # AJUSTAR LAYOUT
+        # ==================================================
+
         plt.tight_layout()
 
-        SAVE_FIG = OUTPUT_DIR / f"{branch}_branch" / f"{subject}"
+
+        # ==================================================
+        # DIRETÓRIO DA FIGURA
+        # ==================================================
+
+        SAVE_FIG = (
+            OUTPUT_DIR
+            / f"{branch}_branch"
+            / subject
+        )
+
 
         SAVE_FIG.mkdir(
             parents=True,
             exist_ok=True
         )
 
-        plt.savefig(SAVE_FIG / f"{branch}_{subject}.svg" , bbox_inches='tight')
-        #plt.show()
+
+        # ==================================================
+        # SALVAR FIGURA
+        # ==================================================
+
+        figure_path = (
+            SAVE_FIG
+            / f"{branch}_{subject}.svg"
+        )
 
 
+        plt.savefig(
+            figure_path,
+            bbox_inches="tight"
+        )
+
+
+        print(
+            f"Figure saved: "
+            f"{figure_path}"
+        )
+
+
+        # ==================================================
+        # FECHAR FIGURA
+        #
+        # Importante quando vários sujeitos são processados.
+        # Evita manter figuras anteriores na memória.
+        # ==================================================
+
+        plt.close(
+            fig
+        )
+
+
+# ==========================================================
+# EXECUTAR
+# ==========================================================
 
 if __name__ == "__main__":
 
-    individual_subject_plots(branch="space1_space2_time_frequency" , subjects=["sub-01"])
+    individual_subject_plots(
+        branch="space1_space2_frequency_time",
+        subjects=[
+            "sub-01"
+        ]
+    )
