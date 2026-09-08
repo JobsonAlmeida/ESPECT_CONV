@@ -2,7 +2,6 @@ import copy
 import numpy as np
 from pathlib import Path
 import sys                        
-import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
@@ -12,15 +11,14 @@ from torch.utils.data import (
     DataLoader
 )
 
-from sklearn.model_selection import (
-    StratifiedKFold,
-    train_test_split
-)
-
 from torchinfo import summary
 
 from tools import save_summary_as_pdf
 
+from branch_cnn_models import Space1Space2FrequencyTimeCNN
+from branch_cnn_models import Space1Space2TimeFrequencyCNN
+from branch_cnn_models import TimeFrequencySpace2Space1CNN
+from branch_cnn_models import TimeFrequencySpace1Space2CNN
 
 # ==========================================================
 # CONFIGURAÇÕES DE CAMINHO & IMPORTS LOCAIS
@@ -47,9 +45,6 @@ N_EPOCHS = 600
 BATCH_SIZE = 8
 LEARNING_RATE = 0.001
 
-# Percentual de desenvolvimento que serão de validação
-VALIDATION_SIZE = 0.20
-
 RANDOM_STATE = 42
 RANDOM_STATE_LOADER = 42
 
@@ -66,395 +61,6 @@ OUTPUT_DIR = (
     / "processed_data"
     / "stage_40_execute_branch"
 )
-
-
-
-
-# ==========================================================
-# DEFINIR A REDE
-# ==========================================================
-class Space1Space2FrequencyTimeCNN(nn.Module):
-
-   def __init__(self):
-
-
-        super().__init__()
-
-       # (batch, 9, 65, 21, 21)
-
-        self.conv1 = nn.Conv3d(
-           in_channels=9,
-           out_channels=6,
-           kernel_size=3,
-           padding=1
-        )
-        # (batch, 6, 65, 21, 21)
-
-
-        self.relu1 = nn.ReLU()
-
-
-        self.pool1 = nn.MaxPool3d(
-           kernel_size=(2, 2, 2)
-        )
-        # (batch, 6, 32, 10, 10)
-
-
-        self.conv2 = nn.Conv3d(
-           in_channels=6,
-           out_channels=4,
-           kernel_size=3,
-           padding=1
-         )
-        # (batch, 4, 32, 10, 10)
-
-        self.relu2 = nn.ReLU()
-
-        self.pool2 = nn.MaxPool3d(
-           kernel_size=(2, 2, 2)
-        )
-        # (batch, 4, 16, 5, 5)
-
-        self.flatten = nn.Flatten()
-
-        self.classifier = nn.Linear(
-           4 * 16 * 5 * 5,
-           4
-        )
-
-
-
-
-   def extract_features(self, x):
-
-
-        x = self.conv1(x)
-        x = self.relu1(x)
-        x = self.pool1(x)
-
-
-        x = self.conv2(x)
-        x = self.relu2(x)
-        x = self.pool2(x)
-
-
-        x = self.flatten(x)
-
-
-        return x
-
-
-
-
-   def forward(self, x):
-
-
-       x = self.conv1(x)
-       x = self.relu1(x)
-       x = self.pool1(x)
-
-
-       x = self.conv2(x)
-       x = self.relu2(x)
-       x = self.pool2(x)
-
-
-       x = self.flatten(x)
-
-
-       x = self.classifier(x)
-
-
-       return x
-
-
-
-class Space1Space2TimeFrequencyCNN(nn.Module):
-
-   def __init__(self):
-
-
-        super().__init__()
-
-       # (batch, 65, 9, 21, 21)
-
-        self.conv1 = nn.Conv3d(
-           in_channels=65,
-           out_channels=32,
-           kernel_size=3,
-           padding=1
-        )
-        # (batch, 32, 9, 21, 21)
-
-
-        self.relu1 = nn.ReLU()
-
-
-        self.pool1 = nn.MaxPool3d(
-           kernel_size=(2, 2, 2)
-        )
-        # (batch, 32, 4, 10, 10)
-
-
-        self.conv2 = nn.Conv3d(
-           in_channels=32,
-           out_channels=16,
-           kernel_size=3,
-           padding=1
-         )
-        # (batch, 16, 4, 10, 10)
-
-        self.relu2 = nn.ReLU()
-
-        self.pool2 = nn.MaxPool3d(
-           kernel_size=(2, 2, 2)
-        )
-        # (batch, 16, 2, 5, 5)
-
-        self.flatten = nn.Flatten()
-
-        self.classifier = nn.Linear(
-            16 * 2 * 5 * 5,
-            4
-        )
-
-
-
-
-   def extract_features(self, x):
-
-
-        x = self.conv1(x)
-        x = self.relu1(x)
-        x = self.pool1(x)
-
-
-        x = self.conv2(x)
-        x = self.relu2(x)
-        x = self.pool2(x)
-
-
-        x = self.flatten(x)
-
-
-        return x
-
-
-
-
-   def forward(self, x):
-
-
-       x = self.conv1(x)
-       x = self.relu1(x)
-       x = self.pool1(x)
-
-
-       x = self.conv2(x)
-       x = self.relu2(x)
-       x = self.pool2(x)
-
-
-       x = self.flatten(x)
-
-
-       x = self.classifier(x)
-
-
-       return x
-
-
-
-class TimeFrequencySpace2Space1CNN(nn.Module):
-
-   def __init__(self):
-
-
-        super().__init__()
-
-       # (batch, 21, 21, 65, 9)
-
-        self.conv1 = nn.Conv3d(
-           in_channels=21,
-           out_channels=10,
-           kernel_size=3,
-           padding=1
-        )
-        # (batch, 10, 21, 65, 9)
-
-
-        self.relu1 = nn.ReLU()
-
-
-        self.pool1 = nn.MaxPool3d(
-           kernel_size=(2, 2, 2)
-        )
-        # (batch, 10, 10, 32, 4)
-
-
-        self.conv2 = nn.Conv3d(
-           in_channels=10,
-           out_channels=5,
-           kernel_size=3,
-           padding=1
-         )
-        # (batch, 5, 10, 32, 4)
-
-        self.relu2 = nn.ReLU()
-
-        self.pool2 = nn.MaxPool3d(
-           kernel_size=(2, 2, 2)
-        )
-        # (batch, 5, 5, 16, 2)
-
-        self.flatten = nn.Flatten()
-
-        self.classifier = nn.Linear(
-            5 * 5 * 16 * 2,
-            4
-        )
-
-
-
-
-   def extract_features(self, x):
-
-
-        x = self.conv1(x)
-        x = self.relu1(x)
-        x = self.pool1(x)
-
-
-        x = self.conv2(x)
-        x = self.relu2(x)
-        x = self.pool2(x)
-
-
-        x = self.flatten(x)
-
-
-        return x
-
-
-
-
-   def forward(self, x):
-
-
-       x = self.conv1(x)
-       x = self.relu1(x)
-       x = self.pool1(x)
-
-
-       x = self.conv2(x)
-       x = self.relu2(x)
-       x = self.pool2(x)
-
-
-       x = self.flatten(x)
-
-
-       x = self.classifier(x)
-
-
-       return x
-
-
-
-class TimeFrequencySpace1Space2CNN(nn.Module):
-
-   def __init__(self):
-
-
-        super().__init__()
-
-       # (batch, 21, 21, 65, 9)
-
-        self.conv1 = nn.Conv3d(
-           in_channels=21,
-           out_channels=10,
-           kernel_size=3,
-           padding=1
-        )
-        # (batch, 10, 21, 65, 9)
-
-
-        self.relu1 = nn.ReLU()
-
-
-        self.pool1 = nn.MaxPool3d(
-           kernel_size=(2, 2, 2)
-        )
-        # (batch, 10, 10, 32, 4)
-
-
-        self.conv2 = nn.Conv3d(
-           in_channels=10,
-           out_channels=5,
-           kernel_size=3,
-           padding=1
-         )
-        # (batch, 5, 10, 32, 4)
-
-        self.relu2 = nn.ReLU()
-
-        self.pool2 = nn.MaxPool3d(
-           kernel_size=(2, 2, 2)
-        )
-        # (batch, 5, 5, 16, 2)
-
-        self.flatten = nn.Flatten()
-
-        self.classifier = nn.Linear(
-            5 * 5 * 16 * 2,
-            4
-        )
-
-
-
-
-   def extract_features(self, x):
-
-
-        x = self.conv1(x)
-        x = self.relu1(x)
-        x = self.pool1(x)
-
-
-        x = self.conv2(x)
-        x = self.relu2(x)
-        x = self.pool2(x)
-
-
-        x = self.flatten(x)
-
-
-        return x
-
-
-
-
-   def forward(self, x):
-
-
-       x = self.conv1(x)
-       x = self.relu1(x)
-       x = self.pool1(x)
-
-
-       x = self.conv2(x)
-       x = self.relu2(x)
-       x = self.pool2(x)
-
-
-       x = self.flatten(x)
-
-
-       x = self.classifier(x)
-
-
-       return x
-
 
 
 
@@ -710,7 +316,6 @@ def execute_branch(
         N_EPOCHS = N_EPOCHS,
         BATCH_SIZE = BATCH_SIZE,
         LEARNING_RATE = LEARNING_RATE,
-        VALIDATION_SIZE = VALIDATION_SIZE,
         RANDOM_STATE = RANDOM_STATE,
         RANDOM_STATE_LOADER = RANDOM_STATE_LOADER,
 ):
@@ -990,45 +595,6 @@ def execute_branch(
         fold_accuracies_ma = []
         fold_losses_ma = []
 
-        # # ==========================================================
-        # # SALVANDO ESTRUTURA DA REDE
-        # # ==========================================================
-        # print("=== Verificando Estrutura da Rede ===")
-
-
-        # match branch:
-
-        #     case "space1_space2_frequency_time":
-
-        #         modelo_validador = Space1Space2FrequencyTimeCNN().to(device)
-        #         model_stats = summary(modelo_validador, input_size=(1, 9, 65, 21, 21), device=device, verbose=0)
-                               
-        #     case "space1_space2_time_frequency":
-
-        #         modelo_validador = Space1Space2TimeFrequencyCNN().to(device)
-        #         model_stats = summary(modelo_validador, input_size=(1, 65, 9, 21, 21), device=device, verbose=0)
-
-        #     case "time_frequency_space2_space1":
-
-        #         modelo_validador = TimeFrequencySpace2Space1CNN().to(device)
-        #         model_stats = summary(modelo_validador, input_size=(1, 21, 21, 65, 9), device=device, verbose=0)
-
-        #     case "time_frequency_space1_space2":
-
-        #         modelo_validador = TimeFrequencySpace1Space2CNN().to(device)
-        #         model_stats = summary(modelo_validador, input_size=(1, 21, 21, 65, 9), device=device, verbose=0)
-            
-        #     case _:
-        #         raise ValueError(f"Invalid branch {branch}")
-
-        # save_summary_as_pdf(branch , model_stats, save_path= MODEL_DIR)
-
-        # # Chama a função para gerar a imagem
-        # #print(model_stats)
-
-        # # Deleta a instância temporária para liberar memória da GPU imediatamente
-        # del modelo_validador 
-        # torch.cuda.empty_cache()
 
         # ======================================================
         # LOOP DOS 5 FOLDS
@@ -1055,45 +621,6 @@ def execute_branch(
             train_indices = fold_data["train_indices"]
             test_indices = fold_data["test_indices"]
             val_indices = fold_data["val_indices"]
-
-
-            # ==================================================
-            # DIVIDIR A PORCENTAGEM DE DESENVOLVIMENTO EM 
-            # TREINAMENTO E VALIDAÇÃO
-            # ==================================================  
-
-            # train_indices, val_indices = train_test_split(
-            #     development_indices,
-            #     test_size=VALIDATION_SIZE,
-            #     stratify=labels[
-            #         development_indices
-            #     ],
-            #     random_state=RANDOM_STATE
-            # )
-
-            # ======================================================
-            # 8.1 SEPARAR TREINO E TESTE
-            # ======================================================
-
-            # X_train = X[train_indices]
-            # y_train = y[train_indices]
-
-
-            # X_test = X[test_indices]
-            # y_test = y[test_indices]
-
-            # X_val = X[val_indices]
-
-
-            # --------------------------------
-            # Normalização
-            # --------------------------------
-            # power_max = X_train.max()
-            # X_train = X_train / power_max
-            # X_test = X_test / power_max
-
-            # print("Treino:", X_train.shape)
-            # print("Teste:", X_test.shape)
 
             # ==================================================
             # MOSTRAR TAMANHOS
@@ -1138,24 +665,6 @@ def execute_branch(
                 / len(X)
             )
 
-
-            # ==================================================
-            # SALVAR OS ÍNDICES
-            # ==================================================
-
-            # Esses são índices relativos ao conjunto ORIGINAL.
-            #
-            # Portanto, o ramo espaço-tempo poderá carregá-los
-            # diretamente.
-
-            # np.savez(
-            #     FOLDS_DIR
-            #     / f"fold_{fold}.npz",
-
-            #     train_indices=train_indices,
-            #     val_indices=val_indices,
-            #     test_indices=test_indices
-            # )
 
 
             # ==================================================
@@ -1390,7 +899,7 @@ def execute_branch(
             max_val_accuracy = -1
             best_val_loss_to_max_accuracy = float("inf")
             max_val_accuracy_epoch = 0
-            max_val_accuracy_state = None
+            max_val_accuracy_model_state = None
 
             # ==================================================
             # TREINAMENTO
