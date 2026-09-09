@@ -3,32 +3,55 @@ import torch
 import torch.nn as nn
 
 
-
 class GatedFusion(nn.Module):
 
     def __init__(
         self,
         s1_s2_f_t_model,
-        s1_s2_t_f_model
+        s1_s2_t_f_model,
+        t_f_s2_s1_model,
+        t_f_s1_s2_model,
     ):
 
         super().__init__()
 
-        self.s1_s2_f_t_model = s1_s2_f_t_model
-        self.s1_s2_t_f_model = s1_s2_t_f_model
+        self.s1_s2_f_t_model = (
+            s1_s2_f_t_model
+        )
+
+        self.s1_s2_t_f_model = (
+            s1_s2_t_f_model
+        )
+
+        self.t_f_s2_s1_model = (
+            t_f_s2_s1_model
+        )
+
+        self.t_f_s1_s2_model = (
+            t_f_s1_s2_model
+        )
+
 
         # ==================================================
         # PROJEÇÕES
         # ==================================================
 
-        # 1600 -> 128
         self.s1_s2_f_t_projection = nn.Sequential(
             nn.Linear(1600, 128),
             nn.ReLU()
         )
 
-        # 800 -> 128
         self.s1_s2_t_f_projection = nn.Sequential(
+            nn.Linear(800, 128),
+            nn.ReLU()
+        )
+
+        self.t_f_s2_s1_projection = nn.Sequential(
+            nn.Linear(800, 128),
+            nn.ReLU()
+        )
+
+        self.t_f_s1_s2_projection = nn.Sequential(
             nn.Linear(800, 128),
             nn.ReLU()
         )
@@ -36,20 +59,19 @@ class GatedFusion(nn.Module):
 
         # ==================================================
         # GATE
+        #
+        # Entrada:
+        # 4 x 128 = 512
+        #
+        # Saída:
+        # 4 gates para cada uma das 128 características
+        #
+        # 4 x 128 = 512
         # ==================================================
 
-        # Recebe:
-        #
-        # s1_s2_f_t = 128
-        # s1_s2_t_f = 128
-        #
-        # concatenação = 256
-        #
-        # Produz 128 valores de gate
-
         self.gate = nn.Linear(
-            256,
-            128
+            512,
+            512
         )
 
 
@@ -57,28 +79,22 @@ class GatedFusion(nn.Module):
         # CLASSIFICADOR
         # ==================================================
 
-        # A representação fundida possui
-        # 128 características
-
         self.classifier = nn.Linear(
             128,
             4
         )
 
-        # self.classifier = nn.Sequential(
-        #     nn.Linear(128, 64),
-        #     nn.Linear(64, 4),
-        # )
-
 
     def forward(
         self,
         x_s1_s2_f_t,
-        x_s1_s2_t_f
+        x_s1_s2_t_f,
+        x_t_f_s2_s1,
+        x_t_f_s1_s2,
     ):
 
         # ==================================================
-        # EXTRAIR CARACTERÍSTICAS DOS DOIS RAMOS
+        # EXTRAIR FEATURES
         # ==================================================
 
         features_s1_s2_f_t = (
@@ -88,9 +104,6 @@ class GatedFusion(nn.Module):
             )
         )
 
-        # (batch, 1600)
-
-
         features_s1_s2_t_f = (
             self.s1_s2_t_f_model
             .extract_features(
@@ -98,50 +111,110 @@ class GatedFusion(nn.Module):
             )
         )
 
-        # (batch, 800)
+        features_t_f_s2_s1 = (
+            self.t_f_s2_s1_model
+            .extract_features(
+                x_t_f_s2_s1
+            )
+        )
+
+        features_t_f_s1_s2 = (
+            self.t_f_s1_s2_model
+            .extract_features(
+                x_t_f_s1_s2
+            )
+        )
 
 
         # ==================================================
-        # PROJETAR PARA 128 CARACTERÍSTICAS
+        # PROJETAR TODOS PARA 128
         # ==================================================
 
-        features_s1_s2_f_t = self.s1_s2_f_t_projection(features_s1_s2_f_t)
+        features_s1_s2_f_t = (
+            self.s1_s2_f_t_projection(
+                features_s1_s2_f_t
+            )
+        )
 
-        # (batch, 128)
+        features_s1_s2_t_f = (
+            self.s1_s2_t_f_projection(
+                features_s1_s2_t_f
+            )
+        )
 
+        features_t_f_s2_s1 = (
+            self.t_f_s2_s1_projection(
+                features_t_f_s2_s1
+            )
+        )
 
-        features_s1_s2_t_f = self.s1_s2_t_f_projection(features_s1_s2_t_f)
-
-        # (batch, 128)
+        features_t_f_s1_s2 = (
+            self.t_f_s1_s2_projection(
+                features_t_f_s1_s2
+            )
+        )
 
 
         # ==================================================
-        # CONCATENAR
+        # CONCATENAÇÃO PARA CALCULAR OS GATES
         # ==================================================
 
         combined = torch.cat(
-            (features_s1_s2_f_t, features_s1_s2_t_f),
+            (
+                features_s1_s2_f_t,
+                features_s1_s2_t_f,
+                features_t_f_s2_s1,
+                features_t_f_s1_s2
+            ),
             dim=1
         )
-        # (batch, 256)
+
+        # (batch, 512)
 
 
         # ==================================================
-        # CALCULAR O GATE
+        # CALCULAR GATES
         # ==================================================
 
         gate_logits = self.gate(
             combined
         )
-        # (batch, 128)
+
+        # (batch, 512)
 
 
-        gate = torch.sigmoid(
-            gate_logits
+        gate_logits = gate_logits.view(
+            -1,
+            4,
+            128
         )
-        # (batch, 128)
-        #
-        # Cada valor está entre 0 e 1.
+
+        # (batch, 4, 128)
+
+
+        gate = torch.softmax(
+            gate_logits,
+            dim=1
+        )
+
+        # (batch, 4, 128)
+
+
+        # ==================================================
+        # EMPILHAR FEATURES
+        # ==================================================
+
+        features = torch.stack(
+            (
+                features_s1_s2_f_t,
+                features_s1_s2_t_f,
+                features_t_f_s2_s1,
+                features_t_f_s1_s2
+            ),
+            dim=1
+        )
+
+        # (batch, 4, 128)
 
 
         # ==================================================
@@ -149,8 +222,9 @@ class GatedFusion(nn.Module):
         # ==================================================
 
         fused = (
-            gate * features_s1_s2_f_t
-            + (1 - gate) * features_s1_s2_t_f
+            gate * features
+        ).sum(
+            dim=1
         )
 
         # (batch, 128)
@@ -167,5 +241,3 @@ class GatedFusion(nn.Module):
         # (batch, 4)
 
         return outputs
-
-

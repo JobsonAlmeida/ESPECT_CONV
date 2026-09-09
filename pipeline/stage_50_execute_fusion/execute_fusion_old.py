@@ -37,7 +37,7 @@ from pipeline.stage_40_execute_branch.branch_cnn_models import TimeFrequencySpac
 
 from fusion_cnn_models import GatedFusion
 
-from fusion_individual_subject_plots import fusion_individual_subject_plots
+from pipeline.stage_50_execute_fusion.fusion_individual_subject_plots_OLD import fusion_individual_subject_plots
 
 # ==========================================================
 # CONFIGURAÇÕES

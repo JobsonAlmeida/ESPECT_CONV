@@ -10,7 +10,7 @@ from torch.utils.data import (
     DataLoader
 )
 
-from torchinfo import summary
+
 
 
 # ==========================================================
@@ -24,7 +24,7 @@ PIPELINE_ROOT = current_file.parents[1]
 if str(PIPELINE_ROOT) not in sys.path:
     sys.path.append(str(PIPELINE_ROOT))
 
-from stage_40_execute_branch.tools import save_summary_as_pdf
+from tools import save_summary
 
 from stage_40_execute_branch.branch_cnn_models import (
     Space1Space2FrequencyTimeCNN,
@@ -35,7 +35,7 @@ from stage_40_execute_branch.branch_cnn_models import (
 
 from fusion_cnn_models import GatedFusion
 
-from fusion_individual_subject_plots_from_branch_style import fusion_individual_subject_plots
+from fusion_individual_subject_plots import fusion_individual_subject_plots
 
 # ==========================================================
 # CONFIGURAÇÕES
@@ -104,6 +104,8 @@ def test_model(
         for (
             X_s1_s2_f_t_batch,
             X_s1_s2_t_f_batch,
+            X_t_f_s2_s1_batch,
+            X_t_f_s1_s2_batch,
             y_batch
         ) in test_loader:
 
@@ -115,13 +117,23 @@ def test_model(
                 X_s1_s2_t_f_batch.to(device)
             )
 
+            X_t_f_s2_s1_batch = (
+                X_t_f_s2_s1_batch.to(device)
+            )
+
+            X_t_f_s1_s2_batch = (
+                X_t_f_s1_s2_batch.to(device)
+            )
+
             y_batch = y_batch.to(
                 device
             )
 
             outputs = model(
                 X_s1_s2_f_t_batch,
-                X_s1_s2_t_f_batch
+                X_s1_s2_t_f_batch,
+                X_t_f_s2_s1_batch,
+                X_t_f_s1_s2_batch
             )
 
             loss = criterion(
@@ -364,6 +376,8 @@ def train_stage(
         for (
             X_s1_s2_f_t_batch,
             X_s1_s2_t_f_batch,
+            X_t_f_s2_s1_batch,
+            X_t_f_s1_s2_batch,
             y_batch
         ) in train_loader:
 
@@ -375,15 +389,23 @@ def train_stage(
                 X_s1_s2_t_f_batch.to(device)
             )
 
-            y_batch = y_batch.to(
-                device
+            X_t_f_s2_s1_batch = (
+                X_t_f_s2_s1_batch.to(device)
             )
+
+            X_t_f_s1_s2_batch = (
+                X_t_f_s1_s2_batch.to(device)
+            )
+     
+            y_batch = y_batch.to(device)
 
             optimizer.zero_grad()
 
             outputs = model(
                 X_s1_s2_f_t_batch,
-                X_s1_s2_t_f_batch
+                X_s1_s2_t_f_batch,
+                X_t_f_s2_s1_batch,
+                X_t_f_s1_s2_batch,
             )
 
             loss = criterion(
@@ -436,6 +458,8 @@ def train_stage(
             for (
                 X_s1_s2_f_t_batch,
                 X_s1_s2_t_f_batch,
+                X_t_f_s2_s1_batch,
+                X_t_f_s1_s2_batch,
                 y_batch
             ) in val_loader:
 
@@ -447,13 +471,22 @@ def train_stage(
                     X_s1_s2_t_f_batch.to(device)
                 )
 
+                X_t_f_s2_s1_batch = (
+                    X_t_f_s2_s1_batch.to(device)
+                )
+    
+                X_t_f_s1_s2_batch = (
+                    X_t_f_s1_s2_batch.to(device)
+                )
                 y_batch = y_batch.to(
                     device
                 )
 
                 outputs = model(
                     X_s1_s2_f_t_batch,
-                    X_s1_s2_t_f_batch
+                    X_s1_s2_t_f_batch,
+                    X_t_f_s2_s1_batch,
+                    X_t_f_s1_s2_batch,
                 )
 
                 loss = criterion(
@@ -534,10 +567,8 @@ def train_stage(
         if (
             val_accuracy > max_val_accuracy
             or (
-                val_accuracy
-                == max_val_accuracy
-                and val_loss
-                < best_val_loss_to_max_accuracy
+                val_accuracy == max_val_accuracy
+                and val_loss < best_val_loss_to_max_accuracy
             )
         ):
 
@@ -604,6 +635,19 @@ def train_stage(
     }
 
 
+
+def get_scalar(value):
+    """
+        Converte tensor para escalar
+    """
+
+    if torch.is_tensor(value):
+        return value.item()
+
+    return float(value)
+
+
+
 # ==========================================================
 # MAIN
 # ==========================================================
@@ -616,6 +660,7 @@ subjects = [
 
 def execute_fusion(
     fusion,
+    branch_model_state = "minimum_loss_model",
     subjects=subjects,
     N_FOLDS=N_FOLDS,
     N_EPOCHS_STAGE_1=N_EPOCHS_STAGE_1,
@@ -638,6 +683,14 @@ def execute_fusion(
     branch_s1_s2_t_f = (
         "space1_space2_time_frequency"
     )
+
+    branch_t_f_s2_s1 = (
+        "time_frequency_space2_space1"
+    )
+
+    branch_t_f_s1_s2 = (
+        "time_frequency_space1_space2"
+    )    
 
     # ==========================================================
     # LOOP DOS SUJEITOS
@@ -700,6 +753,26 @@ def execute_fusion(
             / subject
         )
 
+        T_F_S2_S1_MODEL_DIR = (
+            INPUT_PREVIOUS_DIR
+            / f"{branch_t_f_s2_s1}_branch"
+        )
+
+        T_F_S2_S1_SUB_DIR = (
+            T_F_S2_S1_MODEL_DIR
+            / subject
+        )
+
+        T_F_S1_S2_MODEL_DIR = (
+            INPUT_PREVIOUS_DIR
+            / f"{branch_t_f_s1_s2}_branch"
+        )
+
+        T_F_S1_S2_SUB_DIR = (
+            T_F_S1_S2_MODEL_DIR
+            / subject
+        )
+
         MODEL_DIR = (
             OUTPUT_DIR
             / f"{fusion}_fusion"
@@ -729,6 +802,9 @@ def execute_fusion(
         # ======================================================
         # REORGANIZAR DIMENSÕES
         # ======================================================
+
+        #original: 
+
 
         power_array_s1_s2_f_t = np.transpose(
             power_array,
@@ -958,6 +1034,30 @@ def execute_fusion(
                 X_s1_s2_t_f[test_indices]
             )
 
+            X_t_f_s2_s1_train = (
+                X_t_f_s2_s1[train_indices]
+            )
+
+            X_t_f_s2_s1_val = (
+                X_t_f_s2_s1[val_indices]
+            )
+
+            X_t_f_s2_s1_test = (
+                X_t_f_s2_s1[test_indices]
+            )
+
+            X_t_f_s1_s2_train = (
+                X_t_f_s1_s2[train_indices]
+            )
+
+            X_t_f_s1_s2_val = (
+                X_t_f_s1_s2[val_indices]
+            )
+
+            X_t_f_s1_s2_test = (
+                X_t_f_s1_s2[test_indices]
+            )
+
             y_train = (
                 y[train_indices]
             )
@@ -994,16 +1094,40 @@ def execute_fusion(
                 weights_only=False
             )
 
-            power_max_s1_s2_f_t = (
-                checkpoint_s1_s2_f_t[
-                    "power_max"
-                ]
+            checkpoint_t_f_s2_s1 = torch.load(
+                T_F_S2_S1_SUB_DIR
+                / (
+                    "time_frequency_space2_space1_"
+                    f"fold_{fold}.pth"
+                ),
+                map_location=device,
+                weights_only=False
             )
 
-            power_max_s1_s2_t_f = (
-                checkpoint_s1_s2_t_f[
-                    "power_max"
-                ]
+            checkpoint_t_f_s1_s2 = torch.load(
+                T_F_S1_S2_SUB_DIR
+                / (
+                    "time_frequency_space1_space2_"
+                    f"fold_{fold}.pth"
+                ),
+                map_location=device,
+                weights_only=False
+            )
+
+            power_max_s1_s2_f_t = get_scalar(
+                checkpoint_s1_s2_f_t["power_max"]
+            )
+
+            power_max_s1_s2_t_f = get_scalar(
+                checkpoint_s1_s2_t_f["power_max"]
+            )
+
+            power_max_t_f_s2_s1 = get_scalar(
+                checkpoint_t_f_s2_s1["power_max"]
+            )
+
+            power_max_t_f_s1_s2 = get_scalar(
+                checkpoint_t_f_s1_s2["power_max"]
             )
 
             # ==================================================
@@ -1040,6 +1164,36 @@ def execute_fusion(
                 / power_max_s1_s2_t_f
             )
 
+            X_t_f_s2_s1_train = (
+                X_t_f_s2_s1_train
+                / power_max_t_f_s2_s1
+            )
+
+            X_t_f_s2_s1_val = (
+                X_t_f_s2_s1_val
+                / power_max_t_f_s2_s1
+            )
+
+            X_t_f_s2_s1_test = (
+                X_t_f_s2_s1_test
+                / power_max_t_f_s2_s1
+            )
+
+            X_t_f_s1_s2_train = (
+                X_t_f_s1_s2_train
+                / power_max_t_f_s1_s2
+            )
+
+            X_t_f_s1_s2_val = (
+                X_t_f_s1_s2_val
+                / power_max_t_f_s1_s2
+            )
+
+            X_t_f_s1_s2_test = (
+                X_t_f_s1_s2_test
+                / power_max_t_f_s1_s2
+            )
+
             # ==================================================
             # DATASETS
             # ==================================================
@@ -1047,18 +1201,24 @@ def execute_fusion(
             train_dataset = TensorDataset(
                 X_s1_s2_f_t_train,
                 X_s1_s2_t_f_train,
+                X_t_f_s2_s1_train,
+                X_t_f_s1_s2_train,
                 y_train
             )
 
             val_dataset = TensorDataset(
                 X_s1_s2_f_t_val,
                 X_s1_s2_t_f_val,
+                X_t_f_s2_s1_val,
+                X_t_f_s1_s2_val,
                 y_val
             )
 
             test_dataset = TensorDataset(
                 X_s1_s2_f_t_test,
                 X_s1_s2_t_f_test,
+                X_t_f_s2_s1_test,
+                X_t_f_s1_s2_test,
                 y_test
             )
 
@@ -1105,7 +1265,7 @@ def execute_fusion(
             )
 
             model_s1_s2_f_t.load_state_dict(
-                checkpoint_s1_s2_f_t["minimum_loss_model"][
+                checkpoint_s1_s2_f_t[branch_model_state][
                     "model_state_dict"
                 ]
             )
@@ -1116,7 +1276,29 @@ def execute_fusion(
             )
 
             model_s1_s2_t_f.load_state_dict(
-                checkpoint_s1_s2_t_f["minimum_loss_model"][
+                checkpoint_s1_s2_t_f[branch_model_state][
+                    "model_state_dict"
+                ]
+            )
+
+            model_t_f_s2_s1 = (
+                TimeFrequencySpace2Space1CNN()
+                .to(device)
+            )
+
+            model_t_f_s2_s1.load_state_dict(
+                checkpoint_t_f_s2_s1[branch_model_state][
+                    "model_state_dict"
+                ]
+            )
+
+            model_t_f_s1_s2 = (
+                TimeFrequencySpace1Space2CNN()
+                .to(device)
+            )
+
+            model_t_f_s1_s2.load_state_dict(
+                checkpoint_t_f_s1_s2[branch_model_state][
                     "model_state_dict"
                 ]
             )
@@ -1141,6 +1323,22 @@ def execute_fusion(
                     False
                 )
 
+            for parameter in (
+                model_t_f_s2_s1.parameters()
+            ):
+
+                parameter.requires_grad = (
+                    False
+                )
+
+            for parameter in (
+                model_t_f_s1_s2.parameters()
+            ):
+
+                parameter.requires_grad = (
+                    False
+                )
+
             # ==================================================
             # MODELO DE FUSÃO
             # ==================================================
@@ -1151,26 +1349,12 @@ def execute_fusion(
 
                     model = GatedFusion(
                         model_s1_s2_f_t,
-                        model_s1_s2_t_f
+                        model_s1_s2_t_f,
+                        model_t_f_s2_s1,
+                        model_t_f_s1_s2
                     ).to(device)
 
-                    if fold == 1:
-
-                        model_stats = summary(
-                            model,
-                            input_size=[
-                                (1,  9, 65, 21,  21 ),
-                                (1, 65,  9, 21,  21 ),
-                            ],
-                            device=device,
-                            verbose=0
-                        )
-
-                        # save_summary_as_pdf(
-                        #     model,
-                        #     model_stats,
-                        #     save_path=MODEL_DIR
-                        # )
+                    
 
                 case _:
 
@@ -1185,7 +1369,8 @@ def execute_fusion(
             # ==================================================
             # STAGE 1
             # RAMOS CONGELADOS
-            # TREINA PROJEÇÕES + GATE + CLASSIFICADOR
+            # TREINA CLASSIFICADOR MAIS OUTRAS REDE QUE O MODELO
+            # DE FUSÃO TIVER
             # ==================================================
 
             optimizer = torch.optim.Adam(
@@ -1196,6 +1381,18 @@ def execute_fusion(
                 ),
                 lr=LEARNING_RATE_STAGE_1
             )
+
+
+            if fold == 1: save_summary(
+                model, 
+                fusion, 
+                "Stage 1",  
+                (1, 9, 65, 21, 21),  
+                (1,  65, 9, 21, 21), 
+                (1, 21, 21, 9, 65),
+                (1, 21, 21, 9, 65),
+                device,
+                MODEL_DIR)
 
             stage_1_training = train_stage(
                 model=model,
@@ -1208,12 +1405,14 @@ def execute_fusion(
                 fold=fold,
                 frozen_models=[
                     model_s1_s2_f_t,
-                    model_s1_s2_t_f
+                    model_s1_s2_t_f,
+                    model_t_f_s2_s1,
+                    model_t_f_s1_s2,
                 ],
             )
 
             # ==================================================
-            # TESTE STAGE 1 - MINIMUM LOSS
+            # TESTE STAGE 1 - WITH MINIMUM LOSS MODEL
             # ==================================================
 
             (
@@ -1240,7 +1439,7 @@ def execute_fusion(
             )
 
             # ==================================================
-            # TESTE STAGE 1 - MAXIMUM ACCURACY
+            # TESTE STAGE 1 - WITH MAXIMUM ACCURACY MODEL
             # ==================================================
 
             (
@@ -1420,6 +1619,22 @@ def execute_fusion(
 
             for parameter in (
                 model_s1_s2_t_f.parameters()
+            ):
+
+                parameter.requires_grad = (
+                    True
+                )
+
+            for parameter in (
+                model_t_f_s2_s1.parameters()
+            ):
+
+                parameter.requires_grad = (
+                    True
+                )
+
+            for parameter in (
+                model_t_f_s1_s2.parameters()
             ):
 
                 parameter.requires_grad = (
@@ -1908,6 +2123,12 @@ def execute_fusion(
 
                     "power_max_s1_s2_t_f":
                         power_max_s1_s2_t_f,
+
+                    "power_max_t_f_s2_s1":
+                        power_max_t_f_s2_s1,
+
+                    "power_max_t_f_s1_s2":
+                        power_max_t_f_s1_s2,
                 },
 
                 "hyperparameters": {
@@ -2014,7 +2235,7 @@ def execute_fusion(
 
         fusion_individual_subject_plots(
             fusion="gated_fusion",
-            subjects=["sub-01"]
+            subjects=[subject]
         )
 
 
@@ -2026,6 +2247,8 @@ if __name__ == "__main__":
 
     execute_fusion(
         fusion="gated_fusion",
-        N_EPOCHS_STAGE_1=600,
-        subjects=["sub-01"]
+        branch_model_state = "minimum_loss_model",
+        subjects=["sub-01"],
+        N_EPOCHS_STAGE_1=60,
+        N_EPOCHS_STAGE_2 = 20
     )

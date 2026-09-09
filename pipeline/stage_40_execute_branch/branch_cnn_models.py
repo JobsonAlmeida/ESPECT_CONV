@@ -154,95 +154,71 @@ class TimeFrequencySpace2Space1CNN(nn.Module):
 
    def __init__(self):
 
+      super().__init__()
 
-        super().__init__()
+      # (batch, 21, 21, 65, 9)
 
-       # (batch, 21, 21, 65, 9)
-
-        self.conv1 = nn.Conv3d(
-           in_channels=21,
-           out_channels=10,
-           kernel_size=3,
-           padding=1
-        )
-        # (batch, 10, 21, 65, 9)
-
-
-        self.relu1 = nn.ReLU()
+      self.conv1 = nn.Conv3d(
+         in_channels=21,
+         out_channels=10,
+         kernel_size=3,
+         padding=1
+      )
+      # (batch, 10, 21, 65, 9)
 
 
-        self.pool1 = nn.MaxPool3d(
-           kernel_size=(2, 2, 2)
-        )
-        # (batch, 10, 10, 32, 4)
+      self.relu1 = nn.ReLU()
 
 
-        self.conv2 = nn.Conv3d(
-           in_channels=10,
-           out_channels=5,
-           kernel_size=3,
-           padding=1
-         )
-        # (batch, 5, 10, 32, 4)
-
-        self.relu2 = nn.ReLU()
-
-        self.pool2 = nn.MaxPool3d(
-           kernel_size=(2, 2, 2)
-        )
-        # (batch, 5, 5, 16, 2)
-
-        self.flatten = nn.Flatten()
-
-        self.classifier = nn.Linear(
-            5 * 5 * 16 * 2,
-            4
-        )
+      self.pool1 = nn.MaxPool3d(
+         kernel_size=(2, 2, 2)
+      )
+      # (batch, 10, 10, 32, 4)
 
 
+      self.conv2 = nn.Conv3d(
+         in_channels=10,
+         out_channels=5,
+         kernel_size=3,
+         padding=1
+      )
+      # (batch, 5, 10, 32, 4)
 
+      self.relu2 = nn.ReLU()
+
+      self.pool2 = nn.MaxPool3d(
+         kernel_size=(2, 2, 2)
+      )
+      # (batch, 5, 5, 16, 2)
+
+      self.flatten = nn.Flatten() #5x5x16x2
+
+      self.classifier = nn.Linear(
+         5 * 5 * 16 * 2,
+         4
+      )
 
    def extract_features(self, x):
 
+      x = self.conv1(x)
+      x = self.relu1(x)
+      x = self.pool1(x)
 
-        x = self.conv1(x)
-        x = self.relu1(x)
-        x = self.pool1(x)
+      x = self.conv2(x)
+      x = self.relu2(x)
+      x = self.pool2(x)
 
+      x = self.flatten(x)
 
-        x = self.conv2(x)
-        x = self.relu2(x)
-        x = self.pool2(x)
-
-
-        x = self.flatten(x)
-
-
-        return x
-
-
-
+      return x
 
    def forward(self, x):
 
+      x = self.extract_features(x)
 
-       x = self.conv1(x)
-       x = self.relu1(x)
-       x = self.pool1(x)
+      x = self.classifier(x)
 
-
-       x = self.conv2(x)
-       x = self.relu2(x)
-       x = self.pool2(x)
-
-
-       x = self.flatten(x)
-
-
-       x = self.classifier(x)
-
-
-       return x
+      return x
 
 
 
@@ -250,94 +226,73 @@ class TimeFrequencySpace1Space2CNN(nn.Module):
 
    def __init__(self):
 
+      super().__init__()
 
-        super().__init__()
+      # (batch, 21, 21, 65, 9)
 
-       # (batch, 21, 21, 65, 9)
-
-        self.conv1 = nn.Conv3d(
-           in_channels=21,
-           out_channels=10,
-           kernel_size=3,
-           padding=1
-        )
-        # (batch, 10, 21, 65, 9)
-
-
-        self.relu1 = nn.ReLU()
+      self.conv1 = nn.Conv3d(
+         in_channels=21,
+         out_channels=10,
+         kernel_size=3,
+         padding=1
+      )
+      # (batch, 10, 21, 65, 9)
 
 
-        self.pool1 = nn.MaxPool3d(
-           kernel_size=(2, 2, 2)
-        )
-        # (batch, 10, 10, 32, 4)
+      self.relu1 = nn.ReLU()
 
 
-        self.conv2 = nn.Conv3d(
-           in_channels=10,
-           out_channels=5,
-           kernel_size=3,
-           padding=1
-         )
-        # (batch, 5, 10, 32, 4)
-
-        self.relu2 = nn.ReLU()
-
-        self.pool2 = nn.MaxPool3d(
-           kernel_size=(2, 2, 2)
-        )
-        # (batch, 5, 5, 16, 2)
-
-        self.flatten = nn.Flatten()
-
-        self.classifier = nn.Linear(
-            5 * 5 * 16 * 2,
-            4
-        )
+      self.pool1 = nn.MaxPool3d(
+         kernel_size=(2, 2, 2)
+      )
+      # (batch, 10, 10, 32, 4)
 
 
+      self.conv2 = nn.Conv3d(
+         in_channels=10,
+         out_channels=5,
+         kernel_size=3,
+         padding=1
+      )
+      # (batch, 5, 10, 32, 4)
 
+      self.relu2 = nn.ReLU()
+
+      self.pool2 = nn.MaxPool3d(
+         kernel_size=(2, 2, 2)
+      )
+      # (batch, 5, 5, 16, 2)
+
+      self.flatten = nn.Flatten() #5x5x16x2 = 800
+
+      self.classifier = nn.Linear(
+         5 * 5 * 16 * 2,
+         4
+      )
 
    def extract_features(self, x):
 
-
-        x = self.conv1(x)
-        x = self.relu1(x)
-        x = self.pool1(x)
-
-
-        x = self.conv2(x)
-        x = self.relu2(x)
-        x = self.pool2(x)
+      x = self.conv1(x)
+      x = self.relu1(x)
+      x = self.pool1(x)
 
 
-        x = self.flatten(x)
+      x = self.conv2(x)
+      x = self.relu2(x)
+      x = self.pool2(x)
 
 
-        return x
+      x = self.flatten(x)
 
 
-
+      return x
 
    def forward(self, x):
 
+      x = self.extract_features(x)
 
-       x = self.conv1(x)
-       x = self.relu1(x)
-       x = self.pool1(x)
+      x = self.classifier(x)
 
-
-       x = self.conv2(x)
-       x = self.relu2(x)
-       x = self.pool2(x)
-
-
-       x = self.flatten(x)
-
-
-       x = self.classifier(x)
-
-
-       return x
+      return x
 
 
