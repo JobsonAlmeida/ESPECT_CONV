@@ -1336,6 +1336,9 @@ def individual_subject_plots(
         # Evita manter figuras anteriores na memória.
         # ==================================================
 
+
+        plt.show()
+        
         plt.close(
             fig
         )

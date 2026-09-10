@@ -2278,7 +2278,7 @@ if __name__ == "__main__":
 
     execute_fusion(
         fusion="gated_fusion",
-        branch_model_state = "minimum_loss_model",
+        branch_model_state = "maximum_accuracy_model",
         subjects=["sub-01"],
         N_EPOCHS_STAGE_1=6,
         N_EPOCHS_STAGE_2 = 2

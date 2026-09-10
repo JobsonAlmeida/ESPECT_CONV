@@ -14,7 +14,7 @@ from torch.utils.data import (
 
 from torchinfo import summary
 
-from tools import save_summary_as_pdf
+from tools import save_summary
 
 from branch_cnn_models import Space1Space2FrequencyTimeCNN
 from branch_cnn_models import Space1Space2TimeFrequencyCNN
@@ -877,11 +877,14 @@ def execute_branch(
             power_array
         ).float()
 
-
         y = torch.from_numpy(
             labels
         ).long()
 
+        # obtendo o size do tensor
+        X_input_size = [
+            (1, *X.shape[1:]),
+        ]
 
         print(
             "X:",
@@ -1335,30 +1338,6 @@ def execute_branch(
                         .to(device)
                     )
 
-
-                    if fold == 1:
-
-                        model_stats = summary(
-                            model,
-                            input_size=(
-                                1,
-                                9,
-                                65,
-                                21,
-                                21
-                            ),
-                            device=device,
-                            verbose=0
-                        )
-
-
-                        save_summary_as_pdf(
-                            branch,
-                            model_stats,
-                            save_path=MODEL_DIR
-                        )
-
-
                 # ------------------------------------------
 
                 case "space1_space2_time_frequency":
@@ -1367,29 +1346,6 @@ def execute_branch(
                         Space1Space2TimeFrequencyCNN()
                         .to(device)
                     )
-
-
-                    if fold == 1:
-
-                        model_stats = summary(
-                            model,
-                            input_size=(
-                                1,
-                                65,
-                                9,
-                                21,
-                                21
-                            ),
-                            device=device,
-                            verbose=0
-                        )
-
-
-                        save_summary_as_pdf(
-                            branch,
-                            model_stats,
-                            save_path=MODEL_DIR
-                        )
 
 
                 # ------------------------------------------
@@ -1402,29 +1358,6 @@ def execute_branch(
                     )
 
 
-                    if fold == 1:
-
-                        model_stats = summary(
-                            model,
-                            input_size=(
-                                1,
-                                21,
-                                21,
-                                65,
-                                9
-                            ),
-                            device=device,
-                            verbose=0
-                        )
-
-
-                        save_summary_as_pdf(
-                            branch,
-                            model_stats,
-                            save_path=MODEL_DIR
-                        )
-
-
                 # ------------------------------------------
 
                 case "time_frequency_space1_space2":
@@ -1433,30 +1366,6 @@ def execute_branch(
                         TimeFrequencySpace1Space2CNN()
                         .to(device)
                     )
-
-
-                    if fold == 1:
-
-                        model_stats = summary(
-                            model,
-                            input_size=(
-                                1,
-                                21,
-                                21,
-                                65,
-                                9
-                            ),
-                            device=device,
-                            verbose=0
-                        )
-
-
-                        save_summary_as_pdf(
-                            branch,
-                            model_stats,
-                            save_path=MODEL_DIR
-                        )
-
 
                 case _:
 
@@ -1535,6 +1444,16 @@ def execute_branch(
             # ==============================================
             # TREINAMENTO
             # ==============================================
+
+            if fold == 1:
+
+                save_summary(
+                    model,
+                    branch,
+                    X_input_size,
+                    device,
+                    MODEL_DIR
+                )
 
             for epoch in range(
                 N_EPOCHS
@@ -2445,7 +2364,7 @@ if __name__ == "__main__":
 
     execute_branch(
         branch="space1_space2_frequency_time",
-        N_EPOCHS=600,
+        N_EPOCHS=12,       
         subjects=[
             "sub-01"
         ]
