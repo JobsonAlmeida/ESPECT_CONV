@@ -1261,8 +1261,10 @@ def plot_fusion_stage(
 # ==========================================================
 
 def fusion_individual_subject_plots(
+    MODEL_DIR,
     fusion="gated_fusion",
     subjects=None,
+    
 ):
 
     # ======================================================
@@ -1292,11 +1294,17 @@ def fusion_individual_subject_plots(
 
     for subject in subjects:
 
-        MODEL_DIR = (
-            INPUT_DIR
-            / f"{fusion}_fusion"
+        # SUB_DIR = (
+        #     INPUT_DIR
+        #     / f"{fusion}_fusion"
+        #     / subject
+        # )
+
+        SUB_DIR = (
+            MODEL_DIR
             / subject
         )
+       
 
 
         # ==================================================
@@ -1304,7 +1312,7 @@ def fusion_individual_subject_plots(
         # ==================================================
 
         fold_files = list(
-            MODEL_DIR.glob(
+            SUB_DIR.glob(
                 f"{fusion}_fold_*.pth"
             )
         )
@@ -1365,7 +1373,7 @@ def fusion_individual_subject_plots(
 
                 subject=subject,
 
-                model_dir=MODEL_DIR,
+                model_dir=SUB_DIR,
             )
 
 

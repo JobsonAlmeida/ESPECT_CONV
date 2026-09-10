@@ -6,12 +6,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import matplotlib as plt
 from pathlib import Path
 
-
 from torchinfo import summary
-
-
-
-
 
 def save_summary_as_pdf(fusion, stage, model_stats, save_path):
 
@@ -48,7 +43,7 @@ def save_summary_as_pdf(fusion, stage, model_stats, save_path):
     text_style = ParagraphStyle('TextStyle', fontName='Courier', fontSize=9, leading=11)
     
     # Adiciona o título e o conteúdo tratado
-    story.append(Paragraph(f"Branch: {fusion} / {stage}".title(), title_style))
+    story.append(Paragraph(f"Fusion: {fusion} / {stage}".title(), title_style))
     story.append(Spacer(1, 10))
     story.append(Preformatted(text, text_style))  # Usa o texto corrigido aqui
     
@@ -56,30 +51,21 @@ def save_summary_as_pdf(fusion, stage, model_stats, save_path):
     doc.build(story)
     print(f"Summary successfully saved to PDF without glitches: {final_path_str}")
 
-
 def save_summary(
-        model, 
-        fusion_model_name,
-        stage_name, 
-        s1_s2_f_t_size, 
-        s1_s2_t_f_size,
-        t_f_s2_s1_size,
-        t_f_s1_s2_size,
-        device,
-        MODEL_DIR
-                    
-    ):
+    model,
+    fusion_model_name,
+    stage_name,
+    input_sizes,
+    device,
+    MODEL_DIR
+):
 
     model_stats = summary(
         model,
-        input_size=[
-            s1_s2_f_t_size,
-            s1_s2_t_f_size,
-            t_f_s2_s1_size,
-            t_f_s1_s2_size,
-        ],
+        input_size=input_sizes,
         device=device,
-        verbose=0
+        verbose=0,
+        mode="eval"
     )
 
     save_summary_as_pdf(
@@ -88,7 +74,6 @@ def save_summary(
         model_stats,
         save_path=MODEL_DIR
     )
-
 
 
 def save_all_summaries_in_one_image(model_stats, save_path="model_summary.png"):

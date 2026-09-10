@@ -775,7 +775,7 @@ def execute_fusion(
 
         MODEL_DIR = (
             OUTPUT_DIR
-            / f"{fusion}_fusion"
+            / f"{fusion}_from_{branch_model_state}_in_branches_fusion"
         )
 
         SUB_DIR = (
@@ -869,6 +869,15 @@ def execute_fusion(
         y = torch.from_numpy(
             labels
         ).long()
+
+        # obtendo os sizes de cada tensor
+        summary_input_sizes = [
+            (1, *X_s1_s2_f_t.shape[1:]),
+            (1, *X_s1_s2_t_f.shape[1:]),
+            (1, *X_t_f_s2_s1.shape[1:]),
+            (1, *X_t_f_s1_s2.shape[1:]),
+        ]
+
 
         print(
             "X_s1_s2_f_t:",
@@ -1382,17 +1391,16 @@ def execute_fusion(
                 lr=LEARNING_RATE_STAGE_1
             )
 
+            if fold == 1:
 
-            if fold == 1: save_summary(
-                model, 
-                fusion, 
-                "Stage 1",  
-                (1, 9, 65, 21, 21),  
-                (1,  65, 9, 21, 21), 
-                (1, 21, 21, 9, 65),
-                (1, 21, 21, 9, 65),
-                device,
-                MODEL_DIR)
+                save_summary(
+                    model,
+                    fusion,
+                    f"Stage 1",
+                    summary_input_sizes,
+                    device,
+                    MODEL_DIR
+                )
 
             stage_1_training = train_stage(
                 model=model,
@@ -1655,6 +1663,17 @@ def execute_fusion(
                 model.parameters(),
                 lr=LEARNING_RATE_STAGE_2
             )
+
+            if fold == 1:
+
+                save_summary(
+                    model,
+                    fusion,
+                    f"Stage 2",
+                    summary_input_sizes,
+                    device,
+                    MODEL_DIR
+                )
 
             stage_2_from_ml_training = train_stage(
                 model=model,
@@ -2234,8 +2253,10 @@ def execute_fusion(
         # ======================================================
 
         fusion_individual_subject_plots(
-            fusion="gated_fusion",
-            subjects=[subject]
+            MODEL_DIR,
+            fusion="gated_fusion",            
+            subjects=[subject],
+            
         )
 
 
@@ -2245,10 +2266,20 @@ def execute_fusion(
 
 if __name__ == "__main__":
 
+    # ======================================================
+    # BRANCH_MODEL_STATE OPTIONS
+    # ======================================================
+    #
+    # minimum_loss_model
+    #
+    # maximum_accuracy_model
+    #
+    # ======================================================
+
     execute_fusion(
         fusion="gated_fusion",
         branch_model_state = "minimum_loss_model",
         subjects=["sub-01"],
-        N_EPOCHS_STAGE_1=60,
-        N_EPOCHS_STAGE_2 = 20
+        N_EPOCHS_STAGE_1=6,
+        N_EPOCHS_STAGE_2 = 2
     )
