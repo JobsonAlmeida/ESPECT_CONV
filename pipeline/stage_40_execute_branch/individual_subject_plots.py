@@ -608,7 +608,7 @@ def individual_subject_plots(
 
             ax_loss.tick_params(
                 axis="x",
-                labelbottom=False
+                labelbottom=True
             )
 
 
@@ -1269,7 +1269,7 @@ def individual_subject_plots(
         #
         # LINHA 0 / ÚLTIMA COLUNA
         #
-        # Mantida vazia como no código original.
+        # Mantida vazia.
         # ==================================================
 
         ax_table = axs[
