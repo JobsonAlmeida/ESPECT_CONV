@@ -27,7 +27,6 @@ N_EPOCHS = 50
 BATCH_SIZE = 8
 LEARNING_RATE = 0.001
 
-# Percentual de desenvolvimento que serão de validação
 VALIDATION_SIZE = 0.20
 
 RANDOM_STATE = 42
