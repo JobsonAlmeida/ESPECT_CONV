@@ -15,12 +15,6 @@ from torchinfo import summary
 
 from tools import save_summary
 
-from branch_cnn_models import Space1Space2FrequencyTimeCNN
-from branch_cnn_models import Space1Space2TimeFrequencyCNN
-from branch_cnn_models import TimeFrequencySpace2Space1CNN
-from branch_cnn_models import TimeFrequencySpace1Space2CNN
-
-
 # ==========================================================
 # CONFIGURAÇÕES DE CAMINHO & IMPORTS LOCAIS
 # ==========================================================
@@ -77,6 +71,22 @@ PREVIOUS_STAGE = (
     / "processed_data"
     / "stage_40_obtain_indices"
 )
+
+
+
+# ==========================================================
+# CONDITIONS
+# ==========================================================
+
+CONDITION_MAP = {
+
+    "PRONOUNCED_SPEECH": 0,
+    "INNER_SPEECH": 1,
+    "VISUALIZED_CONDITION": 2,
+
+}
+
+
 
 # ==========================================================
 # SUJEITOS
@@ -620,6 +630,10 @@ def execute_branch(
     RANDOM_STATE_LOADER=RANDOM_STATE_LOADER,
 ):
 
+
+
+
+
     # ======================================================
     # SEED GLOBAL
     # ======================================================
@@ -675,6 +689,36 @@ def execute_branch(
 
         psd_array = subj_file["psd_array"]
         labels = subj_file["labels"]
+
+
+        # ==================================================
+        # LOADING CNN MODELS
+        # ==================================================
+
+        condition = subj_file["condition"]
+
+        if condition == "PRONOUNCED_SPEECH":
+
+            import branch_cnn_models_pronounced as cnn_models
+
+        elif condition == "INNER_SPEECH":
+
+            import branch_cnn_models_inner as cnn_models
+
+        elif condition == "VISUALIZED_CONDITION":
+
+            import branch_cnn_models_visualized as cnn_models
+
+        else:
+
+            raise ValueError(
+                f"Condition {condition} not found!"
+            )
+
+        print(
+            f"Chosen {condition} models"
+        )
+
 
         print(
             "PSD Array:",
@@ -735,6 +779,9 @@ def execute_branch(
             )
 
 
+
+
+
         # ==================================================
         # REORGANIZAR AS DIMENSÕES
         # ==================================================
@@ -778,6 +825,9 @@ def execute_branch(
                         2
                     )
                 )
+
+
+
 
 
             # ==================================================
@@ -1339,7 +1389,8 @@ def execute_branch(
                 case "space1_space2_frequency_time":
 
                     model = (
-                        Space1Space2FrequencyTimeCNN()
+                        cnn_models
+                        .Space1Space2FrequencyTimeCNN()
                         .to(device)
                     )
 
@@ -1348,7 +1399,8 @@ def execute_branch(
                 case "space1_space2_time_frequency":
 
                     model = (
-                        Space1Space2TimeFrequencyCNN()
+                        cnn_models
+                        .Space1Space2TimeFrequencyCNN()
                         .to(device)
                     )
 
@@ -1358,7 +1410,8 @@ def execute_branch(
                 case "time_frequency_space2_space1":
 
                     model = (
-                        TimeFrequencySpace2Space1CNN()
+                        cnn_models
+                        .TimeFrequencySpace2Space1CNN()
                         .to(device)
                     )
 
@@ -1368,7 +1421,8 @@ def execute_branch(
                 case "time_frequency_space1_space2":
 
                     model = (
-                        TimeFrequencySpace1Space2CNN()
+                        cnn_models
+                        .TimeFrequencySpace1Space2CNN()
                         .to(device)
                     )
 

@@ -1408,7 +1408,7 @@ def individual_subject_plots(
         # ==================================================
 
 
-        plt.show()
+        # plt.show()
         
         plt.close(
             fig

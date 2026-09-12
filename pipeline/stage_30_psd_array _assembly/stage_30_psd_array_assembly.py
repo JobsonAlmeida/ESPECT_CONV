@@ -331,10 +331,6 @@ def power_array_assembly(
             
             print(f"Shape of section data: {psd_array.shape}  \nShape of section labels: {labels.shape}")
 
-            
-
-
-
     
         # =============================================
         # CONCATENATING THE SESSIONS FOR EACH SUBJECT
