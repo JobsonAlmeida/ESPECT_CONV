@@ -1,7 +1,7 @@
 import numpy as np
 from pathlib import Path
-from epoch_3d_rcf_t import show_rcf_at_time
-from epoch_3d_rcf_t import show_rcf_through_time
+from notes.stage_31_array_images.epoch_3d_rcf_t import show_rcf_at_time
+from notes.stage_31_array_images.epoch_3d_rcf_t import show_rcf_through_time
 
 current_file = Path(__file__).resolve()
 PROJECT_ROOT = current_file.parents[2]

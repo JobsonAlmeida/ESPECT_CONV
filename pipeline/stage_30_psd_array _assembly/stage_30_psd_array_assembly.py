@@ -57,18 +57,13 @@ from config.channel_mapping import CHANNELS_INDICES_MAPPING
 subjects = [f"sub-{i:02d}" for i in range(1, 11)]
 sessions = [f"ses-{i:02d}" for i in range(1, 4)]
 
+WINDOW_DURATION = 0.5
+STEP_DURATION = 0.25
 
-def obtain_spectrogram(data, sampling_rate):
+def obtain_spectrogram(data, window_duration, step_duration, sampling_rate):
 
-
-    # Janela de 0,5 segundo.
-    WINDOW_DURATION = 0.5
-
-    # Deslocamento de 0,25 segundo.
-    STEP_DURATION = 0.25
-
-    nperseg = int(WINDOW_DURATION * sampling_rate)
-    step_samples = int(STEP_DURATION * sampling_rate)
+    nperseg = int(window_duration * sampling_rate)
+    step_samples = int(step_duration * sampling_rate)
     noverlap = nperseg - step_samples
 
     frequencies, times, spectrogram_data = spectrogram(
@@ -91,13 +86,13 @@ def obtain_spectrogram(data, sampling_rate):
     return frequencies, times, spectrogram_data
 
 
-def create_power_array(data, Channels_Distribution, sampling_rate, session_data):
+def create_power_array(data, window_duration, step_duration, Channels_Distribution, sampling_rate, session_data):
 
     s2_quantity = 21
     s1_quantity = 21
 
     #spectrogram_data.shape: [epoch, channel, frequency, time_window]
-    frequencies, times, spectrogram_data = obtain_spectrogram(data, sampling_rate)
+    frequencies, times, spectrogram_data = obtain_spectrogram(data, window_duration, step_duration, sampling_rate)
                                 
     # psd_array.shape:
     # [epoch, s2, s1, frequency, time_window]
@@ -156,7 +151,9 @@ def create_power_array(data, Channels_Distribution, sampling_rate, session_data)
     return frequencies, times, psd_array
 
 def power_array_assembly(
-        Channels_Distribution = ORIGINAL_2D_DISTRIBUTION
+        window_duration = WINDOW_DURATION,
+        step_duration = STEP_DURATION,
+        channels_distribution = ORIGINAL_2D_DISTRIBUTION
 ):
 
     """Build the PSD array for all sessions."""
@@ -167,7 +164,7 @@ def power_array_assembly(
     # ======================================================
     # CREATING FIGURE
     # ======================================================
-    Channels_Distribution.plot_channels_distribution(OUTPUT_DIR)
+    channels_distribution.plot_channels_distribution(OUTPUT_DIR)
 
     # ======================================================
     # FINDING SESSIONS FILES
@@ -218,7 +215,9 @@ def power_array_assembly(
 
         frequencies, times, psd_array = create_power_array(
             data,
-            Channels_Distribution,
+            window_duration,
+            step_duration,
+            channels_distribution,
             session_data["sampling_rate"],
             session_data
         )
@@ -308,7 +307,7 @@ def power_array_assembly(
                 f"{subject}_{session}.pkl"
             )
 
-            if not file_path.exists():
+            if not os.path.exists(file_path):
                 raise FileNotFoundError(
                     f"\nFile not found:\n"
                     f"{file_path}"

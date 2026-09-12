@@ -1,9 +1,8 @@
 import copy
 import sys
 from pathlib import Path
-
 import numpy as np
-
+import pickle
 import torch
 import torch.nn as nn
 
@@ -63,16 +62,21 @@ RANDOM_STATE_LOADER = 42
 INPUT_DIR = (
     PROJECT_ROOT
     / "processed_data"
-    / "stage_30_array_assembly"
+    / "stage_30_psd_array_assembly"
 )
 
 
 OUTPUT_DIR = (
     PROJECT_ROOT
     / "processed_data"
-    / "stage_40_execute_branch"
+    / "stage_50_execute_branch"
 )
 
+PREVIOUS_STAGE = (
+    PROJECT_ROOT
+    / "processed_data"
+    / "stage_40_obtain_indices"
+)
 
 # ==========================================================
 # SUJEITOS
@@ -646,34 +650,35 @@ def execute_branch(
         )
 
 
+
         # ==================================================
-        # CARREGAR OS DADOS
+        # LOAD DATA
         # ==================================================
 
-        power_array = np.load(
+        file_path = (
             INPUT_DIR
-            / f"{subject}_power.npy"
+            / f"{subject}_all_sessions.pkl"
         )
 
+        if not file_path.exists():
 
-        labels = np.load(
-            INPUT_DIR
-            / f"{subject}_labels.npy"
-        )
-
-
-        if len(power_array) != len(labels):
-
-            raise ValueError(
-                f"Number of samples in power_array "
-                f"({len(power_array)}) differs from "
-                f"number of labels ({len(labels)})."
+            raise FileNotFoundError(
+                f"\nFile not found:\n"
+                f"{file_path}"
             )
 
 
+        with open(file_path, "rb") as file:
+
+            subj_file = pickle.load(file)
+
+
+        psd_array = subj_file["psd_array"]
+        labels = subj_file["labels"]
+
         print(
-            "Power:",
-            power_array.shape
+            "PSD Array:",
+            psd_array.shape
         )
 
 
@@ -716,7 +721,7 @@ def execute_branch(
         # ==================================================
 
         FOLDS_DIR = (
-            OUTPUT_DIR
+            PREVIOUS_STAGE
             / "fold_indices"
             / subject
         )
@@ -763,8 +768,8 @@ def execute_branch(
 
             case "space1_space2_frequency_time":
 
-                power_array = np.transpose(
-                    power_array,
+                psd_array = np.transpose(
+                    psd_array,
                     (
                         0,
                         4,
@@ -790,8 +795,8 @@ def execute_branch(
 
             case "space1_space2_time_frequency":
 
-                power_array = np.transpose(
-                    power_array,
+                psd_array = np.transpose(
+                    psd_array,
                     (
                         0,
                         3,
@@ -817,8 +822,8 @@ def execute_branch(
 
             case "time_frequency_space2_space1":
 
-                power_array = np.transpose(
-                    power_array,
+                psd_array = np.transpose(
+                    psd_array,
                     (
                         0,
                         2,
@@ -844,8 +849,8 @@ def execute_branch(
 
             case "time_frequency_space1_space2":
 
-                power_array = np.transpose(
-                    power_array,
+                psd_array = np.transpose(
+                    psd_array,
                     (
                         0,
                         1,
@@ -865,7 +870,7 @@ def execute_branch(
 
         print(
             "Power reorganizado:",
-            power_array.shape
+            psd_array.shape
         )
 
 
@@ -874,7 +879,7 @@ def execute_branch(
         # ==================================================
 
         X = torch.from_numpy(
-            power_array
+            psd_array
         ).float()
 
         y = torch.from_numpy(
@@ -2263,6 +2268,20 @@ def execute_branch(
 
             "n_folds":
                 N_FOLDS,
+
+            "frequencies": subj_file["frequencies"],
+
+            "times": subj_file["times"],
+
+            "channel_names": subj_file["channel_names"],
+
+            "sampling_rate": subj_file["sampling_rate"],
+
+            "condition": subj_file["condition"],
+
+            "start_seconds": subj_file["start_seconds"],
+
+            "end_seconds": subj_file["end_seconds"],
 
 
             # ==============================================

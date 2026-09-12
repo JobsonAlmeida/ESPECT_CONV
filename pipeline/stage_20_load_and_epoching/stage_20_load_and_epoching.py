@@ -66,9 +66,9 @@ CONDITION_MAP = {
 # ==========================================================
 
 def load_and_epoching(
-        CONDITION,
-        EPOCH_START_SECONDS=EPOCH_START_SECONDS,
-        EPOCH_END_SECONDS=EPOCH_END_SECONDS):
+        condition,
+        crop_start_time=EPOCH_START_SECONDS,
+        crop_end_time=EPOCH_END_SECONDS):
 
     """
     Load epoched EEG files, select one experimental condition,
@@ -96,10 +96,10 @@ def load_and_epoching(
     # CONDITION VALIDATION
     # ======================================================
 
-    if CONDITION not in CONDITION_MAP:
+    if condition not in CONDITION_MAP:
 
         raise ValueError(
-            f"\nInvalid condition: {CONDITION}\n"
+            f"\nInvalid condition: {condition}\n"
             f"Available conditions: "
             f"{list(CONDITION_MAP.keys())}"
         )
@@ -108,7 +108,7 @@ def load_and_epoching(
     # TIME WINDOW VALIDATION
     # ======================================================
 
-    if EPOCH_START_SECONDS >= EPOCH_END_SECONDS:
+    if crop_start_time >= crop_end_time:
 
         raise ValueError(
             "\nEPOCH_START_SECONDS must be smaller than "
@@ -153,9 +153,9 @@ def load_and_epoching(
         "===============================================\n"
         "PROCESSING EPOCHS\n"
         "===============================================\n"
-        f"CONDITION: {CONDITION}\n"
-        f"START TIME: {EPOCH_START_SECONDS} s\n"
-        f"END TIME: {EPOCH_END_SECONDS} s\n"
+        f"CONDITION: {condition}\n"
+        f"START TIME: {crop_start_time} s\n"
+        f"END TIME: {crop_end_time} s\n"
     )
 
     # ======================================================
@@ -174,9 +174,9 @@ def load_and_epoching(
         ) = process_session(
 
             epochs_path=epochs_path,
-            CONDITION=CONDITION,
-            EPOCH_START_SECONDS=EPOCH_START_SECONDS,
-            EPOCH_END_SECONDS=EPOCH_END_SECONDS
+            condition=condition,
+            crop_start_time=crop_start_time,
+            crop_end_time=crop_end_time
 
         )
 
@@ -196,11 +196,11 @@ def load_and_epoching(
 
             "sampling_rate": sampling_rate,
 
-            "condition": CONDITION,
+            "condition": condition,
 
-            "start_seconds": EPOCH_START_SECONDS,
+            "start_seconds": crop_start_time,
 
-            "end_seconds": EPOCH_END_SECONDS,
+            "end_seconds": crop_end_time,
 
         }
 
@@ -262,9 +262,9 @@ def load_and_epoching(
 
 def process_session(
         epochs_path,
-        CONDITION,
-        EPOCH_START_SECONDS,
-        EPOCH_END_SECONDS):
+        condition,
+        crop_start_time,
+        crop_end_time):
 
     """
     Process one epoched EEG session.
@@ -389,19 +389,19 @@ def process_session(
     # TIME WINDOW VALIDATION
     # ======================================================
 
-    if EPOCH_START_SECONDS < epochs.tmin:
+    if crop_start_time < epochs.tmin:
 
         raise ValueError(
             f"\n{session_name}: EPOCH_START_SECONDS "
-            f"({EPOCH_START_SECONDS} s) is before the beginning "
+            f"({crop_start_time} s) is before the beginning "
             f"of the epochs ({epochs.tmin} s)."
         )
 
-    if EPOCH_END_SECONDS > epochs.tmax:
+    if crop_end_time > epochs.tmax:
 
         raise ValueError(
             f"\n{session_name}: EPOCH_END_SECONDS "
-            f"({EPOCH_END_SECONDS} s) is after the end "
+            f"({crop_end_time} s) is after the end "
             f"of the epochs ({epochs.tmax} s)."
         )
 
@@ -410,7 +410,7 @@ def process_session(
     # ======================================================
 
     condition_id = CONDITION_MAP[
-        CONDITION
+        condition
     ]
 
     condition_mask = (
@@ -428,7 +428,7 @@ def process_session(
 
         raise ValueError(
             f"\n{session_name}: no epochs found "
-            f"for condition {CONDITION}."
+            f"for condition {condition}."
         )
 
     # ======================================================
@@ -489,8 +489,8 @@ def process_session(
     start_sample, end_sample = (
         condition_epochs.time_as_index(
             [
-                EPOCH_START_SECONDS,
-                EPOCH_END_SECONDS
+                crop_start_time,
+                crop_end_time
             ]
         )
     )
@@ -578,5 +578,5 @@ if __name__ == "__main__":
     # ======================================================
 
     load_and_epoching(
-        CONDITION="INNER_SPEECH"
+        condition="PRONOUNCED_SPEECH"
     )

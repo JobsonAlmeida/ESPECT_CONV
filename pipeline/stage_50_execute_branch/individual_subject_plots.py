@@ -17,7 +17,7 @@ PROJECT_ROOT = current_file.parents[2]
 INPUT_DIR = (
     PROJECT_ROOT
     / "processed_data"
-    / "stage_40_execute_branch"
+    / "stage_50_execute_branch"
 )
 
 
@@ -1277,10 +1277,81 @@ def individual_subject_plots(
             n_folds
         ]
 
-
         ax_table.axis(
             "off"
         )
+
+
+        cell_text = [
+
+            [
+                f"{summary_checkpoint["condition"]}",
+
+            ],
+
+            [ f"{summary_checkpoint["start_seconds"]}s - {summary_checkpoint["end_seconds"]}s"]
+
+
+        ]
+
+
+        row_labels = [
+
+            f"Condition:",
+            f"Act Int:"
+        ]
+
+
+        mini_table = ax_table.table(
+
+            cellText=cell_text,
+
+            rowLabels=row_labels,
+
+            colLabels=[
+                "General Inform.",                
+            ],
+
+            loc="center",
+
+            cellLoc="center",
+
+            colWidths=[
+                0.98
+            ]
+        )
+
+
+        mini_table.auto_set_font_size(
+            False
+        )
+
+
+        mini_table.set_fontsize(
+            9
+        )
+
+
+        mini_table.scale(
+            1.0,
+            1.4
+        )
+
+
+        # --------------------------------------------------
+        # Aumentar cabeçalho
+        # --------------------------------------------------
+
+        for col_idx in range(
+            1
+        ):
+
+            mini_table[
+                0,
+                col_idx
+            ].set_height(
+                0.15
+            )
 
 
         # ==================================================
