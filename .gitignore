@@ -4,3 +4,7 @@
 thinking_outloud_dataset
 
 processed_data
+
+
+**/__pycache__/
+*.pyc
