@@ -66,7 +66,7 @@ OUTPUT_DIR = (
     / "stage_50_execute_branch"
 )
 
-PREVIOUS_STAGE = (
+OBTAIN_INDICES_STAGE = (
     PROJECT_ROOT
     / "processed_data"
     / "stage_40_obtain_indices"
@@ -691,6 +691,7 @@ def execute_branch(
         labels = subj_file["labels"]
 
 
+
         # ==================================================
         # LOADING CNN MODELS
         # ==================================================
@@ -718,6 +719,7 @@ def execute_branch(
         print(
             f"Chosen {condition} models"
         )
+
 
 
         print(
@@ -765,7 +767,7 @@ def execute_branch(
         # ==================================================
 
         FOLDS_DIR = (
-            PREVIOUS_STAGE
+            OBTAIN_INDICES_STAGE
             / "fold_indices"
             / subject
         )

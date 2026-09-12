@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import torch
 import torch.nn as nn
+import pickle
 
 from torch.utils.data import (
     TensorDataset,
@@ -26,14 +27,6 @@ if str(PIPELINE_ROOT) not in sys.path:
 
 from tools import save_summary
 
-from stage_40_execute_branch.branch_cnn_models import (
-    Space1Space2FrequencyTimeCNN,
-    Space1Space2TimeFrequencyCNN,
-    TimeFrequencySpace2Space1CNN,
-    TimeFrequencySpace1Space2CNN,
-)
-
-from fusion_cnn_models import GatedFusion
 
 from fusion_individual_subject_plots import fusion_individual_subject_plots
 
@@ -54,20 +47,25 @@ RANDOM_STATE_LOADER = 42
 INPUT_DIR = (
     PROJECT_ROOT
     / "processed_data"
-    / "stage_30_array_assembly"
+    / "stage_30_psd_array_assembly"
 )
 
 OUTPUT_DIR = (
     PROJECT_ROOT
     / "processed_data"
-    / "stage_50_execute_fusion"
+    / "stage_60_execute_fusion"
 )
 
+OBTAIN_INDICES_STAGE = (
+    PROJECT_ROOT
+    / "processed_data"
+    / "stage_40_obtain_indices"
+)
 
 INPUT_PREVIOUS_DIR = (
     PROJECT_ROOT
     / "processed_data"
-    / "stage_40_execute_branch"
+    / "stage_50_execute_branch"
 )
 
 # ==========================================================
@@ -705,23 +703,66 @@ def execute_fusion(
         )
         print("#" * 70)
 
-        # ======================================================
-        # CARREGAR DADOS
-        # ======================================================
 
-        power_array = np.load(
+        # ==================================================
+        # LOAD DATA
+        # ==================================================
+
+        file_path = (
             INPUT_DIR
-            / f"{subject}_power.npy"
+            / f"{subject}_all_sessions.pkl"
         )
 
-        labels = np.load(
-            INPUT_DIR
-            / f"{subject}_labels.npy"
+        if not file_path.exists():
+
+            raise FileNotFoundError(
+                f"\nFile not found:\n"
+                f"{file_path}"
+            )
+
+
+        with open(file_path, "rb") as file:
+
+            subj_file = pickle.load(file)
+
+
+        psd_array = subj_file["psd_array"]
+        labels = subj_file["labels"]
+
+        # ==================================================
+        # LOADING CNN MODELS
+        # ==================================================
+
+        condition = subj_file["condition"]
+
+        if condition == "PRONOUNCED_SPEECH":
+
+            import stage_50_execute_branch.branch_cnn_models_pronounced as cnn_models
+            import fusion_cnn_models_pronounced as fusion_cnn_models
+
+        elif condition == "INNER_SPEECH":
+
+            import stage_50_execute_branch.branch_cnn_models_inner as cnn_models
+            import fusion_cnn_models_inner as fusion_cnn_models
+
+        elif condition == "VISUALIZED_CONDITION":
+
+            import stage_50_execute_branch.branch_cnn_models_visualized as cnn_models
+            import fusion_cnn_models_visualized as fusion_cnn_models
+        else:
+
+            raise ValueError(
+                f"Condition {condition} not found!"
+            )
+
+        print(
+            f"Chosen {condition} models"
         )
+
 
         print(
             "Power:",
-            power_array.shape
+            psd_array.shape
         )
 
         print(
@@ -789,7 +830,7 @@ def execute_fusion(
         )
 
         FOLDS_DIR = (
-            INPUT_PREVIOUS_DIR
+            OBTAIN_INDICES_STAGE
             / "fold_indices"
             / subject
         )
@@ -807,22 +848,22 @@ def execute_fusion(
 
 
         power_array_s1_s2_f_t = np.transpose(
-            power_array,
+            psd_array,
             (0, 4, 3, 1, 2)
         )
 
         power_array_s1_s2_t_f = np.transpose(
-            power_array,
+            psd_array,
             (0, 3, 4, 1, 2)
         )
 
         power_array_t_f_s2_s1 = np.transpose(
-            power_array,
+            psd_array,
             (0, 2, 1, 3, 4)
         )
 
         power_array_t_f_s1_s2 = np.transpose(
-            power_array,
+            psd_array,
             (0, 1, 2, 3, 4)
         )
 
@@ -1269,7 +1310,8 @@ def execute_fusion(
             )
 
             model_s1_s2_f_t = (
-                Space1Space2FrequencyTimeCNN()
+                cnn_models                
+                .Space1Space2FrequencyTimeCNN()
                 .to(device)
             )
 
@@ -1280,7 +1322,8 @@ def execute_fusion(
             )
 
             model_s1_s2_t_f = (
-                Space1Space2TimeFrequencyCNN()
+                cnn_models
+                .Space1Space2TimeFrequencyCNN()
                 .to(device)
             )
 
@@ -1291,7 +1334,8 @@ def execute_fusion(
             )
 
             model_t_f_s2_s1 = (
-                TimeFrequencySpace2Space1CNN()
+                cnn_models
+                .TimeFrequencySpace2Space1CNN()
                 .to(device)
             )
 
@@ -1302,7 +1346,8 @@ def execute_fusion(
             )
 
             model_t_f_s1_s2 = (
-                TimeFrequencySpace1Space2CNN()
+                cnn_models
+                .TimeFrequencySpace1Space2CNN()
                 .to(device)
             )
 
@@ -1356,7 +1401,7 @@ def execute_fusion(
 
                 case "gated_fusion":
 
-                    model = GatedFusion(
+                    model = fusion_cnn_models.GatedFusion(
                         model_s1_s2_f_t,
                         model_s1_s2_t_f,
                         model_t_f_s2_s1,
@@ -1364,7 +1409,6 @@ def execute_fusion(
                     ).to(device)
 
                     
-
                 case _:
 
                     raise ValueError(
@@ -2190,6 +2234,9 @@ def execute_fusion(
                 / f"{fusion}_fold_{fold}.pth"
             )
 
+
+
+
         # ======================================================
         # RESUMOS DOS FOLDS
         # ======================================================
@@ -2280,6 +2327,6 @@ if __name__ == "__main__":
         fusion="gated_fusion",
         branch_model_state = "maximum_accuracy_model",
         subjects=["sub-01"],
-        N_EPOCHS_STAGE_1=6,
-        N_EPOCHS_STAGE_2 = 2
+        N_EPOCHS_STAGE_1=600,
+        N_EPOCHS_STAGE_2 = 200
     )

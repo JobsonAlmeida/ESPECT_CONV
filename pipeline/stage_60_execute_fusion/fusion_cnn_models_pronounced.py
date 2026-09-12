@@ -239,22 +239,22 @@ class GatedFusion(nn.Module):
         # ==================================================
 
         self.s1_s2_f_t_projection = nn.Sequential(
-            nn.Linear(1600, 128),
+            nn.Linear(8 * 16 * 5 * 5, 128),
             nn.ReLU()
         )
 
         self.s1_s2_t_f_projection = nn.Sequential(
-            nn.Linear(800, 128),
+            nn.Linear(16 * 2 * 5 * 5, 128),
             nn.ReLU()
         )
 
         self.t_f_s2_s1_projection = nn.Sequential(
-            nn.Linear(800, 128),
+            nn.Linear(5 * 5 * 16 * 2, 128),
             nn.ReLU()
         )
 
         self.t_f_s1_s2_projection = nn.Sequential(
-            nn.Linear(800, 128),
+            nn.Linear(5 * 5 * 16 * 2, 128),
             nn.ReLU()
         )
 

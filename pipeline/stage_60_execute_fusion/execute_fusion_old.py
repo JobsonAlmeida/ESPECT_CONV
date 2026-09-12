@@ -35,7 +35,7 @@ from pipeline.stage_40_execute_branch.branch_cnn_models import Space1Space2TimeF
 from pipeline.stage_40_execute_branch.branch_cnn_models import TimeFrequencySpace2Space1CNN
 from pipeline.stage_40_execute_branch.branch_cnn_models import TimeFrequencySpace1Space2CNN
 
-from fusion_cnn_models import GatedFusion
+from pipeline.stage_60_execute_fusion.fusion_cnn_models_pronounced import GatedFusion
 
 from pipeline.stage_50_execute_fusion.fusion_individual_subject_plots_OLD import fusion_individual_subject_plots
 
