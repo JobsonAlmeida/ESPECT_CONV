@@ -1384,7 +1384,7 @@ def fusion_individual_subject_plots(
 if __name__ == "__main__":
 
     fusion_individual_subject_plots(
-        fusion="gated_fusion",
+        fusion="concatenation_fusion",
         subjects=[
             "sub-01"
         ]

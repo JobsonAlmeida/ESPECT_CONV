@@ -1399,6 +1399,18 @@ def execute_fusion(
 
             match fusion:
 
+
+                case "concatenation_fusion":
+
+                    model = fusion_cnn_models.ConcatenationFusion(
+                        model_s1_s2_f_t,
+                        model_s1_s2_t_f,
+                        model_t_f_s2_s1,
+                        model_t_f_s1_s2
+                    ).to(device)
+
+
+
                 case "gated_fusion":
 
                     model = fusion_cnn_models.GatedFusion(
@@ -2301,7 +2313,7 @@ def execute_fusion(
 
         fusion_individual_subject_plots(
             MODEL_DIR,
-            fusion="gated_fusion",            
+            fusion=fusion,            
             subjects=[subject],
             
         )
@@ -2324,7 +2336,7 @@ if __name__ == "__main__":
     # ======================================================
 
     execute_fusion(
-        fusion="gated_fusion",
+        fusion="concatenation_fusion",
         branch_model_state = "maximum_accuracy_model",
         subjects=["sub-01"],
         N_EPOCHS_STAGE_1=600,
