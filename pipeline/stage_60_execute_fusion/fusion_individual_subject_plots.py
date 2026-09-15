@@ -13,27 +13,22 @@ current_file = Path(__file__).resolve()
 
 PROJECT_ROOT = current_file.parents[2]
 
-
-INPUT_DIR = (
+OUTPUT_DIR = (
     PROJECT_ROOT
     / "processed_data"
-    / "stage_50_execute_fusion"
+    / "stage_60_execute_fusion"
 )
 
-
-OUTPUT_DIR = INPUT_DIR
-
-
-OUTPUT_DIR.mkdir(
-    parents=True,
-    exist_ok=True
+MODEL_DIR = (
+    OUTPUT_DIR
+    / f"concatenation_fusion_from_minimum_loss_model_in_branches"
 )
-
 
 DEFAULT_SUBJECTS = [
     f"sub-{i:02d}"
     for i in range(1, 11)
 ]
+
 
 
 # ==========================================================
@@ -1261,10 +1256,9 @@ def plot_fusion_stage(
 # ==========================================================
 
 def fusion_individual_subject_plots(
-    MODEL_DIR,
-    fusion="gated_fusion",
-    subjects=None,
-    
+    fusion = "concatenation_fusion",
+    subjects=["sub-01"],
+    MODEL_DIR = MODEL_DIR   
 ):
 
     # ======================================================
@@ -1293,12 +1287,6 @@ def fusion_individual_subject_plots(
     # ======================================================
 
     for subject in subjects:
-
-        # SUB_DIR = (
-        #     INPUT_DIR
-        #     / f"{fusion}_fusion"
-        #     / subject
-        # )
 
         SUB_DIR = (
             MODEL_DIR
@@ -1383,9 +1371,4 @@ def fusion_individual_subject_plots(
 
 if __name__ == "__main__":
 
-    fusion_individual_subject_plots(
-        fusion="concatenation_fusion",
-        subjects=[
-            "sub-01"
-        ]
-    )
+    fusion_individual_subject_plots()

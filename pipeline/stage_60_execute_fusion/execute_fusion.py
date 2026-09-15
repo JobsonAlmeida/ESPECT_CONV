@@ -816,7 +816,7 @@ def execute_fusion(
 
         MODEL_DIR = (
             OUTPUT_DIR
-            / f"{fusion}_from_{branch_model_state}_in_branches_fusion"
+            / f"{fusion}_from_{branch_model_state}_in_branches"
         )
 
         SUB_DIR = (
@@ -2312,9 +2312,9 @@ def execute_fusion(
         # ======================================================
 
         fusion_individual_subject_plots(
-            MODEL_DIR,
             fusion=fusion,            
             subjects=[subject],
+            MODEL_DIR = MODEL_DIR
             
         )
 
@@ -2339,6 +2339,8 @@ if __name__ == "__main__":
         fusion="concatenation_fusion",
         branch_model_state = "maximum_accuracy_model",
         subjects=["sub-01"],
-        N_EPOCHS_STAGE_1=600,
-        N_EPOCHS_STAGE_2 = 200
+        N_EPOCHS_STAGE_1=6,
+        N_EPOCHS_STAGE_2 = 2,
+        LEARNING_RATE_STAGE_1 = 0.001,
+        LEARNING_RATE_STAGE_2 = 0.0001
     )
