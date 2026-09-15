@@ -83,11 +83,12 @@ STAGES = {
 # ==========================================================
 
 def plot_fusion_stage(
+    fusion,    
+    branch_model_state,        
     fold_files,
     checkpoint_key,
     stage_title,
     file_suffix,
-    fusion,
     subject,
     summary_checkpoint,
     sub_dir,
@@ -119,11 +120,17 @@ def plot_fusion_stage(
     )
 
 
+
+    title = fusion.split("_")
+    title = " ".join(title).title()
+    state = branch_model_state.split("_")
+    state = state[0:2]
+    state = " ".join(state).title()
     fig.suptitle(
         (
-            f"Gated Fusion / "            #alterar
+            f"{title} / "            
             f"{subject.capitalize()}\n"
-            f"{stage_title}"
+            f"{stage_title} - Starting from {state} in branches"
         ),
         fontsize=12,
         fontweight="bold"
@@ -1142,7 +1149,7 @@ def plot_fusion_stage(
     cell_text = [
 
         [
-            f"{summary_checkpoint["condition"]}",
+            " ".join(f"{summary_checkpoint["condition"]}".split("_")).upper(),
 
         ],
 
@@ -1212,14 +1219,7 @@ def plot_fusion_stage(
     # LAYOUT
     # ======================================================
 
-    plt.tight_layout(
-        rect=[
-            0.0,
-            0.0,
-            1.0,
-            0.95
-        ]
-    )
+    plt.tight_layout()
 
 
     # ======================================================
@@ -1270,6 +1270,7 @@ def plot_fusion_stage(
 
 def fusion_individual_subject_plots(
     fusion = "concatenation_fusion",
+    branch_model_state = "minimum_loss_model", 
     subjects=["sub-01"],
     MODEL_DIR = MODEL_DIR   
 ):
@@ -1288,7 +1289,7 @@ def fusion_individual_subject_plots(
         ]
 
 
-    elif subjects is None:     # altera - passar apenas um sujeito
+    elif subjects is None:     # alterar- passar apenas um sujeito
  
         subjects = (
             DEFAULT_SUBJECTS
@@ -1380,6 +1381,11 @@ def fusion_individual_subject_plots(
 
             plot_fusion_stage(
 
+
+                fusion=fusion,
+                
+                branch_model_state = branch_model_state,
+
                 fold_files=fold_files,
 
                 checkpoint_key=(
@@ -1399,8 +1405,6 @@ def fusion_individual_subject_plots(
                         "file_suffix"
                     ]
                 ),
-
-                fusion=fusion,
 
                 subject=subject,
 

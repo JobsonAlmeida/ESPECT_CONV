@@ -1284,7 +1284,7 @@ def individual_subject_plots(
         cell_text = [
 
             [
-                f"{summary_checkpoint["condition"]}",
+                 " ".join(f"{summary_checkpoint["condition"]}".split("_")).upper(),
 
             ],
 

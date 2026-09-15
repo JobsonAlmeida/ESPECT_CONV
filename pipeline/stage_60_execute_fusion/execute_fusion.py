@@ -2443,7 +2443,8 @@ def execute_fusion(
         # ======================================================
 
         fusion_individual_subject_plots(
-            fusion=fusion,            
+            fusion=fusion, 
+            branch_model_state = branch_model_state,           
             subjects=[subject],
             MODEL_DIR = MODEL_DIR
             
