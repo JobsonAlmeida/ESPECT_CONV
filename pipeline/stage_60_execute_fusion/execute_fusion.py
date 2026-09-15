@@ -2310,41 +2310,6 @@ def execute_fusion(
         )
 
 
-        # ==================================================
-        # SALVAR RESUMO DOS FOLDS
-        # ==================================================
-
-        # fold_accuracies_ml_array = (
-        #     np.asarray(
-        #         fold_accuracies_ml,
-        #         dtype=np.float64
-        #     )
-        # )
-
-
-        # fold_losses_ml_array = (
-        #     np.asarray(
-        #         fold_losses_ml,
-        #         dtype=np.float64
-        #     )
-        # )
-
-
-        # fold_accuracies_ma_array = (
-        #     np.asarray(
-        #         fold_accuracies_ma,
-        #         dtype=np.float64
-        #     )
-        # )
-
-
-        # fold_losses_ma_array = (
-        #     np.asarray(
-        #         fold_losses_ma,
-        #         dtype=np.float64
-        #     )
-        # )
-
 
         summary_results = {
 
@@ -2371,57 +2336,6 @@ def execute_fusion(
 
             "end_seconds": subj_file["end_seconds"],
 
-
-            # ==============================================
-            # MODELOS ESCOLHIDOS POR MENOR LOSS
-            # ==============================================
-
-            # "minimum_loss_model": {
-
-            #     "fold_accuracies":
-            #         fold_accuracies_ml_array,
-
-            #     "fold_losses":
-            #         fold_losses_ml_array,
-
-            #     "mean_accuracy":
-            #         fold_accuracies_ml_array.mean(),
-
-            #     "std_accuracy":
-            #         fold_accuracies_ml_array.std(),
-
-            #     "mean_loss":
-            #         fold_losses_ml_array.mean(),
-
-            #     "std_loss":
-            #         fold_losses_ml_array.std(),
-            # },
-
-
-            # # ==============================================
-            # # MODELOS ESCOLHIDOS POR MAIOR ACURÁCIA
-            # # ==============================================
-
-            # "maximum_accuracy_model": {
-
-            #     "fold_accuracies":
-            #         fold_accuracies_ma_array,
-
-            #     "fold_losses":
-            #         fold_losses_ma_array,
-
-            #     "mean_accuracy":
-            #         fold_accuracies_ma_array.mean(),
-
-            #     "std_accuracy":
-            #         fold_accuracies_ma_array.std(),
-
-            #     "mean_loss":
-            #         fold_losses_ma_array.mean(),
-
-            #     "std_loss":
-            #         fold_losses_ma_array.std(),
-            # },
         }
 
 

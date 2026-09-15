@@ -1306,9 +1306,8 @@ def fusion_individual_subject_plots(
             MODEL_DIR
             / subject
         )
+
        
-
-
         # ==================================================
         # LOCALIZAR CHECKPOINTS
         # ==================================================
@@ -1380,7 +1379,6 @@ def fusion_individual_subject_plots(
         ):
 
             plot_fusion_stage(
-
 
                 fusion=fusion,
                 
