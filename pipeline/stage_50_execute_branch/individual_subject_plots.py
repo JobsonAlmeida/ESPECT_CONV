@@ -1266,10 +1266,9 @@ def individual_subject_plots(
 
         # ==================================================
         # TABELA EXTRA
-        #
         # LINHA 0 / ÚLTIMA COLUNA
         #
-        # Mantida vazia.
+        # Informações extras
         # ==================================================
 
         ax_table = axs[

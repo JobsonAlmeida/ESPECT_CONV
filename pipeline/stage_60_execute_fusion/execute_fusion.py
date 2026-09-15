@@ -2249,6 +2249,8 @@ def execute_fusion(
 
 
 
+
+
         # ======================================================
         # RESUMOS DOS FOLDS
         # ======================================================
@@ -2307,6 +2309,135 @@ def execute_fusion(
             stage_2_from_ma_fold_losses_ma
         )
 
+
+        # ==================================================
+        # SALVAR RESUMO DOS FOLDS
+        # ==================================================
+
+        # fold_accuracies_ml_array = (
+        #     np.asarray(
+        #         fold_accuracies_ml,
+        #         dtype=np.float64
+        #     )
+        # )
+
+
+        # fold_losses_ml_array = (
+        #     np.asarray(
+        #         fold_losses_ml,
+        #         dtype=np.float64
+        #     )
+        # )
+
+
+        # fold_accuracies_ma_array = (
+        #     np.asarray(
+        #         fold_accuracies_ma,
+        #         dtype=np.float64
+        #     )
+        # )
+
+
+        # fold_losses_ma_array = (
+        #     np.asarray(
+        #         fold_losses_ma,
+        #         dtype=np.float64
+        #     )
+        # )
+
+
+        summary_results = {
+
+            "fusion":
+                fusion,
+
+            "subject":
+                subject,
+
+            "n_folds":
+                N_FOLDS,
+
+            "frequencies": subj_file["frequencies"],
+
+            "times": subj_file["times"],
+
+            "channel_names": subj_file["channel_names"],
+
+            "sampling_rate": subj_file["sampling_rate"],
+
+            "condition": subj_file["condition"],
+
+            "start_seconds": subj_file["start_seconds"],
+
+            "end_seconds": subj_file["end_seconds"],
+
+
+            # ==============================================
+            # MODELOS ESCOLHIDOS POR MENOR LOSS
+            # ==============================================
+
+            # "minimum_loss_model": {
+
+            #     "fold_accuracies":
+            #         fold_accuracies_ml_array,
+
+            #     "fold_losses":
+            #         fold_losses_ml_array,
+
+            #     "mean_accuracy":
+            #         fold_accuracies_ml_array.mean(),
+
+            #     "std_accuracy":
+            #         fold_accuracies_ml_array.std(),
+
+            #     "mean_loss":
+            #         fold_losses_ml_array.mean(),
+
+            #     "std_loss":
+            #         fold_losses_ml_array.std(),
+            # },
+
+
+            # # ==============================================
+            # # MODELOS ESCOLHIDOS POR MAIOR ACURÁCIA
+            # # ==============================================
+
+            # "maximum_accuracy_model": {
+
+            #     "fold_accuracies":
+            #         fold_accuracies_ma_array,
+
+            #     "fold_losses":
+            #         fold_losses_ma_array,
+
+            #     "mean_accuracy":
+            #         fold_accuracies_ma_array.mean(),
+
+            #     "std_accuracy":
+            #         fold_accuracies_ma_array.std(),
+
+            #     "mean_loss":
+            #         fold_losses_ma_array.mean(),
+
+            #     "std_loss":
+            #         fold_losses_ma_array.std(),
+            # },
+        }
+
+
+        torch.save(
+            summary_results,
+
+            SUB_DIR
+            / f"{fusion}_summary.pth"
+        )
+
+
+        print(
+            f"\nSummary saved: "
+            f"{SUB_DIR / f'{fusion}_summary.pth'}"
+        )
+
         # ======================================================
         # GRÁFICOS
         # ======================================================
@@ -2337,7 +2468,7 @@ if __name__ == "__main__":
 
     execute_fusion(
         fusion="concatenation_fusion",
-        branch_model_state = "maximum_accuracy_model",
+        branch_model_state = "minimum_loss_model",
         subjects=["sub-01"],
         N_EPOCHS_STAGE_1=6,
         N_EPOCHS_STAGE_2 = 2,

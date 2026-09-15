@@ -89,7 +89,8 @@ def plot_fusion_stage(
     file_suffix,
     fusion,
     subject,
-    model_dir,
+    summary_checkpoint,
+    sub_dir,
 ):
 
     n_folds = len(
@@ -120,7 +121,7 @@ def plot_fusion_stage(
 
     fig.suptitle(
         (
-            f"Gated Fusion / "
+            f"Gated Fusion / "            #alterar
             f"{subject.capitalize()}\n"
             f"{stage_title}"
         ),
@@ -758,12 +759,12 @@ def plot_fusion_stage(
             )
 
 
-        if fold_idx > 0:
+        # if fold_idx > 0:
 
-            mini_table.scale(
-                1.0,
-                1.0
-            )
+        #     mini_table.scale(
+        #         1.0,
+        #         1.0
+        #     )
 
 
     # ======================================================
@@ -1126,7 +1127,7 @@ def plot_fusion_stage(
     # TABELA EXTRA
     # LINHA 0 / ÚLTIMA COLUNA
     #
-    # Mostra as losses médias dos folds.
+    # Informações extras 
     # ======================================================
 
     ax_table = axs[
@@ -1134,23 +1135,25 @@ def plot_fusion_stage(
         n_folds
     ]
 
-
     ax_table.axis(
         "off"
     )
 
-
     cell_text = [
 
         [
-            f"{fold_losses_ml.mean():.4f}",
-            f"{fold_losses_ma.mean():.4f}",
+            f"{summary_checkpoint["condition"]}",
+
         ],
 
-        [
-            f"{fold_losses_ml.std():.4f}",
-            f"{fold_losses_ma.std():.4f}",
-        ],
+        [ f"{summary_checkpoint["start_seconds"]}s - {summary_checkpoint["end_seconds"]}s"]
+
+    ]
+
+    row_labels = [
+
+        f"Condition:",
+        f"Act Int:"
     ]
 
 
@@ -1158,14 +1161,10 @@ def plot_fusion_stage(
 
         cellText=cell_text,
 
-        rowLabels=[
-            "Mean Test Loss",
-            "Std Test Loss",
-        ],
+        rowLabels=row_labels,
 
         colLabels=[
-            "Min\nVal Loss",
-            "Max\nVal Acc"
+            "General Inform.",                
         ],
 
         loc="center",
@@ -1173,8 +1172,7 @@ def plot_fusion_stage(
         cellLoc="center",
 
         colWidths=[
-            0.45,
-            0.45
+            0.98
         ]
     )
 
@@ -1195,6 +1193,21 @@ def plot_fusion_stage(
     )
 
 
+    # --------------------------------------------------
+    # Aumentar cabeçalho
+    # --------------------------------------------------
+
+    for col_idx in range(
+        1
+    ):
+
+        mini_table[
+            0,
+            col_idx
+        ].set_height(
+            0.15
+        )
+
     # ======================================================
     # LAYOUT
     # ======================================================
@@ -1214,7 +1227,7 @@ def plot_fusion_stage(
     # ======================================================
 
     save_dir = (
-        model_dir
+        sub_dir
         / "plots"
     )
 
@@ -1275,8 +1288,8 @@ def fusion_individual_subject_plots(
         ]
 
 
-    elif subjects is None:
-
+    elif subjects is None:     # altera - passar apenas um sujeito
+ 
         subjects = (
             DEFAULT_SUBJECTS
         )
@@ -1328,6 +1341,36 @@ def fusion_individual_subject_plots(
 
 
         # ==================================================
+        # ARQUIVO DE RESUMO
+        # ==================================================
+
+        summary_file = (
+            SUB_DIR
+            / f"{fusion}_summary.pth"
+        )
+
+
+        if not summary_file.exists():
+
+            raise FileNotFoundError(
+                f"Summary file not found:\n"
+                f"{summary_file}"
+            )
+
+
+        # ==================================================
+        # CARREGAR RESUMO DOS FOLDS
+        # ==================================================
+
+        summary_checkpoint = torch.load(
+            summary_file,
+            map_location="cpu",
+            weights_only=False
+        )
+
+
+
+        # ==================================================
         # CRIAR AS TRÊS FIGURAS
         # ==================================================
 
@@ -1361,7 +1404,9 @@ def fusion_individual_subject_plots(
 
                 subject=subject,
 
-                model_dir=SUB_DIR,
+                summary_checkpoint = summary_checkpoint,
+
+                sub_dir=SUB_DIR,
             )
 
 
