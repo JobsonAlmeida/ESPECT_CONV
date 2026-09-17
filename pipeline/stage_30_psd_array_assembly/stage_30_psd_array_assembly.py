@@ -49,7 +49,7 @@ OUTPUT_DIR.mkdir(
     exist_ok=True
 )
 
-from channels_2D_distribution import ORIGINAL_2D_DISTRIBUTION
+from channels_2D_distribution import CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION
 
 from config.channel_mapping import CHANNELS_INDICES_MAPPING
 
@@ -153,7 +153,7 @@ def create_power_array(data, window_duration, step_duration, Channels_Distributi
 def power_array_assembly(
         window_duration = WINDOW_DURATION,
         step_duration = STEP_DURATION,
-        channels_distribution = ORIGINAL_2D_DISTRIBUTION
+        channels_distribution = CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION
 ):
 
     """Build the PSD array for all sessions."""
