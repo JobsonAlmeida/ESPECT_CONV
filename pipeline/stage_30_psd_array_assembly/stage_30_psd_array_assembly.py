@@ -88,8 +88,8 @@ def obtain_spectrogram(data, window_duration, step_duration, sampling_rate):
 
 def create_power_array(data, window_duration, step_duration, Channels_Distribution, sampling_rate, session_data):
 
-    s2_quantity = 21
-    s1_quantity = 21
+    s2_quantity = Channels_Distribution.CHANNELS_INFORM["total_s2"]
+    s1_quantity = Channels_Distribution.CHANNELS_INFORM["total_s1"]
 
     #spectrogram_data.shape: [epoch, channel, frequency, time_window]
     frequencies, times, spectrogram_data = obtain_spectrogram(data, window_duration, step_duration, sampling_rate)

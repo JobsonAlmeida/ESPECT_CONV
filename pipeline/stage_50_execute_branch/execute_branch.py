@@ -2417,6 +2417,8 @@ def execute_branch(
         )
 
 
+
+
 # ==========================================================
 # EXECUTAR
 # ==========================================================
@@ -2438,7 +2440,7 @@ if __name__ == "__main__":
     # ======================================================
 
     execute_branch(
-        branch="time_frequency_space1_space2",
+        branch="space1_space2_frequency_time",
         N_EPOCHS=600,       
         subjects=[
             "sub-01"

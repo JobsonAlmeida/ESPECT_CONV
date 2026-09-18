@@ -1220,8 +1220,8 @@ class CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION:
     
     # Rosa claro e azul claro.
     color_map = ListedColormap([
-        "#f4cccc",
-        "#cfe2f3"
+        "#bdd9df",
+        "#afcdc0"
     ])
 
     figure, axis = plt.subplots(figsize=figsize)
