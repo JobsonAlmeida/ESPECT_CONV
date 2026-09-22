@@ -1,11 +1,9 @@
 import torch
 import torch.nn as nn
 
-import torch.nn as nn
-
 
 # ==========================================================
-# 1. MEAN LATE FUSION
+# 1. MEAN FUSION
 # ==========================================================
 
 class MeanFusion(nn.Module):
@@ -26,6 +24,14 @@ class MeanFusion(nn.Module):
         self.t_f_s2_s1_model = t_f_s2_s1_model
         self.t_f_s1_s2_model = t_f_s1_s2_model
 
+       
+
+        # Final classifier
+        self.classifier = nn.Linear(
+            128,
+            4
+        )
+
 
     def forward(
         self,
@@ -35,45 +41,35 @@ class MeanFusion(nn.Module):
         x_t_f_s1_s2
     ):
 
-        # =====================================================
-        # LOGITS FROM EACH BRANCH
-        # =====================================================
-
-        logits_1 = self.s1_s2_f_t_model(
+        f1 = self.s1_s2_f_t_model.forward(
             x_s1_s2_f_t
         )
-        # (batch, 4)
 
-        logits_2 = self.s1_s2_t_f_model(
+        f2 = self.s1_s2_t_f_model.forward(
             x_s1_s2_t_f
         )
-        # (batch, 4)
 
-        logits_3 = self.t_f_s2_s1_model(
+        f3 = self.t_f_s2_s1_model.forward(
             x_t_f_s2_s1
         )
-        # (batch, 4)
 
-        logits_4 = self.t_f_s1_s2_model(
+        f4 = self.t_f_s1_s2_model.forward(
             x_t_f_s1_s2
         )
-        # (batch, 4)
 
 
-        # =====================================================
-        # MEAN LATE FUSION
-        # =====================================================
-
-        logits = (
-            logits_1
-            + logits_2
-            + logits_3
-            + logits_4
+        # Mean fusion
+        fused = (
+            f1 +
+            f2 +
+            f3 +
+            f4
         ) / 4.0
 
-        # (batch, 4)
+        # (batch, 128) -> (batch, 4)
+        output = self.classifier(fused)
 
-        return logits
+        return output
 
 
 # ==========================================================

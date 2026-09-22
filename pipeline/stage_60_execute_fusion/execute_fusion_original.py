@@ -326,15 +326,14 @@ def train_stage(
     fold,
     frozen_models=None,
 ):
-
     """
-    Trains a stage and stores two checkpoints:
+    Treina um estágio e guarda dois checkpoints:
 
-    1. Minimum validation loss
-    2. Maximum validation accuracy
+    1. menor validation loss
+    2. maior validation accuracy
 
-    If there are no trainable parameters, the model is
-    evaluated only once without optimization.
+    Em caso de empate de acurácia, escolhe o modelo
+    com menor validation loss.
     """
 
     train_accuracies_epoch = []
@@ -352,153 +351,105 @@ def train_stage(
     max_val_accuracy_epoch = 0
     max_val_accuracy_model_state = None
 
+    for epoch in range(n_epochs):
 
-    # ==========================================================
-    # NUMBER OF EPOCHS
-    # ==========================================================
+        # ==================================================
+        # TREINAMENTO
+        # ==================================================
 
-    if optimizer is None:
+        model.train()
 
-        epochs_to_run = 1
+        # Se os ramos estiverem congelados,
+        # eles devem permanecer em eval(), pois model.train()
+        # coloca todos os submódulos em modo de treinamento.
+        if frozen_models is not None:
 
-        print(
-            f"Fold {fold} | "
-            "No trainable parameters. "
-            "Stage evaluated without optimization."
-        )
-
-    else:
-
-        epochs_to_run = n_epochs
-
-
-    for epoch in range(epochs_to_run):
-
-        # ======================================================
-        # TRAIN / TRAIN EVALUATION
-        # ======================================================
-
-        if optimizer is None:
-
-            model.eval()
-
-        else:
-
-            model.train()
-
-            # Frozen branches must remain in eval mode
-            if frozen_models is not None:
-
-                for frozen_model in frozen_models:
-                    frozen_model.eval()
-
+            for frozen_model in frozen_models:
+                frozen_model.eval()
 
         train_total_loss = 0.0
         train_correct = 0
         train_total = 0
 
+        for (
+            X_s1_s2_f_t_batch,
+            X_s1_s2_t_f_batch,
+            X_t_f_s2_s1_batch,
+            X_t_f_s1_s2_batch,
+            y_batch
+        ) in train_loader:
 
-        # No gradients are necessary if there is no optimizer
-        grad_enabled = optimizer is not None
+            X_s1_s2_f_t_batch = (
+                X_s1_s2_f_t_batch.to(device)
+            )
 
+            X_s1_s2_t_f_batch = (
+                X_s1_s2_t_f_batch.to(device)
+            )
 
-        with torch.set_grad_enabled(grad_enabled):
+            X_t_f_s2_s1_batch = (
+                X_t_f_s2_s1_batch.to(device)
+            )
 
-            for (
+            X_t_f_s1_s2_batch = (
+                X_t_f_s1_s2_batch.to(device)
+            )
+     
+            y_batch = y_batch.to(device)
+
+            optimizer.zero_grad()
+
+            outputs = model(
                 X_s1_s2_f_t_batch,
                 X_s1_s2_t_f_batch,
                 X_t_f_s2_s1_batch,
                 X_t_f_s1_s2_batch,
+            )
+
+            loss = criterion(
+                outputs,
                 y_batch
-            ) in train_loader:
+            )
 
-                X_s1_s2_f_t_batch = (
-                    X_s1_s2_f_t_batch.to(device)
-                )
+            loss.backward()
 
-                X_s1_s2_t_f_batch = (
-                    X_s1_s2_t_f_batch.to(device)
-                )
+            optimizer.step()
 
-                X_t_f_s2_s1_batch = (
-                    X_t_f_s2_s1_batch.to(device)
-                )
+            train_total_loss += (
+                loss.item()
+            )
 
-                X_t_f_s1_s2_batch = (
-                    X_t_f_s1_s2_batch.to(device)
-                )
+            predictions = outputs.argmax(
+                dim=1
+            )
 
-                y_batch = y_batch.to(device)
+            train_correct += (
+                predictions == y_batch
+            ).sum().item()
 
-
-                if optimizer is not None:
-
-                    optimizer.zero_grad()
-
-
-                outputs = model(
-                    X_s1_s2_f_t_batch,
-                    X_s1_s2_t_f_batch,
-                    X_t_f_s2_s1_batch,
-                    X_t_f_s1_s2_batch,
-                )
-
-
-                loss = criterion(
-                    outputs,
-                    y_batch
-                )
-
-
-                if optimizer is not None:
-
-                    loss.backward()
-
-                    optimizer.step()
-
-
-                train_total_loss += (
-                    loss.item()
-                )
-
-
-                predictions = outputs.argmax(
-                    dim=1
-                )
-
-
-                train_correct += (
-                    predictions == y_batch
-                ).sum().item()
-
-
-                train_total += (
-                    y_batch.size(0)
-                )
-
+            train_total += (
+                y_batch.size(0)
+            )
 
         train_loss = (
             train_total_loss
             / len(train_loader)
         )
 
-
         train_accuracy = (
             train_correct
             / train_total
         )
 
-
-        # ======================================================
-        # VALIDATION
-        # ======================================================
+        # ==================================================
+        # VALIDAÇÃO
+        # ==================================================
 
         model.eval()
 
         val_total_loss = 0.0
         val_correct = 0
         val_total = 0
-
 
         with torch.no_grad():
 
@@ -521,13 +472,13 @@ def train_stage(
                 X_t_f_s2_s1_batch = (
                     X_t_f_s2_s1_batch.to(device)
                 )
-
+    
                 X_t_f_s1_s2_batch = (
                     X_t_f_s1_s2_batch.to(device)
                 )
-
-                y_batch = y_batch.to(device)
-
+                y_batch = y_batch.to(
+                    device
+                )
 
                 outputs = model(
                     X_s1_s2_f_t_batch,
@@ -536,48 +487,40 @@ def train_stage(
                     X_t_f_s1_s2_batch,
                 )
 
-
                 loss = criterion(
                     outputs,
                     y_batch
                 )
 
-
                 val_total_loss += (
                     loss.item()
                 )
-
 
                 predictions = outputs.argmax(
                     dim=1
                 )
 
-
                 val_correct += (
                     predictions == y_batch
                 ).sum().item()
 
-
                 val_total += (
                     y_batch.size(0)
                 )
-
 
         val_loss = (
             val_total_loss
             / len(val_loader)
         )
 
-
         val_accuracy = (
             val_correct
             / val_total
         )
 
-
-        # ======================================================
-        # HISTORY
-        # ======================================================
+        # ==================================================
+        # HISTÓRICO
+        # ==================================================
 
         train_accuracies_epoch.append(
             train_accuracy
@@ -595,16 +538,19 @@ def train_stage(
             val_loss
         )
 
-
-        # ======================================================
-        # BEST MODEL: MINIMUM LOSS
-        # ======================================================
+        # ==================================================
+        # MELHOR MODELO: MENOR LOSS
+        # ==================================================
 
         if val_loss < min_val_loss:
 
-            min_val_loss = val_loss
+            min_val_loss = (
+                val_loss
+            )
 
-            min_val_loss_epoch = epoch
+            min_val_loss_epoch = (
+                epoch
+            )
 
             min_val_loss_model_state = (
                 copy.deepcopy(
@@ -612,10 +558,9 @@ def train_stage(
                 )
             )
 
-
-        # ======================================================
-        # BEST MODEL: MAXIMUM ACCURACY
-        # ======================================================
+        # ==================================================
+        # MELHOR MODELO: MAIOR ACURÁCIA
+        # ==================================================
 
         if (
             val_accuracy > max_val_accuracy
@@ -625,13 +570,17 @@ def train_stage(
             )
         ):
 
-            max_val_accuracy = val_accuracy
+            max_val_accuracy = (
+                val_accuracy
+            )
 
             best_val_loss_to_max_accuracy = (
                 val_loss
             )
 
-            max_val_accuracy_epoch = epoch
+            max_val_accuracy_epoch = (
+                epoch
+            )
 
             max_val_accuracy_model_state = (
                 copy.deepcopy(
@@ -639,32 +588,16 @@ def train_stage(
                 )
             )
 
-
-        if optimizer is None:
-
-            print(
-                f"Fold {fold} | "
-                f"No training | "
-                f"Train Loss: {train_loss:.4f} | "
-                f"Val Loss: {val_loss:.4f} | "
-                f"Train Acc: {train_accuracy:.4f} | "
-                f"Val Acc: {val_accuracy:.4f}"
-            )
-
-        else:
-
-            print(
-                f"Fold {fold} | "
-                f"Epoch {epoch + 1:03d}/{n_epochs} | "
-                f"Train Loss: {train_loss:.4f} | "
-                f"Val Loss: {val_loss:.4f} | "
-                f"Train Acc: {train_accuracy:.4f} | "
-                f"Val Acc: {val_accuracy:.4f}"
-            )
-
+        print(
+            f"Fold {fold} | "
+            f"Epoch {epoch + 1:03d}/{n_epochs} | "
+            f"Train Loss: {train_loss:.4f} | "
+            f"Val Loss: {val_loss:.4f} | "
+            f"Train Acc: {train_accuracy:.4f} | "
+            f"Val Acc: {val_accuracy:.4f}"
+        )
 
     return {
-
         "train_losses_epoch":
             train_losses_epoch,
 
@@ -698,6 +631,8 @@ def train_stage(
         "max_val_accuracy_model_state":
             max_val_accuracy_model_state,
     }
+
+
 
 def get_scalar(value):
     """
@@ -1505,14 +1440,24 @@ def execute_fusion(
                 nn.CrossEntropyLoss()
             )
 
+            # ==================================================
+            # STAGE 1
+            # RAMOS CONGELADOS
+            # TREINA CLASSIFICADOR MAIS OUTRAS REDE QUE O MODELO
+            # DE FUSÃO TIVER
+            # ==================================================
 
-
-            # ===================================================
-            # IMPRIMINDO O NÚMERO DE PARÂMETROS DA REDE
-            # ===================================================
+            optimizer = torch.optim.Adam(
+                filter(
+                    lambda parameter:
+                    parameter.requires_grad,
+                    model.parameters()
+                ),
+                lr=LEARNING_RATE_STAGE_1
+            )
 
             if fold == 1:
-            
+
                 save_summary(
                     model,
                     fusion,
@@ -1521,36 +1466,6 @@ def execute_fusion(
                     device,
                     MODEL_DIR
                 )
-
-            # ==================================================
-            # STAGE 1
-            # RAMOS CONGELADOS
-            # TREINA CLASSIFICADOR MAIS OUTRAS REDE QUE O MODELO
-            # DE FUSÃO TIVER
-            # ==================================================
-
-            trainable_parameters = [
-                parameter
-                for parameter in model.parameters()
-                if parameter.requires_grad
-            ]
-
-            if len(trainable_parameters) > 0:
-
-                optimizer = torch.optim.Adam(
-                    trainable_parameters,
-                    lr=LEARNING_RATE_STAGE_1
-                )
-
-            else:
-
-                optimizer = None
-
-                print(
-                    "Stage 1 has no trainable parameters."
-                )
-
-           
 
             stage_1_training = train_stage(
                 model=model,

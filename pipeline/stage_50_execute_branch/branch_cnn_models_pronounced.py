@@ -9,9 +9,6 @@ import torch.nn as nn
 # SPACE1 x SPACE2 x FREQUENCY
 # CHANNEL = TIME
 # ==========================================================
-
-    
-
 class Space1Space2FrequencyTimeCNN(nn.Module):
 
     def __init__(self):
@@ -31,9 +28,9 @@ class Space1Space2FrequencyTimeCNN(nn.Module):
             out_channels=2,
             kernel_size=3,
             stride=1,
-            padding=0
+            padding=1
         )
-        # (batch, 2, 63, 16, 16)
+        # (batch, 2, 65, 18, 18)
 
         self.relu1 = nn.ReLU()
 
@@ -41,13 +38,13 @@ class Space1Space2FrequencyTimeCNN(nn.Module):
             kernel_size=(2, 2, 2),
             ceil_mode=True
         )
-        # (batch, 2, 32, 8, 8)
+        # (batch, 2, 33, 9, 9)
 
         self.flatten = nn.Flatten()
 
         self.linear = nn.Sequential(
             nn.Linear(
-                2 * 32 * 8 * 8,
+                2 * 33 * 9 * 9,
                 4
             ),
         )
@@ -85,53 +82,36 @@ class Space1Space2TimeFrequencyCNN(nn.Module):
         super().__init__()
 
         # Entrada:
-        # (batch, 65, 9, 21, 21)
+        # (batch, 65, 9, 18, 18)
         #
         # C = frequency = 65
         # D = time = 9
-        # H = space2 = 21
-        # W = space1 = 21
+        # H = space2 = 18
+        # W = space1 = 18
 
         self.conv1 = nn.Conv3d(
             in_channels=65,
-            out_channels=32,
+            out_channels=2,
             kernel_size=3,
+            stride=1,
             padding=1
         )
 
-        # (batch, 32, 9, 21, 21)
+        # (batch, 2, 9, 18, 18)
 
         self.relu1 = nn.ReLU()
 
         self.pool1 = nn.MaxPool3d(
-            kernel_size=(2, 2, 2)
+            kernel_size=(2, 2, 2),
+            ceil_mode=True
         )
-
-        # (batch, 32, 4, 10, 10)
-
-        self.conv2 = nn.Conv3d(
-            in_channels=32,
-            out_channels=16,
-            kernel_size=3,
-            padding=1
-        )
-
-        # (batch, 16, 4, 10, 10)
-
-        self.relu2 = nn.ReLU()
-
-        self.pool2 = nn.MaxPool3d(
-            kernel_size=(2, 2, 2)
-        )
-
-        # (batch, 16, 2, 5, 5)
+        # (batch, 2, 5, 9, 9)
 
         self.flatten = nn.Flatten()
+        # 2 x 5 x 9 x 9 
 
-        # 16 x 2 x 5 x 5 = 800
-
-        self.classifier = nn.Linear(
-            16 * 2 * 5 * 5,
+        self.linear = nn.Linear(
+            2 * 5 * 9 * 9,
             4
         )
 
@@ -142,13 +122,7 @@ class Space1Space2TimeFrequencyCNN(nn.Module):
         x = self.relu1(x)
         x = self.pool1(x)
 
-        x = self.conv2(x)
-        x = self.relu2(x)
-        x = self.pool2(x)
-
         x = self.flatten(x)
-
-        # (batch, 800)
 
         return x
 
@@ -157,7 +131,7 @@ class Space1Space2TimeFrequencyCNN(nn.Module):
 
         x = self.extract_features(x)
 
-        x = self.classifier(x)
+        x = self.linear(x)
 
         return x
 
@@ -176,53 +150,34 @@ class TimeFrequencySpace2Space1CNN(nn.Module):
         super().__init__()
 
         # Entrada:
-        # (batch, 21, 21, 65, 9)
+        # (batch, 18, 18, 65, 9)
         #
-        # C = space1 = 21
-        # D = space2 = 21
+        # C = space1 = 18
+        # D = space2 = 18
         # H = frequency = 65
         # W = time = 9
 
         self.conv1 = nn.Conv3d(
-            in_channels=21,
-            out_channels=10,
+            in_channels=18,
+            out_channels=2,
             kernel_size=3,
             padding=1
         )
 
-        # (batch, 10, 21, 65, 9)
+        # (batch, 2, 18, 65, 9)
 
         self.relu1 = nn.ReLU()
 
         self.pool1 = nn.MaxPool3d(
-            kernel_size=(2, 2, 2)
+            kernel_size=(2, 2, 2),
+            ceil_mode=True
         )
-
-        # (batch, 10, 10, 32, 4)
-
-        self.conv2 = nn.Conv3d(
-            in_channels=10,
-            out_channels=5,
-            kernel_size=3,
-            padding=1
-        )
-
-        # (batch, 5, 10, 32, 4)
-
-        self.relu2 = nn.ReLU()
-
-        self.pool2 = nn.MaxPool3d(
-            kernel_size=(2, 2, 2)
-        )
-
-        # (batch, 5, 5, 16, 2)
+        # (batch, 2, 9, 33, 5)
 
         self.flatten = nn.Flatten()
 
-        # 5 x 5 x 16 x 2 = 800
-
-        self.classifier = nn.Linear(
-            5 * 5 * 16 * 2,
+        self.linear = nn.Linear(
+            2 * 9 * 33 * 5,
             4
         )
 
@@ -233,13 +188,7 @@ class TimeFrequencySpace2Space1CNN(nn.Module):
         x = self.relu1(x)
         x = self.pool1(x)
 
-        x = self.conv2(x)
-        x = self.relu2(x)
-        x = self.pool2(x)
-
         x = self.flatten(x)
-
-        # (batch, 800)
 
         return x
 
@@ -248,7 +197,7 @@ class TimeFrequencySpace2Space1CNN(nn.Module):
 
         x = self.extract_features(x)
 
-        x = self.classifier(x)
+        x = self.linear(x)
 
         return x
 
@@ -267,53 +216,34 @@ class TimeFrequencySpace1Space2CNN(nn.Module):
         super().__init__()
 
         # Entrada:
-        # (batch, 21, 21, 65, 9)
+        # (batch, 18, 18, 65, 9)
         #
-        # C = space2 = 21
-        # D = space1 = 21
+        # C = space2 = 18
+        # D = space1 = 18
         # H = frequency = 65
         # W = time = 9
 
         self.conv1 = nn.Conv3d(
-            in_channels=21,
-            out_channels=10,
+            in_channels=18,
+            out_channels=2,
             kernel_size=3,
             padding=1
         )
 
-        # (batch, 10, 21, 65, 9)
+        # (batch, 2, 18, 65, 9)
 
         self.relu1 = nn.ReLU()
 
         self.pool1 = nn.MaxPool3d(
-            kernel_size=(2, 2, 2)
+            kernel_size=(2, 2, 2),
+            ceil_mode=True
         )
-
-        # (batch, 10, 10, 32, 4)
-
-        self.conv2 = nn.Conv3d(
-            in_channels=10,
-            out_channels=5,
-            kernel_size=3,
-            padding=1
-        )
-
-        # (batch, 5, 10, 32, 4)
-
-        self.relu2 = nn.ReLU()
-
-        self.pool2 = nn.MaxPool3d(
-            kernel_size=(2, 2, 2)
-        )
-
-        # (batch, 5, 5, 16, 2)
+        # (batch, 2, 9, 33, 5)
 
         self.flatten = nn.Flatten()
 
-        # 5 x 5 x 16 x 2 = 800
-
-        self.classifier = nn.Linear(
-            5 * 5 * 16 * 2,
+        self.linear = nn.Linear(
+            2 * 9 * 33 * 5,
             4
         )
 
@@ -324,13 +254,7 @@ class TimeFrequencySpace1Space2CNN(nn.Module):
         x = self.relu1(x)
         x = self.pool1(x)
 
-        x = self.conv2(x)
-        x = self.relu2(x)
-        x = self.pool2(x)
-
         x = self.flatten(x)
-
-        # (batch, 800)
 
         return x
 
@@ -339,6 +263,6 @@ class TimeFrequencySpace1Space2CNN(nn.Module):
 
         x = self.extract_features(x)
 
-        x = self.classifier(x)
+        x = self.linear(x)
 
         return x
