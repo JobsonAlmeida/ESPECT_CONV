@@ -1484,6 +1484,23 @@ def execute_fusion(
                     ).to(device)
 
 
+                case "multiplication_fusion":
+
+                    model = fusion_cnn_models.MultiplicationFusion(
+                        model_s1_s2_f_t,
+                        model_s1_s2_t_f,
+                        model_t_f_s2_s1,
+                        model_t_f_s1_s2
+                    ).to(device)
+
+                case "multiplication_log_softmax_fusion":
+
+                    model = fusion_cnn_models.MultiplicationLogSoftmaxFusion(
+                        model_s1_s2_f_t,
+                        model_s1_s2_t_f,
+                        model_t_f_s2_s1,
+                        model_t_f_s1_s2
+                    ).to(device)
 
                 case "gated_fusion":
 
@@ -1825,6 +1842,12 @@ def execute_fusion(
                     MODEL_DIR
                 )
 
+            # reseting the generator so that the data is shuffle
+            #the same way
+            generator.manual_seed( 
+                RANDOM_STATE_LOADER
+            )
+
             stage_2_from_ml_training = train_stage(
                 model=model,
                 train_loader=train_loader,
@@ -2041,6 +2064,12 @@ def execute_fusion(
             optimizer = torch.optim.Adam(
                 model.parameters(),
                 lr=LEARNING_RATE_STAGE_2
+            )
+
+            # reseting the generator so that the data is shuffle
+            #the same way
+            generator.manual_seed( 
+                RANDOM_STATE_LOADER
             )
 
             stage_2_from_ma_training = train_stage(
@@ -2475,8 +2504,20 @@ if __name__ == "__main__":
     #
     # ======================================================
 
+    # ======================================================
+    # FUSION OPTIONS
+    # ======================================================
+    #
+    # mean_fusion
+    # concatenation_fusion
+    # multiplication_fusion
+    # multiplication_log_softmax_fusion
+    #
+    # ======================================================
+
+
     execute_fusion(
-        fusion= "mean_fusion",
+        fusion= "multiplication_log_softmax_fusion",
         branch_model_state = "minimum_loss_model",
         subjects=["sub-01"],
         N_EPOCHS_STAGE_1=600,

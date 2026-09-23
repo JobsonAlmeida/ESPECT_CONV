@@ -24,7 +24,26 @@ class MeanFusion(nn.Module):
         self.t_f_s2_s1_model = t_f_s2_s1_model
         self.t_f_s1_s2_model = t_f_s1_s2_model
 
-       
+        # Feature projections
+        self.s1_s2_f_t_projection = nn.Sequential(
+            nn.Linear(5346, 128),
+            nn.ReLU()
+        )
+
+        self.s1_s2_t_f_projection = nn.Sequential(
+            nn.Linear(810, 128),
+            nn.ReLU()
+        )
+
+        self.t_f_s2_s1_projection = nn.Sequential(
+            nn.Linear(2970, 128),
+            nn.ReLU()
+        )
+
+        self.t_f_s1_s2_projection = nn.Sequential(
+            nn.Linear(2970, 128),
+            nn.ReLU()
+        )
 
         # Final classifier
         self.classifier = nn.Linear(
@@ -41,22 +60,27 @@ class MeanFusion(nn.Module):
         x_t_f_s1_s2
     ):
 
-        f1 = self.s1_s2_f_t_model.forward(
+        f1 = self.s1_s2_f_t_model.extract_features(
             x_s1_s2_f_t
         )
 
-        f2 = self.s1_s2_t_f_model.forward(
+        f2 = self.s1_s2_t_f_model.extract_features(
             x_s1_s2_t_f
         )
 
-        f3 = self.t_f_s2_s1_model.forward(
+        f3 = self.t_f_s2_s1_model.extract_features(
             x_t_f_s2_s1
         )
 
-        f4 = self.t_f_s1_s2_model.forward(
+        f4 = self.t_f_s1_s2_model.extract_features(
             x_t_f_s1_s2
         )
 
+        # Projection to 128 features
+        f1 = self.s1_s2_f_t_projection(f1)
+        f2 = self.s1_s2_t_f_projection(f2)
+        f3 = self.t_f_s2_s1_projection(f3)
+        f4 = self.t_f_s1_s2_projection(f4)
 
         # Mean fusion
         fused = (
