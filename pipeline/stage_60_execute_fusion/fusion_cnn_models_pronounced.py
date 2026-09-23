@@ -135,9 +135,10 @@ class MultiplicationFusion(nn.Module):
         return output_logits
 
 
-# ==========================================================
+# ========================================================
 # Multiplication Log Softmax Fusion
-# ==========================================================
+# ========================================================
+
 
 class MultiplicationLogSoftmaxFusion(nn.Module):
 
