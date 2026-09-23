@@ -5,7 +5,7 @@ import torch.nn as nn
 
 
 # ==========================================================
-# 1. MEAN LATE FUSION
+# MEAN LATE FUSION
 # ==========================================================
 
 class MeanFusion(nn.Module):
@@ -25,7 +25,6 @@ class MeanFusion(nn.Module):
         self.s1_s2_t_f_model = s1_s2_t_f_model
         self.t_f_s2_s1_model = t_f_s2_s1_model
         self.t_f_s1_s2_model = t_f_s1_s2_model
-
 
     def forward(
         self,
@@ -76,8 +75,149 @@ class MeanFusion(nn.Module):
         return logits
 
 
+
 # ==========================================================
-# 2. CONCATENATION FUSION
+# MULTIPLICATION FUSION
+# ==========================================================
+
+class MultiplicationFusion(nn.Module):
+
+    def __init__(
+        self,
+        s1_s2_f_t_model,
+        s1_s2_t_f_model,
+        t_f_s2_s1_model,
+        t_f_s1_s2_model
+    ):
+
+        super().__init__()
+
+        # Branch models
+        self.s1_s2_f_t_model = s1_s2_f_t_model
+        self.s1_s2_t_f_model = s1_s2_t_f_model
+        self.t_f_s2_s1_model = t_f_s2_s1_model
+        self.t_f_s1_s2_model = t_f_s1_s2_model
+
+    def forward(
+        self,
+        x_s1_s2_f_t,
+        x_s1_s2_t_f,
+        x_t_f_s2_s1,
+        x_t_f_s1_s2
+    ):
+
+        # Branch logits
+        logits_1 = self.s1_s2_f_t_model(
+            x_s1_s2_f_t
+        )
+
+        logits_2 = self.s1_s2_t_f_model(
+            x_s1_s2_t_f
+        )
+
+        logits_3 = self.t_f_s2_s1_model(
+            x_t_f_s2_s1
+        )
+
+        logits_4 = self.t_f_s1_s2_model(
+            x_t_f_s1_s2
+        )
+
+        # Element-wise multiplication of branch logits
+        # (batch, 4) -> (batch, 4)
+        output_logits = (
+            logits_1
+            * logits_2
+            * logits_3
+            * logits_4
+        )
+
+        return output_logits
+
+
+# ==========================================================
+# Multiplication Log Softmax Fusion
+# ==========================================================
+
+class MultiplicationLogSoftmaxFusion(nn.Module):
+
+    def __init__(
+        self,
+        s1_s2_f_t_model,
+        s1_s2_t_f_model,
+        t_f_s2_s1_model,
+        t_f_s1_s2_model
+    ):
+
+        super().__init__()
+
+        # Branch models
+        self.s1_s2_f_t_model = s1_s2_f_t_model
+        self.s1_s2_t_f_model = s1_s2_t_f_model
+        self.t_f_s2_s1_model = t_f_s2_s1_model
+        self.t_f_s1_s2_model = t_f_s1_s2_model
+
+    def forward(
+        self,
+        x_s1_s2_f_t,
+        x_s1_s2_t_f,
+        x_t_f_s2_s1,
+        x_t_f_s1_s2
+    ):
+
+        # Branch logits
+        logits_1 = self.s1_s2_f_t_model(
+            x_s1_s2_f_t
+        )
+
+        logits_2 = self.s1_s2_t_f_model(
+            x_s1_s2_t_f
+        )
+
+        logits_3 = self.t_f_s2_s1_model(
+            x_t_f_s2_s1
+        )
+
+        logits_4 = self.t_f_s1_s2_model(
+            x_t_f_s1_s2
+        )
+
+        # Convert logits to log-probabilities
+        log_probabilities_1 = torch.log_softmax(
+            logits_1,
+            dim=1
+        )
+
+        log_probabilities_2 = torch.log_softmax(
+            logits_2,
+            dim=1
+        )
+
+        log_probabilities_3 = torch.log_softmax(
+            logits_3,
+            dim=1
+        )
+
+        log_probabilities_4 = torch.log_softmax(
+            logits_4,
+            dim=1
+        )
+
+        # Equivalent to element-wise multiplication
+        # of branch probabilities in log-space
+        output_logits = (
+            log_probabilities_1
+            + log_probabilities_2
+            + log_probabilities_3
+            + log_probabilities_4
+        )
+
+        return output_logits
+
+
+    
+# ==========================================================
+# CONCATENATION FUSION
 # ==========================================================
 
 class ConcatenationFusion(nn.Module):
@@ -98,33 +238,11 @@ class ConcatenationFusion(nn.Module):
         self.t_f_s2_s1_model = t_f_s2_s1_model
         self.t_f_s1_s2_model = t_f_s1_s2_model
 
-        # Feature projections
-        self.s1_s2_f_t_projection = nn.Sequential(
-            nn.Linear(5346, 128),
-            nn.ReLU()
-        )
-
-        self.s1_s2_t_f_projection = nn.Sequential(
-            nn.Linear(810, 128),
-            nn.ReLU()
-        )
-
-        self.t_f_s2_s1_projection = nn.Sequential(
-            nn.Linear(2970, 128),
-            nn.ReLU()
-        )
-
-        self.t_f_s1_s2_projection = nn.Sequential(
-            nn.Linear(2970, 128),
-            nn.ReLU()
-        )
-
-        # 4 x 128 = 512
-        self.classifier = nn.Linear(
-            512,
+        # 4 branches x 4 logits = 16
+        self.linear = nn.Linear(
+            16,
             4
         )
-
 
     def forward(
         self,
@@ -134,38 +252,41 @@ class ConcatenationFusion(nn.Module):
         x_t_f_s1_s2
     ):
 
-        f1 = self.s1_s2_f_t_model.extract_features(
+        # Branch logits
+        logits_1 = self.s1_s2_f_t_model(
             x_s1_s2_f_t
         )
 
-        f2 = self.s1_s2_t_f_model.extract_features(
+        logits_2 = self.s1_s2_t_f_model(
             x_s1_s2_t_f
         )
 
-        f3 = self.t_f_s2_s1_model.extract_features(
+        logits_3 = self.t_f_s2_s1_model(
             x_t_f_s2_s1
         )
 
-        f4 = self.t_f_s1_s2_model.extract_features(
+        logits_4 = self.t_f_s1_s2_model(
             x_t_f_s1_s2
         )
 
-        # Projection to 128 features
-        f1 = self.s1_s2_f_t_projection(f1)
-        f2 = self.s1_s2_t_f_projection(f2)
-        f3 = self.t_f_s2_s1_projection(f3)
-        f4 = self.t_f_s1_s2_projection(f4)
-
-        # Concatenation
-        fused = torch.cat(
-            (f1, f2, f3, f4),
+        # Concatenate branch logits
+        # (batch, 4) x 4 -> (batch, 16)
+        concatenated_logits = torch.cat(
+            (
+                logits_1,
+                logits_2,
+                logits_3,
+                logits_4
+            ),
             dim=1
         )
 
-        # (batch, 512) -> (batch, 4)
-        output = self.classifier(fused)
+        # (batch, 16) -> (batch, 4)
+        output_logits = self.linear(
+            concatenated_logits
+        )
 
-        return output
+        return output_logits
 
 
 # ==========================================================
