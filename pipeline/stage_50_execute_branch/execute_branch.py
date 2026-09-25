@@ -750,13 +750,15 @@ def execute_branch(
         )
 
 
-        SUB_DIR = (
+        SUB_CONDIT_DIR = (
             MODEL_DIR
             / subject
+            / condition.lower()
+            
         )
 
 
-        SUB_DIR.mkdir(
+        SUB_CONDIT_DIR.mkdir(
             parents=True,
             exist_ok=True
         )
@@ -2225,14 +2227,15 @@ def execute_branch(
 
                 },
 
-                SUB_DIR
+                SUB_CONDIT_DIR
                 / f"{branch}_fold_{fold}.pth"
             )
 
 
             print(
                 f"\nCheckpoint saved: "
-                f"{SUB_DIR / f'{branch}_fold_{fold}.pth'}"
+                f"{SUB_CONDIT_DIR 
+                   / f'{branch}_fold_{fold}.pth'}"
             )
 
 
@@ -2395,15 +2398,14 @@ def execute_branch(
 
         torch.save(
             summary_results,
-
-            SUB_DIR
+            SUB_CONDIT_DIR
             / f"{branch}_summary.pth"
         )
 
 
         print(
             f"\nSummary saved: "
-            f"{SUB_DIR / f'{branch}_summary.pth'}"
+            f"{SUB_CONDIT_DIR / f'{branch}_summary.pth'}"
         )
 
 
@@ -2413,7 +2415,8 @@ def execute_branch(
 
         individual_subject_plots(
             branch=branch,
-            subjects=subject
+            subjects=subject,
+            condition= condition
         )
 
 
@@ -2440,8 +2443,8 @@ if __name__ == "__main__":
     # ======================================================
 
     execute_branch(
-        branch="space1_space2_frequency_time",
-        N_EPOCHS=600,       
+        branch="time_frequency_space1_space2",
+        N_EPOCHS=6,       
         subjects=[
             "sub-01"
         ]

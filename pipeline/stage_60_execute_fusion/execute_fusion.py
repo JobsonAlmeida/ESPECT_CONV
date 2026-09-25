@@ -725,6 +725,7 @@ def execute_fusion(
     fusion,
     branch_model_state = "minimum_loss_model",
     subjects=subjects,
+    condition_folder = "pronunced_speech",
     N_FOLDS=N_FOLDS,
     N_EPOCHS_STAGE_1=N_EPOCHS_STAGE_1,
     N_EPOCHS_STAGE_2=N_EPOCHS_STAGE_2,
@@ -847,6 +848,7 @@ def execute_fusion(
         S1_S2_F_T_SUB_DIR = (
             S1_S2_F_T_MODEL_DIR
             / subject
+            / condition_folder.lower()
         )
 
         S1_S2_T_F_MODEL_DIR = (
@@ -857,6 +859,7 @@ def execute_fusion(
         S1_S2_T_F_SUB_DIR = (
             S1_S2_T_F_MODEL_DIR
             / subject
+            / condition_folder.lower()
         )
 
         T_F_S2_S1_MODEL_DIR = (
@@ -867,6 +870,7 @@ def execute_fusion(
         T_F_S2_S1_SUB_DIR = (
             T_F_S2_S1_MODEL_DIR
             / subject
+            / condition_folder.lower()
         )
 
         T_F_S1_S2_MODEL_DIR = (
@@ -877,6 +881,7 @@ def execute_fusion(
         T_F_S1_S2_SUB_DIR = (
             T_F_S1_S2_MODEL_DIR
             / subject
+            / condition_folder.lower()
         )
 
         MODEL_DIR = (
@@ -887,6 +892,7 @@ def execute_fusion(
         SUB_DIR = (
             MODEL_DIR
             / subject
+            / condition.lower()
         )
 
         SUB_DIR.mkdir(
@@ -1502,15 +1508,32 @@ def execute_fusion(
                         model_t_f_s1_s2
                     ).to(device)
 
-                case "gated_fusion":
+                case "weighted_sum_fusion":
 
-                    model = fusion_cnn_models.GatedFusion(
+                    model = fusion_cnn_models.WeightedSumFusion(
                         model_s1_s2_f_t,
                         model_s1_s2_t_f,
                         model_t_f_s2_s1,
                         model_t_f_s1_s2
                     ).to(device)
 
+                case "scalar_gated_fusion":
+
+                    model = fusion_cnn_models.ScalarGatedFusion(
+                        model_s1_s2_f_t,
+                        model_s1_s2_t_f,
+                        model_t_f_s2_s1,
+                        model_t_f_s1_s2
+                    ).to(device)
+              
+                case "class_wise_gated_fusion":
+
+                    model = fusion_cnn_models.ClassWiseGatedFusion(
+                        model_s1_s2_f_t,
+                        model_s1_s2_t_f,
+                        model_t_f_s2_s1,
+                        model_t_f_s1_s2
+                    ).to(device)
                     
                 case _:
 
@@ -2483,6 +2506,7 @@ def execute_fusion(
             fusion=fusion, 
             branch_model_state = branch_model_state,           
             subjects=[subject],
+            condition_folder = condition_folder,
             MODEL_DIR = MODEL_DIR
             
         )
@@ -2512,16 +2536,21 @@ if __name__ == "__main__":
     # concatenation_fusion
     # multiplication_fusion
     # multiplication_log_softmax_fusion
+    # weighted_sum_fusion
+    # scalar_gated_fusion
+    # class_wise_gated_fusion
+    #
     #
     # ======================================================
 
 
     execute_fusion(
-        fusion= "multiplication_log_softmax_fusion",
+        fusion= "mean_fusion",
         branch_model_state = "minimum_loss_model",
         subjects=["sub-01"],
-        N_EPOCHS_STAGE_1=600,
-        N_EPOCHS_STAGE_2 = 200,
+        condition_folder = "pronounced_speech",
+        N_EPOCHS_STAGE_1=6,
+        N_EPOCHS_STAGE_2 = 3,
         LEARNING_RATE_STAGE_1 = 0.001,
         LEARNING_RATE_STAGE_2 = 0.0001
     )

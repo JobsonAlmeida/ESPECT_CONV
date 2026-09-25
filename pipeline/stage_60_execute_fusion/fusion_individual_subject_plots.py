@@ -1272,6 +1272,7 @@ def fusion_individual_subject_plots(
     fusion = "concatenation_fusion",
     branch_model_state = "minimum_loss_model", 
     subjects=["sub-01"],
+    condition_folder = "pronounced_speech",
     MODEL_DIR = MODEL_DIR   
 ):
 
@@ -1305,6 +1306,9 @@ def fusion_individual_subject_plots(
         SUB_DIR = (
             MODEL_DIR
             / subject
+            / condition_folder.lower()
+            
+
         )
 
        

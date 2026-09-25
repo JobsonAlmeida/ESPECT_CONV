@@ -43,6 +43,7 @@ DEFAULT_SUBJECTS = [
 def individual_subject_plots(
     branch="space1_space2_frequency_time",
     subjects=None,
+    condition = None
 ):
 
     # ======================================================
@@ -79,6 +80,7 @@ def individual_subject_plots(
             INPUT_DIR
             / f"{branch}_branch"
             / subject
+            / condition.lower()
         )
 
 
