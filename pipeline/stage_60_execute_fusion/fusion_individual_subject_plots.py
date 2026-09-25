@@ -1303,7 +1303,7 @@ def fusion_individual_subject_plots(
 
     for subject in subjects:
 
-        SUB_DIR = (
+        SUB_CONDIT_DIR = (
             MODEL_DIR
             / subject
             / condition_folder.lower()
@@ -1317,7 +1317,7 @@ def fusion_individual_subject_plots(
         # ==================================================
 
         fold_files = list(
-            SUB_DIR.glob(
+            SUB_CONDIT_DIR.glob(
                 f"{fusion}_fold_*.pth"
             )
         )
@@ -1349,7 +1349,7 @@ def fusion_individual_subject_plots(
         # ==================================================
 
         summary_file = (
-            SUB_DIR
+            SUB_CONDIT_DIR
             / f"{fusion}_summary.pth"
         )
 
@@ -1412,7 +1412,7 @@ def fusion_individual_subject_plots(
 
                 summary_checkpoint = summary_checkpoint,
 
-                sub_dir=SUB_DIR,
+                sub_dir=SUB_CONDIT_DIR,
             )
 
 

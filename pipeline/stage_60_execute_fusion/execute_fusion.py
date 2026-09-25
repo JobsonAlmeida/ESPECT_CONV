@@ -801,6 +801,12 @@ def execute_fusion(
 
         condition = subj_file["condition"]
 
+        if condition_folder.lower() != condition.lower() : 
+
+            raise ValueError(
+                f"Condition Folder {condition_folder.lower()} differs from condition {condition.lower()} obtained in checkpoint!"
+            )             
+
         if condition == "PRONOUNCED_SPEECH":
 
             import stage_50_execute_branch.branch_cnn_models_pronounced as cnn_models
