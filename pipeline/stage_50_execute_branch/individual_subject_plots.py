@@ -306,6 +306,10 @@ def individual_subject_plots(
 
         n_total_samples = []
 
+        cell_text_validation_accuracies = []
+
+        validation_accuracies_ml_ma_per_fold = []
+
 
         # ==================================================
         # LOOP DOS FOLDS
@@ -574,7 +578,7 @@ def individual_subject_plots(
 
             ax_loss.axvline(
                 x=min_val_loss_epoch + 1,
-                color="forestgreen",
+                color="purple",
                 linestyle=":",
                 linewidth=2,
                 label="Min Val Loss"
@@ -660,7 +664,7 @@ def individual_subject_plots(
 
             ax_acc.axvline(
                 x=min_val_loss_epoch + 1,
-                color="forestgreen",
+                color="purple",
                 linestyle=":",
                 linewidth=2,
                 label="Min Val Loss"
@@ -756,9 +760,9 @@ def individual_subject_plots(
                 ],
 
                 [
-                    f"{val_accuracy_at_min_loss:.4f}",
+                    f"{val_accuracy_at_min_loss*100:.2f}%",
 
-                    f"{max_val_accuracy:.4f}",
+                    f"{max_val_accuracy*100:.2f}%",
                 ],
 
                 [
@@ -768,9 +772,9 @@ def individual_subject_plots(
                 ],
 
                 [
-                    f"{test_accuracy_ml:.4f}",
+                    f"{test_accuracy_ml*100:.2f}%",
 
-                    f"{test_accuracy_ma:.4f}",
+                    f"{test_accuracy_ma*100:.2f}%",
                 ],
 
                 [
@@ -797,6 +801,22 @@ def individual_subject_plots(
                     ),
                 ],
             ]
+
+
+            # values to be used in general table
+
+            validation_accuracies_ml_ma_per_fold.append(
+                [val_accuracy_at_min_loss, max_val_accuracy]
+
+            ) 
+
+            cell_text_validation_accuracies.append(
+                [
+                    f"{val_accuracy_at_min_loss*100:.2f}",
+
+                    f"{max_val_accuracy*100:.2f}",
+                ],
+            )
 
 
             if fold_idx == 0:
@@ -878,6 +898,57 @@ def individual_subject_plots(
 
 
             # --------------------------------------------------
+            # Destacar acurácias
+            # --------------------------------------------------
+            vaidation_accuracy = (
+                3
+            )
+    
+    
+            test_accuracy = (
+                5
+            )
+    
+    
+            for column in [
+                0,
+                1
+            ]:
+    
+                mini_table[
+                    vaidation_accuracy,
+                    column
+                ].get_text().set_weight(
+                    "bold"
+                )
+    
+    
+                mini_table[
+                    test_accuracy,
+                    column
+                ].get_text().set_weight(
+                    "bold"
+                )
+    
+    
+                mini_table[
+                    vaidation_accuracy,
+                    column
+                ].set_facecolor(
+                    "#e6f2ff"
+                )
+    
+    
+                mini_table[
+                    test_accuracy,
+                    column
+                ].set_facecolor(
+                   "#dcefd5" #"#dcefd5"  #dff3d8"
+                )
+
+
+
+            # --------------------------------------------------
             # Nos folds sem rowLabels não precisamos reservar
             # o mesmo espaço lateral.
             # --------------------------------------------------
@@ -937,18 +1008,22 @@ def individual_subject_plots(
         )
 
 
-        cell_text = [
+        cell_text_test_accuracies = [
 
             [
-                f"{fold_accuracies_ml[fold_idx]*100:.2f}%",
+                f"{fold_accuracies_ml[fold_idx]*100:.2f}",
 
-                f"{fold_accuracies_ma[fold_idx]*100:.2f}%",
+                f"{fold_accuracies_ma[fold_idx]*100:.2f}",
             ]
 
             for fold_idx in range(
                 n_folds
             )
         ]
+
+        
+
+        cell_text = [val_text + test_text for val_text, test_text in zip(cell_text_validation_accuracies, cell_text_test_accuracies)]
 
 
         # --------------------------------------------------
@@ -964,6 +1039,13 @@ def individual_subject_plots(
             fold_accuracies_ma.mean()
         )
 
+        validation_accuracies_ml_ma_per_fold = np.asarray(validation_accuracies_ml_ma_per_fold)
+
+        validation_accuracies_ml = validation_accuracies_ml_ma_per_fold[:, 0]
+        validation_accuracies_mean_ml = validation_accuracies_ml.mean()
+
+        validation_accuracies_ma = validation_accuracies_ml_ma_per_fold[:, 1]
+        validation_accuracies_mean_ma = validation_accuracies_ma.mean()
 
         # --------------------------------------------------
         # Desvio padrão
@@ -978,6 +1060,10 @@ def individual_subject_plots(
             fold_accuracies_ma.std()
         )
 
+        validation_accuracies_std_ml = validation_accuracies_ml.std()
+
+        validation_accuracies_std_ma = validation_accuracies_ma.std()
+
 
         # --------------------------------------------------
         # Adicionar média e desvio padrão
@@ -986,9 +1072,14 @@ def individual_subject_plots(
         cell_text.append(
 
             [
-                f"{fold_accuracies_mean_ml*100:.2f}%",
 
-                f"{fold_accuracies_mean_ma*100:.2f}%",
+                f"{validation_accuracies_mean_ml*100:.2f}",
+
+                f"{validation_accuracies_mean_ma*100:.2f}",
+
+                f"{fold_accuracies_mean_ml*100:.2f}",
+
+                f"{fold_accuracies_mean_ma*100:.2f}",
             ]
         )
 
@@ -996,9 +1087,14 @@ def individual_subject_plots(
         cell_text.append(
 
             [
-                f"{fold_accuracies_std_ml*100:.2f}%",
 
-                f"{fold_accuracies_std_ma*100:.2f}%",
+                f"{validation_accuracies_std_ml*100:.2f}",
+
+                f"{validation_accuracies_std_ma*100:.2f}",
+
+                f"{fold_accuracies_std_ml*100:.2f}",
+
+                f"{fold_accuracies_std_ma*100:.2f}",
             ]
         )
 
@@ -1030,8 +1126,10 @@ def individual_subject_plots(
             rowLabels=row_labels,
 
             colLabels=[
-                "Min\nVal Loss",
-                "Max\nVal Acc"
+                "Min\nVal Loss\n(%)",
+                "Max\nVal Acc\n(%)",
+                "Min\nVal Loss\n(%)",
+                "Max\nVal Acc\n(%)"
             ],
 
             loc="center",
@@ -1039,8 +1137,10 @@ def individual_subject_plots(
             cellLoc="center",
 
             colWidths=[
-                0.45,
-                0.45
+                0.24,
+                0.24,
+                0.24,
+                0.24
             ]
         )
 
@@ -1071,14 +1171,14 @@ def individual_subject_plots(
         # --------------------------------------------------
 
         for col_idx in range(
-            2
+            4
         ):
 
             mini_table[
                 0,
                 col_idx
             ].set_height(
-                0.15
+                0.20
             )
 
 
@@ -1096,14 +1196,16 @@ def individual_subject_plots(
         # Std  = num_rows
         # --------------------------------------------------
 
-        mean_row = (
+        vaidation_accuracy = (
             num_rows - 1
         )
 
 
-        std_row = (
+        test_accuracy = (
             num_rows
         )
+
+
 
 
         for column in [
@@ -1111,8 +1213,18 @@ def individual_subject_plots(
             1
         ]:
 
+            for line in range(1, n_folds+1):
+
+                mini_table[
+                    line,
+                    column
+                ].set_facecolor(
+                    "#e6f2ff"
+                )
+
+
             mini_table[
-                mean_row,
+                vaidation_accuracy,
                 column
             ].get_text().set_weight(
                 "bold"
@@ -1120,7 +1232,7 @@ def individual_subject_plots(
 
 
             mini_table[
-                std_row,
+                test_accuracy,
                 column
             ].get_text().set_weight(
                 "bold"
@@ -1128,27 +1240,73 @@ def individual_subject_plots(
 
 
             mini_table[
-                mean_row,
+                vaidation_accuracy,
                 column
             ].set_facecolor(
-                "#e6f2ff"
+                "#d4dfec"
             )
 
 
             mini_table[
-                std_row,
+                test_accuracy,
                 column
             ].set_facecolor(
-                "#e6f2ff"
+                "#d4dfec"
             )
 
+
+
+        for column in [
+            2,
+            3
+        ]:
+
+            for line in range(1, n_folds+1):
+
+                mini_table[
+                    line,
+                    column
+                ].set_facecolor(
+                    "#dcefd5"
+                )
+
+            mini_table[
+                vaidation_accuracy,
+                column
+            ].get_text().set_weight(
+                "bold"
+            )
+
+
+            mini_table[
+                test_accuracy,
+                column
+            ].get_text().set_weight(
+                "bold"
+            )
+
+
+            mini_table[
+                vaidation_accuracy,
+                column
+            ].set_facecolor(
+                "#cddec6"
+            )
+
+
+            mini_table[
+                test_accuracy,
+                column
+            ].set_facecolor(
+                "#cddec6"
+            )
 
         # --------------------------------------------------
         # DESTACAR ROW LABELS
         # --------------------------------------------------
 
         mini_table[
-            mean_row,
+            vaidation_accuracy,
             -1
         ].get_text().set_weight(
             "bold"
@@ -1156,7 +1314,7 @@ def individual_subject_plots(
 
 
         mini_table[
-            std_row,
+            test_accuracy,
             -1
         ].get_text().set_weight(
             "bold"
@@ -1226,10 +1384,10 @@ def individual_subject_plots(
             cellLoc="center",
 
             colWidths=[
-                0.24,
-                0.24,
-                0.24,
-                0.24
+                0.25,
+                0.25,
+                0.25,
+                0.25
             ]
         )
 

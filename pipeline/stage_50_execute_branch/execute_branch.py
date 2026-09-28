@@ -2444,7 +2444,7 @@ if __name__ == "__main__":
 
     execute_branch(
         branch="space1_space2_frequency_time",
-        N_EPOCHS=6,       
+        N_EPOCHS=60,       
         subjects=[
             "sub-01"
         ]
