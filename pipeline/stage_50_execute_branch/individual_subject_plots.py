@@ -940,9 +940,9 @@ def individual_subject_plots(
         cell_text = [
 
             [
-                f"{fold_accuracies_ml[fold_idx]:.4f}",
+                f"{fold_accuracies_ml[fold_idx]*100:.2f}%",
 
-                f"{fold_accuracies_ma[fold_idx]:.4f}",
+                f"{fold_accuracies_ma[fold_idx]*100:.2f}%",
             ]
 
             for fold_idx in range(
@@ -986,9 +986,9 @@ def individual_subject_plots(
         cell_text.append(
 
             [
-                f"{fold_accuracies_mean_ml:.4f}",
+                f"{fold_accuracies_mean_ml*100:.2f}%",
 
-                f"{fold_accuracies_mean_ma:.4f}",
+                f"{fold_accuracies_mean_ma*100:.2f}%",
             ]
         )
 
@@ -996,9 +996,9 @@ def individual_subject_plots(
         cell_text.append(
 
             [
-                f"{fold_accuracies_std_ml:.4f}",
+                f"{fold_accuracies_std_ml*100:.2f}%",
 
-                f"{fold_accuracies_std_ma:.4f}",
+                f"{fold_accuracies_std_ma*100:.2f}%",
             ]
         )
 
