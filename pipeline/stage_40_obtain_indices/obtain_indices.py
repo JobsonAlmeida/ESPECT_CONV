@@ -1,6 +1,7 @@
 import numpy as np
 from pathlib import Path
 import pickle
+import sys
 
 from sklearn.model_selection import (
     StratifiedKFold,
@@ -21,6 +22,11 @@ current_file = Path(__file__).resolve()
 
 PROJECT_ROOT = current_file.parents[2]
 
+if str(PROJECT_ROOT) not in sys.path:
+
+    sys.path.append(
+        str(PROJECT_ROOT)
+    )
 
 INPUT_DIR = (
     PROJECT_ROOT

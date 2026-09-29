@@ -15,6 +15,12 @@ PROJECT_ROOT = current_file.parents[2]
 
 PIPELINE_ROOT = current_file.parents[1]
 
+if str(PROJECT_ROOT) not in sys.path:
+
+    sys.path.append(
+        str(PROJECT_ROOT)
+    )
+
 if str(PIPELINE_ROOT) not in sys.path:
 
     sys.path.append(
@@ -38,6 +44,8 @@ OUTPUT_DIR.mkdir(
     parents=True,
     exist_ok=True
 )
+
+
 
 
 # ==========================================================
@@ -91,6 +99,8 @@ def load_and_epoching(
     EPOCH_END_SECONDS : float
         End time of the selected epoch window, in seconds.
     """
+
+
 
     # ======================================================
     # CONDITION VALIDATION
@@ -212,6 +222,12 @@ def load_and_epoching(
             OUTPUT_DIR
             / f"{sub_ses}.pkl"
         )
+
+        # output_path.mkdir(
+        #         parents=True,
+        #         exist_ok=True
+        #     )
+
 
         with output_path.open("wb") as file:
 

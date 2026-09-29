@@ -22,13 +22,23 @@ current_file = Path(__file__).resolve()
 PROJECT_ROOT = current_file.parents[2]
 PIPELINE_ROOT = current_file.parents[1]
 
+if str(PROJECT_ROOT) not in sys.path:
+
+    sys.path.append(
+        str(PROJECT_ROOT)
+    )
+
+
 if str(PIPELINE_ROOT) not in sys.path:
-    sys.path.append(str(PIPELINE_ROOT))
 
-from tools import save_summary
+    sys.path.append(
+        str(PIPELINE_ROOT)
+    )
+
+from pipeline.stage_60_execute_fusion.tools import save_summary
 
 
-from fusion_individual_subject_plots import fusion_individual_subject_plots
+from pipeline.stage_60_execute_fusion.fusion_individual_subject_plots import fusion_individual_subject_plots
 
 # ==========================================================
 # CONFIGURAÇÕES
@@ -67,6 +77,12 @@ INPUT_PREVIOUS_DIR = (
     / "processed_data"
     / "stage_50_execute_branch"
 )
+
+
+DEFAULT_SUBJECTS = [
+    f"sub-{i:02d}"
+    for i in range(1, 11)
+]
 
 # ==========================================================
 # FUNÇÕES AUXILIARES
@@ -736,6 +752,31 @@ def execute_fusion(
     RANDOM_STATE_LOADER=RANDOM_STATE_LOADER,
 ):
 
+
+
+    # ======================================================
+    # CHECAGEM DA VARIÁVEL SUBJECTS
+    # ======================================================
+
+    if isinstance(
+        subjects,
+        str
+    ):
+
+        # Se o usuário passar uma única string,
+        # transforma em uma lista com um elemento.
+
+        subjects = [
+            subjects
+        ]
+
+
+    elif subjects is None:
+
+        subjects = (
+            DEFAULT_SUBJECTS
+        )
+
     torch.manual_seed(
         RANDOM_STATE
     )
@@ -809,18 +850,18 @@ def execute_fusion(
 
         if condition == "PRONOUNCED_SPEECH":
 
-            import stage_50_execute_branch.branch_cnn_models_pronounced as cnn_models
-            import fusion_cnn_models_pronounced as fusion_cnn_models
+            import pipeline.stage_50_execute_branch.branch_cnn_models_pronounced as cnn_models
+            import pipeline.stage_60_execute_fusion.fusion_cnn_models_pronounced as fusion_cnn_models
 
         elif condition == "INNER_SPEECH":
 
-            import stage_50_execute_branch.branch_cnn_models_inner as cnn_models
-            import fusion_cnn_models_inner as fusion_cnn_models
+            import pipeline.stage_50_execute_branch.branch_cnn_models_inner as cnn_models
+            import pipeline.stage_60_execute_fusion.fusion_cnn_models_inner as fusion_cnn_models
 
         elif condition == "VISUALIZED_CONDITION":
 
-            import stage_50_execute_branch.branch_cnn_models_visualized as cnn_models
-            import fusion_cnn_models_visualized as fusion_cnn_models
+            import pipeline.stage_50_execute_branch.branch_cnn_models_visualized as cnn_models
+            import pipeline.stage_60_execute_fusion.fusion_cnn_models_visualized as fusion_cnn_models
         else:
 
             raise ValueError(

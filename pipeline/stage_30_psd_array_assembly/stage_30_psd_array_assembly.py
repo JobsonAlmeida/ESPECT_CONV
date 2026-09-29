@@ -25,7 +25,6 @@ if str(PROJECT_ROOT) not in sys.path:
         str(PROJECT_ROOT)
     )
 
-
 if str(PIPELINE_ROOT) not in sys.path:
 
     sys.path.append(
@@ -49,7 +48,7 @@ OUTPUT_DIR.mkdir(
     exist_ok=True
 )
 
-from channels_2D_distribution import CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION
+from pipeline.stage_30_psd_array_assembly.channels_2D_distribution import CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION
 
 from config.channel_mapping import CHANNELS_INDICES_MAPPING
 
@@ -150,7 +149,7 @@ def create_power_array(data, window_duration, step_duration, Channels_Distributi
 
     return frequencies, times, psd_array
 
-def power_array_assembly(
+def psd_array_assembly(
         window_duration = WINDOW_DURATION,
         step_duration = STEP_DURATION,
         channels_distribution = CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION
@@ -429,4 +428,4 @@ def power_array_assembly(
 
 if __name__ == "__main__":
 
-    power_array_assembly()
+    psd_array_assembly()

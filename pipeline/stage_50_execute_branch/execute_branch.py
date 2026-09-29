@@ -13,8 +13,6 @@ from torch.utils.data import (
 
 from torchinfo import summary
 
-from tools import save_summary
-
 # ==========================================================
 # CONFIGURAÇÕES DE CAMINHO & IMPORTS LOCAIS
 # ==========================================================
@@ -26,14 +24,20 @@ PROJECT_ROOT = current_file.parents[2]
 PIPELINE_ROOT = current_file.parents[1]
 
 
+if str(PROJECT_ROOT) not in sys.path:
+
+    sys.path.append(
+        str(PROJECT_ROOT)
+    )
+
 if str(PIPELINE_ROOT) not in sys.path:
 
     sys.path.append(
         str(PIPELINE_ROOT)
     )
 
-
-from individual_subject_plots import individual_subject_plots
+from pipeline.stage_50_execute_branch.individual_subject_plots import individual_subject_plots
+from pipeline.stage_50_execute_branch.tools import save_summary
 
 
 # ==========================================================
@@ -87,6 +91,10 @@ CONDITION_MAP = {
 }
 
 
+DEFAULT_SUBJECTS = [
+    f"sub-{i:02d}"
+    for i in range(1, 11)
+]
 
 # ==========================================================
 # SUJEITOS
@@ -630,8 +638,28 @@ def execute_branch(
     RANDOM_STATE_LOADER=RANDOM_STATE_LOADER,
 ):
 
+    # ======================================================
+    # CHECAGEM DA VARIÁVEL SUBJECTS
+    # ======================================================
+
+    if isinstance(
+        subjects,
+        str
+    ):
+
+        # Se o usuário passar uma única string,
+        # transforma em uma lista com um elemento.
+
+        subjects = [
+            subjects
+        ]
 
 
+    elif subjects is None:
+
+        subjects = (
+            DEFAULT_SUBJECTS
+        )
 
 
     # ======================================================
@@ -700,15 +728,15 @@ def execute_branch(
 
         if condition == "PRONOUNCED_SPEECH":
 
-            import branch_cnn_models_pronounced as cnn_models
+            import pipeline.stage_50_execute_branch.branch_cnn_models_pronounced as cnn_models
 
         elif condition == "INNER_SPEECH":
 
-            import branch_cnn_models_inner as cnn_models
+            import pipeline.stage_50_execute_branch.branch_cnn_models_inner as cnn_models
 
         elif condition == "VISUALIZED_CONDITION":
 
-            import branch_cnn_models_visualized as cnn_models
+            import pipeline.stage_50_execute_branch.branch_cnn_models_visualized as cnn_models
 
         else:
 
