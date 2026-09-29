@@ -766,27 +766,29 @@ def execute_branch(
         # DIRETÓRIO DOS MODELOS
         # ==================================================
 
-        MODEL_DIR = (
+        # MODEL_DIR = (
+        #     OUTPUT_DIR
+        #     / subject
+        #     / condition.lower()
+        #     / f"{branch}_branch"
+        # )
+
+
+        # MODEL_DIR.mkdir(
+        #     parents=True,
+        #     exist_ok=True
+        # )
+
+
+        SUB_CONDIT_BRANCH_DIR = (
             OUTPUT_DIR
-            / f"{branch}_branch"
-        )
-
-
-        MODEL_DIR.mkdir(
-            parents=True,
-            exist_ok=True
-        )
-
-
-        SUB_CONDIT_DIR = (
-            MODEL_DIR
             / subject
             / condition.lower()
-            
+            / f"{branch}_branch"            
         )
 
 
-        SUB_CONDIT_DIR.mkdir(
+        SUB_CONDIT_BRANCH_DIR.mkdir(
             parents=True,
             exist_ok=True
         )
@@ -1543,7 +1545,7 @@ def execute_branch(
                     branch,
                     X_input_size,
                     device,
-                    MODEL_DIR
+                    SUB_CONDIT_BRANCH_DIR
                 )
 
             for epoch in range(
@@ -2255,14 +2257,14 @@ def execute_branch(
 
                 },
 
-                SUB_CONDIT_DIR
+                SUB_CONDIT_BRANCH_DIR
                 / f"{branch}_fold_{fold}.pth"
             )
 
 
             print(
                 f"\nCheckpoint saved: "
-                f"{SUB_CONDIT_DIR 
+                f"{SUB_CONDIT_BRANCH_DIR 
                    / f'{branch}_fold_{fold}.pth'}"
             )
 
@@ -2426,14 +2428,14 @@ def execute_branch(
 
         torch.save(
             summary_results,
-            SUB_CONDIT_DIR
+            SUB_CONDIT_BRANCH_DIR
             / f"{branch}_summary.pth"
         )
 
 
         print(
             f"\nSummary saved: "
-            f"{SUB_CONDIT_DIR / f'{branch}_summary.pth'}"
+            f"{SUB_CONDIT_BRANCH_DIR / f'{branch}_summary.pth'}"
         )
 
 
@@ -2471,9 +2473,9 @@ if __name__ == "__main__":
     # ======================================================
 
     execute_branch(
-        branch="space1_space2_frequency_time",
+        branch="space1_space2_time_frequency",
         N_EPOCHS=60,       
         subjects=[
-            "sub-01"
+            "sub-02"
         ]
     )

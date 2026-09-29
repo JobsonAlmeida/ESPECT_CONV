@@ -76,12 +76,19 @@ def individual_subject_plots(
 
     for subject in subjects:
 
-        SUB_CONDIT_DIR = (
+        SUB_CONDIT_BRANCH_DIR = (
             INPUT_DIR
-            / f"{branch}_branch"
             / subject
             / condition.lower()
+            / f"{branch}_branch"            
         )
+
+        # SUB_CONDIT_BRANCH_DIR = (
+        #     INPUT_DIR
+        #     / f"{branch}_branch"
+        #     / subject
+        #     / condition.lower()
+        # )
 
 
         # ==================================================
@@ -134,7 +141,7 @@ def individual_subject_plots(
         # ==================================================
 
         fold_files = list(
-            SUB_CONDIT_DIR.glob(
+            SUB_CONDIT_BRANCH_DIR.glob(
                 f"{branch}_fold_*.pth"
             )
         )
@@ -180,7 +187,7 @@ def individual_subject_plots(
         # ==================================================
 
         summary_file = (
-            SUB_CONDIT_DIR
+            SUB_CONDIT_BRANCH_DIR
             / f"{branch}_summary.pth"
         )
 
@@ -1508,9 +1515,9 @@ def individual_subject_plots(
 
         SAVE_FIG = (
             OUTPUT_DIR
-            / f"{branch}_branch"
             / subject
             / condition.lower()
+            / f"{branch}_branch"
             / "plots"
         )
 

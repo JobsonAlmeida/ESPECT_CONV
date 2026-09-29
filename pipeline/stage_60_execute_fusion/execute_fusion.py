@@ -1606,7 +1606,7 @@ def execute_fusion(
                     f"Stage 1",
                     summary_input_sizes,
                     device,
-                    MODEL_DIR
+                    MODEL_DIR / subject / condition.lower()
                 )
 
             # ==================================================
@@ -1909,7 +1909,7 @@ def execute_fusion(
                     f"Stage 2",
                     summary_input_sizes,
                     device,
-                    MODEL_DIR
+                    MODEL_DIR / subject / condition.lower()
                 )
 
             # reseting the generator so that the data is shuffle
