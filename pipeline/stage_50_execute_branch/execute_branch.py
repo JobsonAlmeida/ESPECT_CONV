@@ -2473,9 +2473,9 @@ if __name__ == "__main__":
     # ======================================================
 
     execute_branch(
-        branch="space1_space2_time_frequency",
+        branch="time_frequency_space1_space2",
         N_EPOCHS=60,       
         subjects=[
-            "sub-02"
+            "sub-01"
         ]
     )

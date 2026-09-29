@@ -887,62 +887,71 @@ def execute_fusion(
         # DIRETÓRIOS
         # ======================================================
 
-        S1_S2_F_T_MODEL_DIR = (
+        # S1_S2_F_T_MODEL_DIR = (
+        #     INPUT_PREVIOUS_DIR
+        #     / subject
+        #     / condition.lower()
+        #     / f"{branch_s1_s2_f_t}_branch"
+        # )
+
+        S1_S2_F_T_SUB_DIR = (
             INPUT_PREVIOUS_DIR
+            / subject
+            / condition_folder.lower()
             / f"{branch_s1_s2_f_t}_branch"
         )
 
-        S1_S2_F_T_SUB_DIR = (
-            S1_S2_F_T_MODEL_DIR
+        # S1_S2_T_F_MODEL_DIR = (
+        #     INPUT_PREVIOUS_DIR
+        #     / f"{branch_s1_s2_t_f}_branch"
+        # )
+
+        S1_S2_T_F_SUB_DIR = (
+            INPUT_PREVIOUS_DIR
             / subject
             / condition_folder.lower()
-        )
-
-        S1_S2_T_F_MODEL_DIR = (
-            INPUT_PREVIOUS_DIR
             / f"{branch_s1_s2_t_f}_branch"
         )
 
-        S1_S2_T_F_SUB_DIR = (
-            S1_S2_T_F_MODEL_DIR
+        # T_F_S2_S1_MODEL_DIR = (
+        #     INPUT_PREVIOUS_DIR
+        #     / f"{branch_t_f_s2_s1}_branch"
+        # )
+
+        T_F_S2_S1_SUB_DIR = (
+            INPUT_PREVIOUS_DIR
             / subject
             / condition_folder.lower()
-        )
-
-        T_F_S2_S1_MODEL_DIR = (
-            INPUT_PREVIOUS_DIR
             / f"{branch_t_f_s2_s1}_branch"
         )
 
-        T_F_S2_S1_SUB_DIR = (
-            T_F_S2_S1_MODEL_DIR
+        # T_F_S1_S2_MODEL_DIR = (
+        #     INPUT_PREVIOUS_DIR
+        #     / f"{branch_t_f_s1_s2}_branch"
+        # )
+
+        T_F_S1_S2_SUB_DIR = (
+            INPUT_PREVIOUS_DIR
             / subject
             / condition_folder.lower()
-        )
-
-        T_F_S1_S2_MODEL_DIR = (
-            INPUT_PREVIOUS_DIR
             / f"{branch_t_f_s1_s2}_branch"
         )
 
-        T_F_S1_S2_SUB_DIR = (
-            T_F_S1_S2_MODEL_DIR
+        # MODEL_DIR = (
+        #     OUTPUT_DIR
+        #     
+        #     / condition_folder.lower()
+        #     / f"{fusion}_from_{branch_model_state}_in_branches"
+        # )
+
+        SUB_CONDIT_FUSION_DIR = (
+            OUTPUT_DIR
             / subject
             / condition_folder.lower()
-        )
-
-        MODEL_DIR = (
-            OUTPUT_DIR
             / f"{fusion}_from_{branch_model_state}_in_branches"
         )
 
-        SUB_DIR = (
-            MODEL_DIR
-            / subject
-            / condition.lower()
-        )
-
-        SUB_DIR.mkdir(
+        SUB_CONDIT_FUSION_DIR.mkdir(
             parents=True,
             exist_ok=True
         )
@@ -1606,7 +1615,7 @@ def execute_fusion(
                     f"Stage 1",
                     summary_input_sizes,
                     device,
-                    MODEL_DIR / subject / condition.lower()
+                    SUB_CONDIT_FUSION_DIR
                 )
 
             # ==================================================
@@ -1909,7 +1918,7 @@ def execute_fusion(
                     f"Stage 2",
                     summary_input_sizes,
                     device,
-                    MODEL_DIR / subject / condition.lower()
+                    SUB_CONDIT_FUSION_DIR
                 )
 
             # reseting the generator so that the data is shuffle
@@ -2435,7 +2444,7 @@ def execute_fusion(
 
             torch.save(
                 checkpoint,
-                SUB_DIR
+                SUB_CONDIT_FUSION_DIR
                 / f"{fusion}_fold_{fold}.pth"
             )
 
@@ -2535,14 +2544,14 @@ def execute_fusion(
         torch.save(
             summary_results,
 
-            SUB_DIR
+            SUB_CONDIT_FUSION_DIR
             / f"{fusion}_summary.pth"
         )
 
 
         print(
             f"\nSummary saved: "
-            f"{SUB_DIR / f'{fusion}_summary.pth'}"
+            f"{SUB_CONDIT_FUSION_DIR / f'{fusion}_summary.pth'}"
         )
 
         # ======================================================
@@ -2554,7 +2563,7 @@ def execute_fusion(
             branch_model_state = branch_model_state,           
             subjects=[subject],
             condition_folder = condition_folder,
-            MODEL_DIR = MODEL_DIR
+            OUTPUT_DIR = OUTPUT_DIR
             
         )
 

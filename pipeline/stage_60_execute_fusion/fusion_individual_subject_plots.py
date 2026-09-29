@@ -19,8 +19,10 @@ OUTPUT_DIR = (
     / "stage_60_execute_fusion"
 )
 
-MODEL_DIR = (
+SUB_01_AUX_DIR = (
     OUTPUT_DIR
+    / "sub-01"
+    / "pronounced_speech"
     / f"concatenation_fusion_from_minimum_loss_model_in_branches"
 )
 
@@ -1429,7 +1431,7 @@ def fusion_individual_subject_plots(
     branch_model_state = "minimum_loss_model", 
     subjects=["sub-01"],
     condition_folder = "pronounced_speech",
-    MODEL_DIR = MODEL_DIR   
+    OUTPUT_DIR = OUTPUT_DIR   
 ):
 
     # ======================================================
@@ -1459,11 +1461,11 @@ def fusion_individual_subject_plots(
 
     for subject in subjects:
 
-        SUB_CONDIT_DIR = (
-            MODEL_DIR
+        SUB_CONDIT_FUSION_DIR = (
+            OUTPUT_DIR
             / subject
             / condition_folder.lower()
-            
+            / f"{fusion}_from_{branch_model_state}_in_branches"
 
         )
 
@@ -1473,7 +1475,7 @@ def fusion_individual_subject_plots(
         # ==================================================
 
         fold_files = list(
-            SUB_CONDIT_DIR.glob(
+            SUB_CONDIT_FUSION_DIR.glob(
                 f"{fusion}_fold_*.pth"
             )
         )
@@ -1505,7 +1507,7 @@ def fusion_individual_subject_plots(
         # ==================================================
 
         summary_file = (
-            SUB_CONDIT_DIR
+            SUB_CONDIT_FUSION_DIR
             / f"{fusion}_summary.pth"
         )
 
@@ -1568,7 +1570,7 @@ def fusion_individual_subject_plots(
 
                 summary_checkpoint = summary_checkpoint,
 
-                sub_dir=SUB_CONDIT_DIR,
+                sub_dir=SUB_CONDIT_FUSION_DIR,
             )
 
 
