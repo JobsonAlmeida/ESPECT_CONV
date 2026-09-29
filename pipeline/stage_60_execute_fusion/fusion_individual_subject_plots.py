@@ -162,6 +162,10 @@ def plot_fusion_stage(
 
     n_total_samples = []
 
+    cell_text_validation_accuracies = []
+
+    validation_accuracies_ml_ma_per_fold = []
+
 
     # ======================================================
     # LOOP DOS FOLDS
@@ -488,7 +492,7 @@ def plot_fusion_stage(
 
         ax_loss.axvline(
             x=min_val_loss_epoch + 1,
-            color="forestgreen",
+            color="violet",
             linestyle=":",
             linewidth=2,
             label="Min Val Loss"
@@ -497,7 +501,7 @@ def plot_fusion_stage(
 
         ax_loss.axvline(
             x=max_val_accuracy_epoch + 1,
-            color="violet",
+            color="purple",
             linestyle=":",
             linewidth=2,
             label="Max Val Acc"
@@ -566,7 +570,7 @@ def plot_fusion_stage(
 
         ax_acc.axvline(
             x=min_val_loss_epoch + 1,
-            color="forestgreen",
+            color="violet",
             linestyle=":",
             linewidth=2,
             label="Min Val Loss"
@@ -575,7 +579,7 @@ def plot_fusion_stage(
 
         ax_acc.axvline(
             x=max_val_accuracy_epoch + 1,
-            color="violet",
+            color="purple",
             linestyle=":",
             linewidth=2,
             label="Max Val Acc"
@@ -649,9 +653,9 @@ def plot_fusion_stage(
             ],
 
             [
-                f"{val_accuracy_at_min_loss:.4f}",
+                f"{val_accuracy_at_min_loss*100:.2f}%",
 
-                f"{max_val_accuracy:.4f}",
+                f"{max_val_accuracy*100:.2f}%",
             ],
 
             [
@@ -661,9 +665,9 @@ def plot_fusion_stage(
             ],
 
             [
-                f"{test_accuracy_ml:.4f}",
+                f"{test_accuracy_ml*100:.2f}%",
 
-                f"{test_accuracy_ma:.4f}",
+                f"{test_accuracy_ma*100:.2f}%",
             ],
 
             [
@@ -690,6 +694,22 @@ def plot_fusion_stage(
                 ),
             ],
         ]
+
+
+        # values to be used in general table
+
+        validation_accuracies_ml_ma_per_fold.append(
+            [val_accuracy_at_min_loss, max_val_accuracy]
+
+        ) 
+
+        cell_text_validation_accuracies.append(
+            [
+                f"{val_accuracy_at_min_loss*100:.2f}",
+
+                f"{max_val_accuracy*100:.2f}",
+            ],
+        )
 
 
         if fold_idx == 0:
@@ -766,13 +786,54 @@ def plot_fusion_stage(
             )
 
 
-        # if fold_idx > 0:
+        # --------------------------------------------------
+        # Destacar acurácias
+        # --------------------------------------------------
+        vaidation_accuracy = (
+            3
+        )
 
-        #     mini_table.scale(
-        #         1.0,
-        #         1.0
-        #     )
 
+        test_accuracy = (
+            5
+        )
+
+
+        for column in [
+            0,
+            1
+        ]:
+
+            mini_table[
+                vaidation_accuracy,
+                column
+            ].get_text().set_weight(
+                "bold"
+            )
+
+
+            mini_table[
+                test_accuracy,
+                column
+            ].get_text().set_weight(
+                "bold"
+            )
+
+
+            mini_table[
+                vaidation_accuracy,
+                column
+            ].set_facecolor(
+                "#e6f2ff"
+            )
+
+
+            mini_table[
+                test_accuracy,
+                column
+            ].set_facecolor(
+                "#dcefd5" #"#dcefd5"  #dff3d8"
+            )
 
     # ======================================================
     # CONVERTER LISTAS EM ARRAYS
@@ -827,7 +888,7 @@ def plot_fusion_stage(
 
 
     # ======================================================
-    # TABELA FINAL DE RESULTADOS DE TESTE
+    # TABELA RESUMO DE ACURÁCIA DE VALIDAÇÃO E TESTE
     # LINHA 2 / ÚLTIMA COLUNA
     # ======================================================
 
@@ -842,12 +903,12 @@ def plot_fusion_stage(
     )
 
 
-    cell_text = [
+    cell_text_test_accuracies = [
 
         [
-            f"{fold_accuracies_ml[fold_idx]:.4f}",
+            f"{fold_accuracies_ml[fold_idx]*100:.2f}",
 
-            f"{fold_accuracies_ma[fold_idx]:.4f}",
+            f"{fold_accuracies_ma[fold_idx]*100:.2f}",
         ]
 
         for fold_idx in range(
@@ -855,6 +916,12 @@ def plot_fusion_stage(
         )
     ]
 
+    cell_text = [val_text + test_text for val_text, test_text in zip(cell_text_validation_accuracies, cell_text_test_accuracies)]
+
+
+    # --------------------------------------------------
+    # Média
+    # --------------------------------------------------
 
     fold_accuracies_mean_ml = (
         fold_accuracies_ml.mean()
@@ -865,6 +932,17 @@ def plot_fusion_stage(
         fold_accuracies_ma.mean()
     )
 
+    validation_accuracies_ml_ma_per_fold = np.asarray(validation_accuracies_ml_ma_per_fold)
+
+    validation_accuracies_ml = validation_accuracies_ml_ma_per_fold[:, 0]
+    validation_accuracies_mean_ml = validation_accuracies_ml.mean()
+
+    validation_accuracies_ma = validation_accuracies_ml_ma_per_fold[:, 1]
+    validation_accuracies_mean_ma = validation_accuracies_ma.mean()
+
+    # --------------------------------------------------
+    # Desvio padrão
+    # --------------------------------------------------
 
     fold_accuracies_std_ml = (
         fold_accuracies_ml.std()
@@ -875,9 +953,16 @@ def plot_fusion_stage(
         fold_accuracies_ma.std()
     )
 
+    validation_accuracies_std_ml = validation_accuracies_ml.std()
+
+    validation_accuracies_std_ma = validation_accuracies_ma.std()
 
     cell_text.append(
         [
+            f"{validation_accuracies_mean_ml*100:.2f}",
+
+            f"{validation_accuracies_mean_ma*100:.2f}",
+
             f"{fold_accuracies_mean_ml:.4f}",
 
             f"{fold_accuracies_mean_ma:.4f}",
@@ -887,6 +972,10 @@ def plot_fusion_stage(
 
     cell_text.append(
         [
+            f"{validation_accuracies_std_ml*100:.2f}",
+
+            f"{validation_accuracies_std_ma*100:.2f}",
+
             f"{fold_accuracies_std_ml:.4f}",
 
             f"{fold_accuracies_std_ma:.4f}",
@@ -921,8 +1010,10 @@ def plot_fusion_stage(
         rowLabels=row_labels,
 
         colLabels=[
-            "Min\nVal Loss",
-            "Max\nVal Acc"
+            "Min\nVal Loss\n(%)",
+            "Max\nVal Acc\n(%)",
+            "Min\nVal Loss\n(%)",
+            "Max\nVal Acc\n(%)"
         ],
 
         loc="center",
@@ -930,8 +1021,10 @@ def plot_fusion_stage(
         cellLoc="center",
 
         colWidths=[
-            0.45,
-            0.45
+            0.25,
+            0.25,
+            0.25,
+            0.25,
         ]
     )
 
@@ -958,14 +1051,14 @@ def plot_fusion_stage(
 
 
     for col_idx in range(
-        2
+        4
     ):
 
         mini_table[
             0,
             col_idx
         ].set_height(
-            0.15
+            0.20
         )
 
 
@@ -978,12 +1071,75 @@ def plot_fusion_stage(
         num_rows
     )
 
+    vaidation_accuracy = (
+        num_rows - 1
+    )
+
+
+    test_accuracy = (
+        num_rows
+    )
 
     for column in [
         0,
         1
     ]:
 
+        for line in range(1, n_folds+1):
+
+            mini_table[
+                line,
+                column
+            ].set_facecolor(
+                "#e6f2ff"
+            )
+
+
+        mini_table[
+            vaidation_accuracy,
+            column
+        ].get_text().set_weight(
+            "bold"
+        )
+
+
+        mini_table[
+            test_accuracy,
+            column
+        ].get_text().set_weight(
+            "bold"
+        )
+
+
+        mini_table[
+            vaidation_accuracy,
+            column
+        ].set_facecolor(
+            "#d4dfec"
+        )
+
+
+        mini_table[
+            test_accuracy,
+            column
+        ].set_facecolor(
+            "#d4dfec"
+        )
+
+    for column in [
+        2,
+        3
+    ]:
+
+        for line in range(1, n_folds+1):
+    
+            mini_table[
+                line,
+                column
+            ].set_facecolor(
+                "#dcefd5"
+            )
+
         mini_table[
             mean_row,
             column
@@ -1004,7 +1160,7 @@ def plot_fusion_stage(
             mean_row,
             column
         ].set_facecolor(
-            "#e6f2ff"
+            "#cddec6"
         )
 
 
@@ -1012,7 +1168,7 @@ def plot_fusion_stage(
             std_row,
             column
         ].set_facecolor(
-            "#e6f2ff"
+            "#cddec6"
         )
 
 
@@ -1290,7 +1446,7 @@ def fusion_individual_subject_plots(
         ]
 
 
-    elif subjects is None:     # alterar- passar apenas um sujeito
+    elif subjects is None:     
  
         subjects = (
             DEFAULT_SUBJECTS

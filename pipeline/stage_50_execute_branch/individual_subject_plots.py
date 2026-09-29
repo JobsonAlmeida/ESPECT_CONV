@@ -42,8 +42,8 @@ DEFAULT_SUBJECTS = [
 
 def individual_subject_plots(
     branch="space1_space2_frequency_time",
-    subjects=None,
-    condition = None
+    subjects=["sub-01"],
+    condition = "pronounced_speech"
 ):
 
     # ======================================================
@@ -578,7 +578,7 @@ def individual_subject_plots(
 
             ax_loss.axvline(
                 x=min_val_loss_epoch + 1,
-                color="purple",
+                color="violet",
                 linestyle=":",
                 linewidth=2,
                 label="Min Val Loss"
@@ -591,7 +591,7 @@ def individual_subject_plots(
 
             ax_loss.axvline(
                 x=max_val_accuracy_epoch + 1,
-                color="violet",
+                color="purple",
                 linestyle=":",
                 linewidth=2,
                 label="Max Val Acc"
@@ -664,7 +664,7 @@ def individual_subject_plots(
 
             ax_acc.axvline(
                 x=min_val_loss_epoch + 1,
-                color="purple",
+                color="violet",
                 linestyle=":",
                 linewidth=2,
                 label="Min Val Loss"
@@ -677,7 +677,7 @@ def individual_subject_plots(
 
             ax_acc.axvline(
                 x=max_val_accuracy_epoch + 1,
-                color="violet",
+                color="purple",
                 linestyle=":",
                 linewidth=2,
                 label="Max Val Acc"
@@ -946,21 +946,6 @@ def individual_subject_plots(
                    "#dcefd5" #"#dcefd5"  #dff3d8"
                 )
 
-
-
-            # --------------------------------------------------
-            # Nos folds sem rowLabels não precisamos reservar
-            # o mesmo espaço lateral.
-            # --------------------------------------------------
-
-            if fold_idx > 0:
-
-                mini_table.scale(
-                    1.0,
-                    1.0
-                )
-
-
         # ==================================================
         # TRANSFORMAR NÚMERO DE AMOSTRAS EM ARRAYS
         # ==================================================
@@ -1137,10 +1122,10 @@ def individual_subject_plots(
             cellLoc="center",
 
             colWidths=[
-                0.24,
-                0.24,
-                0.24,
-                0.24
+                0.25,
+                0.25,
+                0.25,
+                0.25
             ]
         )
 
@@ -1204,9 +1189,6 @@ def individual_subject_plots(
         test_accuracy = (
             num_rows
         )
-
-
-
 
         for column in [
             0,

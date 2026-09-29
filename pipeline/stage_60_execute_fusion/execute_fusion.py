@@ -2551,7 +2551,7 @@ if __name__ == "__main__":
 
 
     execute_fusion(
-        fusion= "mean_fusion",
+        fusion= "concatenation_fusion",
         branch_model_state = "minimum_loss_model",
         subjects=["sub-01"],
         condition_folder = "pronounced_speech",
