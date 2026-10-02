@@ -741,7 +741,7 @@ def execute_fusion(
     fusion,
     branch_model_state = "minimum_loss_model",
     subjects=subjects,
-    condition_folder = "pronunced_speech",
+    condition_folder = "pronounced_speech",
     N_FOLDS=N_FOLDS,
     N_EPOCHS_STAGE_1=N_EPOCHS_STAGE_1,
     N_EPOCHS_STAGE_2=N_EPOCHS_STAGE_2,
@@ -1621,7 +1621,7 @@ def execute_fusion(
             # ==================================================
             # STAGE 1
             # RAMOS CONGELADOS
-            # TREINA CLASSIFICADOR MAIS OUTRAS REDE QUE O MODELO
+            # TREINA CLASSIFICADOR MAIS OUTRAS CAMADAS QUE O MODELO
             # DE FUSÃO TIVER
             # ==================================================
 

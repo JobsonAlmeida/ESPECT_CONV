@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 # =========================================================
@@ -78,146 +78,6 @@ class MeanFusion(nn.Module):
 
         return logits
 
-
-
-# ==========================================================
-# MULTIPLICATION FUSION
-# ==========================================================
-
-class MultiplicationFusion(nn.Module):
-
-    def __init__(
-        self,
-        s1_s2_f_t_model,
-        s1_s2_t_f_model,
-        t_f_s2_s1_model,
-        t_f_s1_s2_model
-    ):
-
-        super().__init__()
-
-        # Branch models
-        self.s1_s2_f_t_model = s1_s2_f_t_model
-        self.s1_s2_t_f_model = s1_s2_t_f_model
-        self.t_f_s2_s1_model = t_f_s2_s1_model
-        self.t_f_s1_s2_model = t_f_s1_s2_model
-
-    def forward(
-        self,
-        x_s1_s2_f_t,
-        x_s1_s2_t_f,
-        x_t_f_s2_s1,
-        x_t_f_s1_s2
-    ):
-
-        # Branch logits
-        logits_1 = self.s1_s2_f_t_model(
-            x_s1_s2_f_t
-        )
-
-        logits_2 = self.s1_s2_t_f_model(
-            x_s1_s2_t_f
-        )
-
-        logits_3 = self.t_f_s2_s1_model(
-            x_t_f_s2_s1
-        )
-
-        logits_4 = self.t_f_s1_s2_model(
-            x_t_f_s1_s2
-        )
-
-        # Element-wise multiplication of branch logits
-        # (batch, 4) -> (batch, 4)
-        output_logits = (
-            logits_1
-            * logits_2
-            * logits_3
-            * logits_4
-        )
-
-        return output_logits
-
-
-# ========================================================
-# Multiplication Log Softmax Fusion
-# ========================================================
-
-
-class MultiplicationLogSoftmaxFusion(nn.Module):
-
-    def __init__(
-        self,
-        s1_s2_f_t_model,
-        s1_s2_t_f_model,
-        t_f_s2_s1_model,
-        t_f_s1_s2_model
-    ):
-
-        super().__init__()
-
-        # Branch models
-        self.s1_s2_f_t_model = s1_s2_f_t_model
-        self.s1_s2_t_f_model = s1_s2_t_f_model
-        self.t_f_s2_s1_model = t_f_s2_s1_model
-        self.t_f_s1_s2_model = t_f_s1_s2_model
-
-    def forward(
-        self,
-        x_s1_s2_f_t,
-        x_s1_s2_t_f,
-        x_t_f_s2_s1,
-        x_t_f_s1_s2
-    ):
-
-        # Branch logits
-        logits_1 = self.s1_s2_f_t_model(
-            x_s1_s2_f_t
-        )
-
-        logits_2 = self.s1_s2_t_f_model(
-            x_s1_s2_t_f
-        )
-
-        logits_3 = self.t_f_s2_s1_model(
-            x_t_f_s2_s1
-        )
-
-        logits_4 = self.t_f_s1_s2_model(
-            x_t_f_s1_s2
-        )
-
-        # Convert logits to log-probabilities
-        log_probabilities_1 = torch.log_softmax(
-            logits_1,
-            dim=1
-        )
-
-        log_probabilities_2 = torch.log_softmax(
-            logits_2,
-            dim=1
-        )
-
-        log_probabilities_3 = torch.log_softmax(
-            logits_3,
-            dim=1
-        )
-
-        log_probabilities_4 = torch.log_softmax(
-            logits_4,
-            dim=1
-        )
-
-        # Equivalent to element-wise multiplication
-        # of branch probabilities in log-space
-        output_logits = (
-            log_probabilities_1
-            + log_probabilities_2
-            + log_probabilities_3
-            + log_probabilities_4
-        )
-
-        return output_logits
 
 
     
@@ -562,3 +422,255 @@ class ClassWiseGatedFusion(nn.Module):
         # (batch, 4)
 
         return fused_logits
+
+
+class MajorityVotingFusion(nn.Module):
+
+    def __init__(
+        self,
+        s1_s2_f_t_model,
+        s1_s2_t_f_model,
+        t_f_s2_s1_model,
+        t_f_s1_s2_model
+    ):
+
+        super().__init__()
+
+        # Branch models
+        self.s1_s2_f_t_model = s1_s2_f_t_model
+        self.s1_s2_t_f_model = s1_s2_t_f_model
+        self.t_f_s2_s1_model = t_f_s2_s1_model
+        self.t_f_s1_s2_model = t_f_s1_s2_model
+
+
+    def forward(
+        self,
+        x_s1_s2_f_t,
+        x_s1_s2_t_f,
+        x_t_f_s2_s1,
+        x_t_f_s1_s2
+    ):
+
+        # ==========================================================
+        # BRANCH LOGITS
+        # ==========================================================
+
+        logits_1 = self.s1_s2_f_t_model(
+            x_s1_s2_f_t
+        )
+
+        logits_2 = self.s1_s2_t_f_model(
+            x_s1_s2_t_f
+        )
+
+        logits_3 = self.t_f_s2_s1_model(
+            x_t_f_s2_s1
+        )
+
+        logits_4 = self.t_f_s1_s2_model(
+            x_t_f_s1_s2
+        )
+
+
+        # ==========================================================
+        # BRANCH PROBABILITIES
+        # ==========================================================
+
+        probabilities_1 = torch.softmax(
+            logits_1,
+            dim=1
+        )
+
+        probabilities_2 = torch.softmax(
+            logits_2,
+            dim=1
+        )
+
+        probabilities_3 = torch.softmax(
+            logits_3,
+            dim=1
+        )
+
+        probabilities_4 = torch.softmax(
+            logits_4,
+            dim=1
+        )
+
+
+        # ==========================================================
+        # BRANCH PREDICTIONS
+        # ==========================================================
+
+        prediction_1 = torch.argmax(
+            probabilities_1,
+            dim=1
+        )
+
+        prediction_2 = torch.argmax(
+            probabilities_2,
+            dim=1
+        )
+
+        prediction_3 = torch.argmax(
+            probabilities_3,
+            dim=1
+        )
+
+        prediction_4 = torch.argmax(
+            probabilities_4,
+            dim=1
+        )
+
+
+        # ==========================================================
+        # MAJORITY VOTING
+        # ==========================================================
+
+        predictions = torch.stack(
+            (
+                prediction_1,
+                prediction_2,
+                prediction_3,
+                prediction_4
+            ),
+            dim=1
+        )
+        # (batch, branch)
+        # (batch, 4)
+
+
+        one_hot_predictions = F.one_hot(
+            predictions,
+            num_classes=4
+        )
+        # (batch, branch, class)
+        # (batch, 4, 4)
+
+
+        votes = one_hot_predictions.sum(
+            dim=1
+        )
+        # (batch, class)
+        # (batch, 4)
+
+
+        # ==========================================================
+        # BRANCH PROBABILITIES STACK
+        # ==========================================================
+
+        probabilities = torch.stack(
+            (
+                probabilities_1,
+                probabilities_2,
+                probabilities_3,
+                probabilities_4
+            ),
+            dim=1
+        )
+        # (batch, branch, class)
+        # (batch, 4, 4)
+
+
+        # ==========================================================
+        # KEEP ONLY THE PROBABILITY OF THE CLASS
+        # CHOSEN BY EACH BRANCH
+        # ==========================================================
+
+        voted_probabilities = (
+            probabilities * one_hot_predictions
+        )
+        # (batch, branch, class)
+        # (batch, 4, 4)
+
+
+        # ==========================================================
+        # FIRST CRITERION:
+        # NUMBER OF VOTES
+        # ==========================================================
+
+        max_votes = votes.max(
+            dim=1,
+            keepdim=True
+        ).values
+        # (batch, 1)
+
+
+        classes_with_max_votes = (
+            votes == max_votes
+        )
+        # (batch, class)
+        # (batch, 4)
+
+
+        # ==========================================================
+        # SECOND CRITERION:
+        # SUM OF PROBABILITIES FROM BRANCHES THAT VOTED
+        # FOR EACH CLASS
+        # ==========================================================
+
+        probability_sum = voted_probabilities.sum(
+            dim=1
+        )
+        # (batch, class)
+        # (batch, 4)
+
+
+        probability_sum_masked = probability_sum.masked_fill(
+            ~classes_with_max_votes,
+            float("-inf")
+        )
+        # (batch, class)
+
+
+        max_probability_sum = probability_sum_masked.max(
+            dim=1,
+            keepdim=True
+        ).values
+        # (batch, 1)
+
+
+        classes_with_max_probability_sum = (
+            probability_sum_masked
+            == max_probability_sum
+        )
+        # (batch, class)
+        # (batch, 4)
+
+
+        # ==========================================================
+        # THIRD CRITERION:
+        # HIGHEST INDIVIDUAL PROBABILITY AMONG THE BRANCHES
+        # THAT VOTED FOR EACH CLASS
+        # ==========================================================
+
+        max_individual_probability = voted_probabilities.max(
+            dim=1
+        ).values
+        # (batch, class)
+        # (batch, 4)
+
+
+        max_individual_probability_masked = (
+            max_individual_probability.masked_fill(
+                ~classes_with_max_probability_sum,
+                float("-inf")
+            )
+        )
+        # (batch, class)
+        # (batch, 4)
+
+
+        # ==========================================================
+        # FINAL PREDICTION
+        # ==========================================================
+
+        final_prediction = torch.argmax(
+            max_individual_probability_masked,
+            dim=1
+        )
+        # (batch,)
+
+
+        return final_prediction
+
+    
