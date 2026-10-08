@@ -92,8 +92,8 @@ DEFAULT_SUBJECTS = [
 
 
 
-COLUMNS_PER_ROW = 10
-HEADING_LENGTH = 2
+COLUMNS_PER_ROW = 40
+HEADING_LENGTH = 3
 CELL_WIDTH = 20
 CELL_HEIGHT = 15
 
@@ -211,10 +211,12 @@ def create_pdf(file_name, SUB_CONDIT_DIR, test_indices):
 
 
 
-def checking_indices_labels(BRANCHES_SUB_CONDIT_DIR, branches, fold, model_state):
+def checking_indices_labels(BRANCHES_SUB_CONDIT_DIR, branches, level, fold, model_state):
 
-    aux_test_all_labels = None
-    aux_test_indices = None
+
+    aux_indices = None
+    aux_labels = None
+    
 
     for branch in branches:
 
@@ -241,49 +243,60 @@ def checking_indices_labels(BRANCHES_SUB_CONDIT_DIR, branches, fold, model_state
             weights_only=False
         )
 
-        test_all_labels = checkpoint[model_state]["all_labels"]
 
-        test_indices = checkpoint["test_indices"]
+        match level:
+        
+            case "test":
 
-        # =================================================
-        # VERIFYING TEST INDICES
-        # =================================================
-        if aux_test_indices is None:
+                indices = checkpoint["test_indices"]            
+                labels = checkpoint[model_state]["all_labels"]
+                
+                # =================================================
+                # VERIFYING INDICES
+                # =================================================
+                if aux_indices is None:
 
-            aux_test_indices = test_indices.copy()
+                    aux_indices = indices.copy()
 
-        elif not np.array_equal(aux_test_indices, test_indices ):
+                elif not np.array_equal(aux_indices, indices):
 
-            raise ValueError(
-                    "Test indices are diferent."
-                )
+                    raise ValueError(
+                            "Indices are diferent."
+                        )
 
-        # =================================================
-        # VERIFYING TEST LABELS
-        # =================================================
-        if aux_test_all_labels is None:
+                # =================================================
+                # VERIFYING LABELS
+                # =================================================
+                if aux_labels is None:
 
-            aux_test_all_labels = test_all_labels.copy()
+                    aux_labels = labels.copy()
 
-        elif not np.array_equal(aux_test_all_labels, test_all_labels ):
+                elif not np.array_equal(aux_labels, labels ):
 
-            raise ValueError(
-                    "Test Labelas are diferent."
-                )
+                    raise ValueError(
+                            "Test Labelas are diferent."
+                    )
 
-    return  test_indices, test_all_labels
+            case _:
+
+                raise ValueError(
+                    f"Invalid level: {level}"
+                    )
+        
+
+    return  indices, labels
 
 
 def include_indices_labels(
         story, 
         indices_labels, 
-        heading_text,
-        heading_color='#555555', 
-        color= '#555555',
+        heading_text,       
+        box_background,
+        box_line_color,
+        box_text_color='#2C3E50',
+        heading_text_color = "#2C3E50",
+        box_line_thickness = 0.5,
         fontsize = 8, 
-        box_background= '#FFFFFF',
-        box_line_color= '#C3E6CB', 
-        box_line_thickness=1.5
 ):
 
     table_data = []
@@ -305,7 +318,7 @@ def include_indices_labels(
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), fontsize),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(color)),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(box_text_color)),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
 
         ('SPAN', (0, 0), (HEADING_LENGTH-1, 0)),
@@ -313,7 +326,7 @@ def include_indices_labels(
         ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
         ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (0, 0), fontsize),
-        ('TEXTCOLOR', (0, 0), (0, 0), colors.HexColor(heading_color)),
+        ('TEXTCOLOR', (0, 0), (0, 0), colors.HexColor(heading_text_color)),
     ]
 
     # Aplicar o fundo verde claro e as bordas apenas nas células que possuem números reais
@@ -338,89 +351,168 @@ def include_indices_labels(
 
     story.append(table)
 
-    return story, box_background, box_line_color, box_line_thickness
+    return story, table_data
 
 
+def retrive_predictions(       
+        BRANCHES_SUB_CONDIT_DIR,
+        branch,
+        level,
+        fold, 
+        model_state,
+        
+):
 
-def include_results(story, BRANCHES_SUB_CONDIT_DIR, branches, fusions , fold, model_state):
-
+    
     """Includes lines in the comparison graph"""
 
 
+    match branch:
 
-    
+        # ------------------------------------------
 
-    
+        case "space1_space2_frequency_time":
+
+            heading_text = "s1_s2_f_t"
+
+        # ------------------------------------------
+
+        case "space1_space2_time_frequency":
+
+            heading_text = "s1_s1_t_f"
+
+
+        # ------------------------------------------
+
+        case "time_frequency_space2_space1":
+
+            heading_text = "t_f_s2_s1"
+
+        # ------------------------------------------
+
+        case "time_frequency_space1_space2":
+
+            heading_text = "t_f_s1_s2"
+
+        case _:
+
+            raise ValueError(
+                f"Invalid branch: {branch}"
+                )
+
+    # ==================================================
+    # LOADING DATA
+    # ==================================================
+
+    fold_checkpoint = (
+        BRANCHES_SUB_CONDIT_DIR
+        / f"{branch}_branch"
+        / f"{branch}_fold_{fold}.pth"
+    )
+
+    if not fold_checkpoint.exists():
+
+        raise FileNotFoundError(
+            f"Fold checkpoint file not found:\n"
+            f"{fold_checkpoint}"
+        )
+
+
+    checkpoint = torch.load(
+        fold_checkpoint,
+        map_location="cpu",
+        weights_only=False
+    )
+
+    match level:
+
+        case "test":
+            
+            test_predictions = checkpoint[model_state]["all_predictions"]
+
+        case _:
+
+            raise ValueError(
+                f"Invalid level: {level}"
+            )
+
+    return test_predictions, heading_text
 
 
 
+def include_predictions(
+        story, 
+        predictions, 
+        box_standard_background,
+        box_success_background, 
+        box_line_color,
+        labels_data,
+        heading_text,
+        box_text_color='#2C3E50',
+        heading_text_color = "#2C3E50",
+        box_line_thickness = 0.5,
+        fontsize = 8, 
+
+     
+):
+
+    table_data = []
+
+    heading = [heading_text] + [""]*(HEADING_LENGTH-1)    
+    first_line = heading + [str(x) for x in predictions[:COLUMNS_PER_ROW-(HEADING_LENGTH)]]
+    table_data.append(first_line)
+
+    for i in range(COLUMNS_PER_ROW-(HEADING_LENGTH), len(predictions), COLUMNS_PER_ROW):
+        sub_list = predictions[i:i + COLUMNS_PER_ROW]
+        text_line = [str(x) for x in sub_list]
+        table_data.append(text_line)
         
+    estilo_quadradinhos = [
+
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), fontsize),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(box_text_color)),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+
+        ('SPAN', (0, 0), (HEADING_LENGTH-1, 0)),
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (0, 0), fontsize),
+        ('TEXTCOLOR', (0, 0), (0, 0), colors.HexColor(heading_text_color)),
+    ]
+
+    # Aplicar o fundo verde claro e as bordas apenas nas células que dão match
+    for line_idx, line in enumerate(table_data):
+        for col_idx, value in enumerate(line):
+
+            if value != "":          
+
+                if line_idx == 0 and col_idx < HEADING_LENGTH:
+                    continue
 
 
+                estilo_quadradinhos.extend([
+                    ('BACKGROUND', (col_idx, line_idx), (col_idx, line_idx), colors.HexColor(box_standard_background)),
+                    ('BOX', (col_idx, line_idx), (col_idx, line_idx), box_line_thickness, colors.HexColor(box_line_color)),
+                ])
 
-        
-
-
-
-    # # Divide o vetor em linhas de no máximos elementos para caber perfeitamente na página
-    # colunas_por_linha = 40
-    # dados_tabela = []
-
-    # primeira_linha = ["indices:", ""] + [str(x) for x in all_predictions[:colunas_por_linha-2]]
-    # dados_tabela.append(primeira_linha)
-
-    # for i in range(colunas_por_linha-2, len(all_predictions), colunas_por_linha):
-    #     sub_lista = all_predictions[i:i + colunas_por_linha]
-    #     # Se a última linha tiver menos que 10 elementos, preenchemos com strings vazias para manter o alinhamento das células
-    #     estilo_linha = [str(x) for x in sub_lista]
-    #     dados_tabela.append(estilo_linha)
-        
-    # # Configuração visual da tabela (quadradinhos)
-    # # Definimos tamanhos fixos para as células parecerem quadradinhos
-    # largura_celula = 20
-    # altura_celula = 15
-
-    # # Estilização genérica para os quadradinhos
-    # estilo_quadradinhos = [
-
-    #         # Mescla a célula da coluna 0 até a coluna 1 na linha 0 para o texto "Índices:"
-    #     ('SPAN', (0, 0), (2, 0)),
-    #     ('ALIGN', (0, 0), (1, 0), 'LEFT'),
-    #     ('FONTNAME', (0, 0), (1, 0), 'Helvetica-Bold'),
-    #     ('FONTSIZE', (0, 0), (1, 0), 12),
-    #     ('TEXTCOLOR', (0, 0), (1, 0), colors.HexColor('#555555')),
+                if table_data[line_idx][col_idx] == labels_data[line_idx][col_idx]:
+                    estilo_quadradinhos.extend([
+                        ('BACKGROUND', (col_idx, line_idx), (col_idx, line_idx), colors.HexColor(box_success_background))
+                ])
 
 
+    # Construção da tabela
+    table = Table(table_data, colWidths=[CELL_WIDTH]*COLUMNS_PER_ROW, rowHeights=[CELL_HEIGHT]*len(table_data))
+    table.hAlign = 'LEFT' 
+    table.setStyle(TableStyle(estilo_quadradinhos))
 
-    #     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-    #     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    #     ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-    #     ('FONTSIZE', (0, 0), (-1, -1), 8),
-    #     ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1E4620')), # Texto verde escuro para contraste
-    #     ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    # ]
+    story.append(table)
 
-    # # Aplicar o fundo verde claro e as bordas apenas nas células que possuem números reais
-    # for linha_idx, linha in enumerate(dados_tabela):
-    #     for col_idx, valor in enumerate(linha):
-    #         if valor != "":
-
-    #             if linha_idx == 0 and col_idx < 3:
-    #                 continue
-
-
-    #             estilo_quadradinhos.extend([
-    #                 ('BACKGROUND', (col_idx, linha_idx), (col_idx, linha_idx), colors.HexColor('#D4EDDA')), # Verde Claro
-    #                 ('BOX', (col_idx, linha_idx), (col_idx, linha_idx), 1.5, colors.HexColor('#C3E6CB')), # Borda verde um pouco mais firme
-    #             ])
-
-    # # Construção da tabela
-    # tabela = Table(dados_tabela, colWidths=[largura_celula]*colunas_por_linha, rowHeights=[altura_celula]*len(dados_tabela))
-    # tabela.hAlign = 'LEFT' 
-    # tabela.setStyle(TableStyle(estilo_quadradinhos))
-
-    # story.append(tabela)
-
+    return story
 
 
 # ==========================================================
@@ -526,6 +618,7 @@ def model_results_comparison(
 
         story.append(Paragraph(f"<b> {subject.title()} - {" ".join(f"{condition_folder}".split("_")).title()}</b>", title_style))
 
+
         # ==================================================
         # LOOP DOS FOLDS
         # ==================================================
@@ -582,30 +675,60 @@ def model_results_comparison(
                 story.append(Paragraph(f"<b> {" ".join(f"{model_state}".split("_")).title()} State</b>", model_style))
 
                 # ======================================================
-                # CHECKING IF ALL LABELS AND INDICES USED ARE THE SAME
+                # CHECKING IF ALL LABELS AND INDICES USED ARE SAME
                 # ======================================================
 
-                ( test_indices, test_all_labels ) = checking_indices_labels(BRANCHES_SUB_CONDIT_DIR, branches, fold, model_state)
+                ( test_indices, test_labels ) = checking_indices_labels(BRANCHES_SUB_CONDIT_DIR, branches, "test", fold, model_state)
 
                 # =================================================
                 # INCLUDING INDICES, LABELS AND PREDICTIONS
                 # =================================================
-                story, _, _, _  = include_indices_labels(
+                story, _ = include_indices_labels(
                     story, 
                     test_indices, 
                     "indices:",
-                    color='#1E4620'
+                    box_background= "#EBEBEB",
+                    box_line_color= '#C3E6CB',
                 )
 
-                story, box_background, box_line_color, box_line_thickness  = include_indices_labels(
+                story, labels_data = include_indices_labels(
                     story, 
-                    test_all_labels, 
+                    test_labels, 
                     "labels:",
-                    color= '#1E4620',
-                    box_background = '#D4EDDA',
-                    box_line_color= '#C3E6CB', 
-                    box_line_thickness=1.5
+                    box_background= '#D4EDDA',
+                    box_line_color= '#C3E6CB',
                 )
+
+
+                for branch in branches: 
+
+                    test_predictions, heading_text = retrive_predictions(
+                        BRANCHES_SUB_CONDIT_DIR,
+                        branch,
+                        "test",
+                        fold, 
+                        model_state,                    
+                    )
+
+                    story = include_predictions(
+                        story,
+                        test_predictions,
+                        box_standard_background = '#FFFFFF',
+                        box_success_background = '#D4EDDA',
+                        box_line_color= '#C3E6CB',
+                        labels_data = labels_data,
+                        heading_text = heading_text
+
+                    )
+
+               
+
+
+
+
+      
+
+
 
   
 
