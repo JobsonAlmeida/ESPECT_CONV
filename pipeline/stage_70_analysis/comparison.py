@@ -165,7 +165,7 @@ def create_pdf(file_name, SUB_CONDIT_DIR, test_indices):
     altura_celula = 15
     
     # Estilização genérica para os quadradinhos
-    estilo_quadradinhos = [
+    square_style = [
 
           # Mescla a célula da coluna 0 até a coluna 1 na linha 0 para o texto "Índices:"
         ('SPAN', (0, 0), (2, 0)),
@@ -193,7 +193,7 @@ def create_pdf(file_name, SUB_CONDIT_DIR, test_indices):
                     continue
 
 
-                estilo_quadradinhos.extend([
+                square_style.extend([
                     ('BACKGROUND', (col_idx, linha_idx), (col_idx, linha_idx), colors.HexColor('#D4EDDA')), # Verde Claro
                     ('BOX', (col_idx, linha_idx), (col_idx, linha_idx), 1.5, colors.HexColor('#C3E6CB')), # Borda verde um pouco mais firme
                 ])
@@ -201,7 +201,7 @@ def create_pdf(file_name, SUB_CONDIT_DIR, test_indices):
     # Construção da tabela
     tabela = Table(dados_tabela, colWidths=[largura_celula]*colunas_por_linha, rowHeights=[altura_celula]*len(dados_tabela))
     tabela.hAlign = 'LEFT' 
-    tabela.setStyle(TableStyle(estilo_quadradinhos))
+    tabela.setStyle(TableStyle(square_style))
     
     story.append(tabela)
     story.append(tabela)
@@ -211,14 +211,24 @@ def create_pdf(file_name, SUB_CONDIT_DIR, test_indices):
 
 
 
-def checking_indices_labels(BRANCHES_SUB_CONDIT_DIR, branches, level, fold, model_state):
-
+def checking_indices_labels(
+        BRANCHES_SUB_CONDIT_DIR, 
+        branches, 
+        FUSIONS_SUB_CONDIT_DIR,
+        fusions_one_step,
+        level, 
+        fold, 
+        model_state):
 
     aux_indices = None
     aux_labels = None
     
 
     for branch in branches:
+
+        # ==================================================
+        # LOADING BRANCH CHECKPOINT
+        # ==================================================
 
         fold_checkpoint = (
             BRANCHES_SUB_CONDIT_DIR
@@ -233,9 +243,6 @@ def checking_indices_labels(BRANCHES_SUB_CONDIT_DIR, branches, level, fold, mode
                 f"{fold_checkpoint}"
             )
 
-        # ==================================================
-        # CARREGAR RESUMO DOS FOLDS
-        # ==================================================
 
         checkpoint = torch.load(
             fold_checkpoint,
@@ -250,41 +257,101 @@ def checking_indices_labels(BRANCHES_SUB_CONDIT_DIR, branches, level, fold, mode
 
                 indices = checkpoint["test_indices"]            
                 labels = checkpoint[model_state]["all_labels"]
-                
-                # =================================================
-                # VERIFYING INDICES
-                # =================================================
-                if aux_indices is None:
-
-                    aux_indices = indices.copy()
-
-                elif not np.array_equal(aux_indices, indices):
-
-                    raise ValueError(
-                            "Indices are diferent."
-                        )
-
-                # =================================================
-                # VERIFYING LABELS
-                # =================================================
-                if aux_labels is None:
-
-                    aux_labels = labels.copy()
-
-                elif not np.array_equal(aux_labels, labels ):
-
-                    raise ValueError(
-                            "Test Labelas are diferent."
-                    )
 
             case _:
 
                 raise ValueError(
                     f"Invalid level: {level}"
                     )
-        
 
-    return  indices, labels
+        # =================================================
+        # VERIFYING INDICES
+        # =================================================
+        if aux_indices is None:
+
+            aux_indices = indices.copy()
+
+        elif not np.array_equal(aux_indices, indices):
+
+            raise ValueError(
+                    "Indices are diferent!"
+                )
+
+        # =================================================
+        # VERIFYING LABELS
+        # =================================================
+        if aux_labels is None:
+
+            aux_labels = labels.copy()
+
+        elif not np.array_equal(aux_labels, labels ):
+
+            raise ValueError(
+                    "Labels are diferent!"
+            )
+
+    for fusion in fusions_one_step:
+
+        # ==================================================
+        # LOADING FUSION CHECKPOINT
+        # ==================================================
+
+        fold_checkpoint = (
+            FUSIONS_SUB_CONDIT_DIR
+            / f"{fusion}_from_{model_state}_in_branches"
+            / f"{fusion}_fold_{fold}.pth"
+        )
+
+        if not fold_checkpoint.exists():
+
+            raise FileNotFoundError(
+                f"Fold checkpoint file not found:\n"
+                f"{fold_checkpoint}"
+            )
+
+        checkpoint = torch.load(
+            fold_checkpoint,
+            map_location="cpu",
+            weights_only=False
+        )
+
+
+        match level:
+        
+            case "test":
+
+                indices = checkpoint["dataset"]["test_indices"]            
+                labels = checkpoint["test_set"]["all_labels"]
+
+            case _:
+
+                raise ValueError(
+                    f"Invalid level: {level}"
+                    )
+
+        # =================================================
+        # VERIFYING INDICES
+        # =================================================
+       
+
+        if not np.array_equal(aux_indices, indices):
+
+            raise ValueError(
+                    "Indices are diferent!"
+                )
+
+        # =================================================
+        # VERIFYING LABELS
+        # =================================================
+
+        if not np.array_equal(aux_labels, labels ):
+
+            raise ValueError(
+                    "Labels are diferent!"
+            )
+
+
+    return  aux_indices, aux_labels
 
 
 def include_indices_labels(
@@ -292,11 +359,18 @@ def include_indices_labels(
         indices_labels, 
         heading_text,       
         box_background,
-        box_line_color,
+        box_line_color,        
         box_text_color='#2C3E50',
         heading_text_color = "#2C3E50",
-        box_line_thickness = 0.5,
+        line_thickness = 0.5,
         fontsize = 8, 
+        line_below = False,
+        line_below_thickness = 3.0,
+        line_below_color = '#2C3E50',
+        line_above = False,
+        line_above_thickness = 3.0,
+        line_above_color = '#2C3E50',
+
 ):
 
     table_data = []
@@ -312,7 +386,7 @@ def include_indices_labels(
         text_line = [str(x) for x in sub_list]
         table_data.append(text_line)
         
-    estilo_quadradinhos = [
+    square_style = [
 
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -338,23 +412,32 @@ def include_indices_labels(
                 if line_idx == 0 and col_idx < HEADING_LENGTH:
                     continue
 
-
-                estilo_quadradinhos.extend([
+                square_style.extend([
                     ('BACKGROUND', (col_idx, line_idx), (col_idx, line_idx), colors.HexColor(box_background)),
-                    ('BOX', (col_idx, line_idx), (col_idx, line_idx), box_line_thickness, colors.HexColor(box_line_color)),
+                    ('BOX', (col_idx, line_idx), (col_idx, line_idx), line_thickness, colors.HexColor(box_line_color)),
+                ])
+
+                if line_below: 
+                    square_style.extend([
+                        ('LINEBELOW', (col_idx, line_idx), (col_idx, line_idx), line_below_thickness, colors.HexColor(line_below_color)),
+                ])
+
+                if line_above: 
+                    square_style.extend([
+                        ('LINEABOVE', (col_idx, line_idx), (col_idx, line_idx), line_above_thickness, colors.HexColor(line_above_color)),
                 ])
 
     # Construção da tabela
     table = Table(table_data, colWidths=[CELL_WIDTH]*COLUMNS_PER_ROW, rowHeights=[CELL_HEIGHT]*len(table_data))
     table.hAlign = 'LEFT' 
-    table.setStyle(TableStyle(estilo_quadradinhos))
+    table.setStyle(TableStyle(square_style))
 
     story.append(table)
 
     return story, table_data
 
 
-def retrive_predictions(       
+def retrive_predictions_branches(       
         BRANCHES_SUB_CONDIT_DIR,
         branch,
         level,
@@ -439,6 +522,75 @@ def retrive_predictions(
     return test_predictions, heading_text
 
 
+def retrive_predictions_fusions_one_step(       
+        FUSIONS_SUB_CONDIT_DIR,
+        fusion,
+        level,
+        fold, 
+        model_state,
+        
+):
+
+    
+    """Includes lines in the comparison graph"""
+
+
+    match fusion:
+
+        # ------------------------------------------
+
+        case "majority_voting_fusion":
+
+            heading_text = "maj_vot_fus"
+
+        # ------------------------------------------
+
+    
+        case _:
+
+            raise ValueError(
+                f"Invalid branch: {fusion}"
+                )
+
+    # ==================================================
+    # LOADING DATA
+    # ==================================================
+
+    fold_checkpoint = (
+        FUSIONS_SUB_CONDIT_DIR
+        / f"{fusion}_from_{model_state}_in_branches"
+        / f"{fusion}_fold_{fold}.pth"
+    )
+
+    if not fold_checkpoint.exists():
+
+        raise FileNotFoundError(
+            f"Fold checkpoint file not found:\n"
+            f"{fold_checkpoint}"
+        )
+
+
+    checkpoint = torch.load(
+        fold_checkpoint,
+        map_location="cpu",
+        weights_only=False
+    )
+
+    match level:
+
+        case "test":
+            
+            predictions = checkpoint["test_set"]["all_predictions"]
+
+        case _:
+
+            raise ValueError(
+                f"Invalid level: {level}"
+            )
+
+    return predictions, heading_text
+
+
 
 def include_predictions(
         story, 
@@ -452,6 +604,12 @@ def include_predictions(
         heading_text_color = "#2C3E50",
         box_line_thickness = 0.5,
         fontsize = 8, 
+        line_below = False,
+        line_below_thickness = 1.0,
+        line_below_color = '#2C3E50',
+        line_above = False,
+        line_above_thickness = 1.0,
+        line_above_color = '#2C3E50',
 
      
 ):
@@ -467,7 +625,7 @@ def include_predictions(
         text_line = [str(x) for x in sub_list]
         table_data.append(text_line)
         
-    estilo_quadradinhos = [
+    square_style = [
 
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -494,25 +652,37 @@ def include_predictions(
                     continue
 
 
-                estilo_quadradinhos.extend([
+                square_style.extend([
                     ('BACKGROUND', (col_idx, line_idx), (col_idx, line_idx), colors.HexColor(box_standard_background)),
                     ('BOX', (col_idx, line_idx), (col_idx, line_idx), box_line_thickness, colors.HexColor(box_line_color)),
                 ])
 
                 if table_data[line_idx][col_idx] == labels_data[line_idx][col_idx]:
-                    estilo_quadradinhos.extend([
+                    square_style.extend([
                         ('BACKGROUND', (col_idx, line_idx), (col_idx, line_idx), colors.HexColor(box_success_background))
+                ])
+
+                if line_below: 
+                    square_style.extend([
+                        ('LINEBELOW', (col_idx, line_idx), (col_idx, line_idx), line_below_thickness, colors.HexColor(line_below_color)),
+                ])
+
+                if line_above: 
+                    square_style.extend([
+                        ('LINEABOVE', (col_idx, line_idx), (col_idx, line_idx), line_above_thickness, colors.HexColor(line_above_color)),
                 ])
 
 
     # Construção da tabela
     table = Table(table_data, colWidths=[CELL_WIDTH]*COLUMNS_PER_ROW, rowHeights=[CELL_HEIGHT]*len(table_data))
     table.hAlign = 'LEFT' 
-    table.setStyle(TableStyle(estilo_quadradinhos))
+    table.setStyle(TableStyle(square_style))
 
     story.append(table)
 
     return story
+
+
 
 
 # ==========================================================
@@ -524,7 +694,8 @@ def model_results_comparison(
     condition_folder = "PRONOUNCED_SPEECH",
     N_FOLDS=N_FOLDS,
     model_states = ["minimum_loss_model", "maximum_accuracy_model"],
-    branches = ["space1_space2_frequency_time"]
+    branches = ["space1_space2_frequency_time"],
+    fusions_one_step = "majority_voting_fusion",
     
 ):
 
@@ -570,12 +741,22 @@ def model_results_comparison(
         # DIRETÓRIO DOS MODELOS
         # ==================================================
 
+        # BRANCHES
         BRANCHES_SUB_CONDIT_DIR = (
             BRANCHES_STAGE_DIR
             / subject
             / condition_folder.lower()
         )
 
+        # FUSIONS
+        FUSIONS_SUB_CONDIT_DIR = (
+            FUSIONS_STAGE_DIR
+            / subject
+            / condition_folder.lower()
+            
+        )
+
+        # SUB_OUTPUT
         SUB_CONDIT_OUTPUT_DIR = (
             OUTPUT_DIR
             /subject
@@ -586,6 +767,11 @@ def model_results_comparison(
             parents=True,
             exist_ok=True
         )
+
+
+       
+
+
 
 
         # =======================================
@@ -678,7 +864,15 @@ def model_results_comparison(
                 # CHECKING IF ALL LABELS AND INDICES USED ARE SAME
                 # ======================================================
 
-                ( test_indices, test_labels ) = checking_indices_labels(BRANCHES_SUB_CONDIT_DIR, branches, "test", fold, model_state)
+                ( test_indices, test_labels ) = checking_indices_labels(
+                    BRANCHES_SUB_CONDIT_DIR, 
+                    branches, 
+                    FUSIONS_SUB_CONDIT_DIR,
+                    fusions_one_step, 
+                    "test", 
+                    fold, 
+                    model_state
+                )
 
                 # =================================================
                 # INCLUDING INDICES, LABELS AND PREDICTIONS
@@ -697,12 +891,13 @@ def model_results_comparison(
                     "labels:",
                     box_background= '#D4EDDA',
                     box_line_color= '#C3E6CB',
+                    line_below= True,                    
                 )
 
 
                 for branch in branches: 
 
-                    test_predictions, heading_text = retrive_predictions(
+                    test_predictions, heading_text = retrive_predictions_branches(
                         BRANCHES_SUB_CONDIT_DIR,
                         branch,
                         "test",
@@ -720,6 +915,30 @@ def model_results_comparison(
                         heading_text = heading_text
 
                     )
+
+                for fusion_one_step in fusions_one_step:
+
+                    test_predictions, heading_text = retrive_predictions_fusions_one_step(
+                        FUSIONS_SUB_CONDIT_DIR,
+                        fusion_one_step,
+                        "test",
+                        fold, 
+                        model_state,                    
+                    )
+
+                    story = include_predictions(
+                        story,
+                        test_predictions,
+                        box_standard_background = '#FFFFFF',
+                        box_success_background = '#D4EDDA',
+                        box_line_color= '#C3E6CB',
+                        labels_data = labels_data,
+                        heading_text = heading_text,
+                        line_above=True,                      
+                        line_below=True,                      
+                    )
+
+
 
                
 
@@ -744,7 +963,7 @@ if __name__ == "__main__":
 
     model_results_comparison(     
         subjects=[
-            "sub-01"
+            "sub-10"
         ],
         condition_folder = "PRONOUNCED_SPEECH",
         branches= [
@@ -752,5 +971,8 @@ if __name__ == "__main__":
             "space1_space2_time_frequency",
             "time_frequency_space2_space1",
             "time_frequency_space1_space2"
-            ]
+            ],
+        fusions_one_step = [
+            "majority_voting_fusion"
+        ]
     )

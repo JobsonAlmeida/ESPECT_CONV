@@ -1247,7 +1247,7 @@ if __name__ == "__main__":
 
     execute_fusion_majority_voting(
         fusion= "majority_voting_fusion",
-        branch_model_state = "minimum_loss_model",
-        subjects=["sub-01"],
+        branch_model_state = "maximum_accuracy_model",
+        subjects=["sub-10"],
         condition_folder = "pronounced_speech",        
     )

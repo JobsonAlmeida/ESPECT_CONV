@@ -260,10 +260,13 @@ def test_model(
 
     test_total = 0
 
-
     all_predictions = []
 
     all_labels = []
+
+    all_outputs = []
+
+    all_probabilities = []
 
 
     # ======================================================
@@ -296,6 +299,11 @@ def test_model(
                 X_batch
             )
 
+            # Probabilities
+            probabilities = torch.softmax(
+                outputs,
+                dim=1
+            )
 
             # --------------------------------------------------
             # LOSS
@@ -355,8 +363,16 @@ def test_model(
 
 
             # --------------------------------------------------
-            # SALVAR PREVISÕES E LABELS
+            # SALVAR PROBABILITIES, PREVISIONS AND LABELS
             # --------------------------------------------------
+
+            all_outputs.extend(
+                outputs.cpu().numpy().tolist()
+            )
+
+            all_probabilities.extend(
+                probabilities.cpu().numpy().tolist()
+            )
 
             all_predictions.extend(
                 predictions
@@ -364,7 +380,6 @@ def test_model(
                 .numpy()
                 .tolist()
             )
-
 
             all_labels.extend(
                 y_batch
@@ -396,12 +411,25 @@ def test_model(
         / test_total
     )
 
+    assert np.allclose(
+        np.asarray(all_probabilities).sum(axis=1),
+        1.0,
+        atol=1e-6,
+        rtol=0
+    ), "The probabilities do not add up to 1!"
+
+    assert np.array_equal(
+        np.asarray(all_predictions),
+        np.asarray(all_probabilities).argmax(axis=1)
+    ), "The predictions do not match the probabilities!"
 
     return (
         test_loss,
         test_accuracy,
         all_labels,
         all_predictions,
+        all_outputs,
+        all_probabilities,
     )
 
 
@@ -1938,6 +1966,8 @@ def execute_branch(
                 test_accuracy_ml,
                 all_labels_ml,
                 all_predictions_ml,
+                all_outputs_ml,
+                all_probabilities_ml,
             ) = test_model(
                 model=model,
                 model_state_dict=(
@@ -1968,6 +1998,8 @@ def execute_branch(
                 test_accuracy_ma,
                 all_labels_ma,
                 all_predictions_ma,
+                all_outputs_ma,
+                all_probabilities_ma,
             ) = test_model(
                 model=model,
                 model_state_dict=(
@@ -1978,11 +2010,9 @@ def execute_branch(
                 criterion=criterion,
             )
 
-
             fold_losses_ma.append(
                 test_loss_ma
             )
-
 
             fold_accuracies_ma.append(
                 test_accuracy_ma
@@ -2201,6 +2231,18 @@ def execute_branch(
                                 all_labels_ml,
                                 dtype=np.int64
                             ),
+
+                        "all_outputs": 
+                            np.asarray(
+                                    all_outputs_ml,
+                                    dtype=np.float64
+                            ),
+
+                        "all_probabilities": 
+                            np.asarray(
+                                    all_probabilities_ml,
+                                    dtype=np.float64
+                            ),
                     },
 
 
@@ -2252,6 +2294,18 @@ def execute_branch(
                             np.asarray(
                                 all_labels_ma,
                                 dtype=np.int64
+                            ),
+
+                        "all_outputs": 
+                            np.asarray(
+                                    all_outputs_ma,
+                                    dtype=np.float64
+                            ),
+
+                        "all_probabilities": 
+                            np.asarray(
+                                    all_probabilities_ma,
+                                    dtype=np.float64
                             ),
                     },
 
