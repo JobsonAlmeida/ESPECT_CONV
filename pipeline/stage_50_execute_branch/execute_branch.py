@@ -363,7 +363,7 @@ def test_model(
 
 
             # --------------------------------------------------
-            # SALVAR PROBABILITIES, PREVISIONS AND LABELS
+            # SALVE PROBABILITIES, PREVISIONS AND LABELS
             # --------------------------------------------------
 
             all_outputs.extend(
@@ -1725,6 +1725,15 @@ def execute_branch(
                 val_total = 0
 
 
+                all_predictions_val = []
+
+                all_labels_val = []
+
+                all_outputs_val = []
+
+                all_probabilities_val = []
+
+
                 with torch.no_grad():
 
                     for (
@@ -1749,6 +1758,11 @@ def execute_branch(
 
                         outputs = model(
                             X_batch
+                        )
+
+                        probabilities_val = torch.softmax(
+                            outputs,
+                            dim=1
                         )
 
 
@@ -1805,6 +1819,33 @@ def execute_branch(
                         val_total += (
                             batch_size
                         )
+
+                        # --------------------------------------------------
+                        # SALVE PROBABILITIES, PREVISIONS AND LABELS
+                        # --------------------------------------------------
+
+                        all_outputs_val.extend(
+                            outputs.cpu().numpy().tolist()
+                        )
+
+                        all_probabilities_val.extend(
+                            probabilities_val.cpu().numpy().tolist()
+                        )
+
+                        all_predictions_val.extend(
+                            predictions
+                            .cpu()
+                            .numpy()
+                            .tolist()
+                        )
+
+                        all_labels_val.extend(
+                            y_batch
+                            .cpu()
+                            .numpy()
+                            .tolist()
+                        )
+
 
 
                 # ==========================================
@@ -1875,6 +1916,23 @@ def execute_branch(
                     )
 
 
+                    min_val_loss_all_outputs_val = (
+                        all_outputs_val
+                    )
+
+                    min_val_loss_all_probabilities_val = (
+                        all_probabilities_val
+                    )
+
+                    min_val_loss_all_predictions_val = (
+                        all_predictions_val
+                    )
+
+                    min_val_loss_all_labels_val = (
+                        all_labels_val
+                    )
+
+
                 # ==========================================
                 # MAIOR VALIDATION ACCURACY
                 #
@@ -1915,6 +1973,22 @@ def execute_branch(
                         copy.deepcopy(
                             model.state_dict()
                         )
+                    )
+
+                    max_val_accuracy_all_outputs_val = (
+                        all_outputs_val
+                    )
+
+                    max_val_accuracy_all_probabilities_val = (
+                        all_probabilities_val
+                    )
+
+                    max_val_accuracy_all_predictions_val = (
+                        all_predictions_val
+                    )
+
+                    max_val_accuracy_all_labels_val = (
+                        all_labels_val
                     )
 
 
@@ -1964,10 +2038,10 @@ def execute_branch(
             (
                 test_loss_ml,
                 test_accuracy_ml,
-                all_labels_ml,
-                all_predictions_ml,
-                all_outputs_ml,
-                all_probabilities_ml,
+                test_labels_ml,
+                test_predictions_ml,
+                test_outputs_ml,
+                test_probabilities_ml,
             ) = test_model(
                 model=model,
                 model_state_dict=(
@@ -1996,10 +2070,10 @@ def execute_branch(
             (
                 test_loss_ma,
                 test_accuracy_ma,
-                all_labels_ma,
-                all_predictions_ma,
-                all_outputs_ma,
-                all_probabilities_ma,
+                test_labels_ma,
+                test_predictions_ma,
+                test_outputs_ma,
+                test_probabilities_ma,
             ) = test_model(
                 model=model,
                 model_state_dict=(
@@ -2033,9 +2107,9 @@ def execute_branch(
                 ),
                 test_loss=test_loss_ml,
                 test_accuracy=test_accuracy_ml,
-                all_labels=all_labels_ml,
+                all_labels=test_labels_ml,
                 all_predictions=(
-                    all_predictions_ml
+                    test_predictions_ml
                 ),
             )
 
@@ -2058,9 +2132,9 @@ def execute_branch(
                 ),
                 test_loss=test_loss_ma,
                 test_accuracy=test_accuracy_ma,
-                all_labels=all_labels_ma,
+                all_labels=test_labels_ma,
                 all_predictions=(
-                    all_predictions_ma
+                    test_predictions_ma
                 ),
             )
 
@@ -2201,7 +2275,26 @@ def execute_branch(
                         "epoch":
                             min_val_loss_epoch,
 
+                        "validation_outputs": np.asarray(
+                            min_val_loss_all_outputs_val,
+                            dtype=np.float64
+                        ),
+                        
+                        "validation_probabilities": np.asarray(
+                            min_val_loss_all_probabilities_val,
+                            dtype=np.float64
+                        ),
+    
+                        "validation_predictions": np.asarray(
+                            min_val_loss_all_predictions_val,
+                            dtype=np.int64
+                        ),
 
+                        "validation_labels": np.asarray(
+                            min_val_loss_all_labels_val,
+                           dtype=np.int64
+                        ),
+                        
                         # ------------------------------
                         # PESOS
                         # ------------------------------
@@ -2220,27 +2313,27 @@ def execute_branch(
                         "test_accuracy":
                             test_accuracy_ml,
 
-                        "all_predictions":
+                        "test_predictions":
                             np.asarray(
-                                all_predictions_ml,
+                                test_predictions_ml,
                                 dtype=np.int64
                             ),
 
-                        "all_labels":
+                        "test_labels":
                             np.asarray(
-                                all_labels_ml,
+                                test_labels_ml,
                                 dtype=np.int64
                             ),
 
-                        "all_outputs": 
+                        "test_outputs": 
                             np.asarray(
-                                    all_outputs_ml,
+                                    test_outputs_ml,
                                     dtype=np.float64
                             ),
 
-                        "all_probabilities": 
+                        "test_probabilities": 
                             np.asarray(
-                                    all_probabilities_ml,
+                                    test_probabilities_ml,
                                     dtype=np.float64
                             ),
                     },
@@ -2265,6 +2358,25 @@ def execute_branch(
                         "epoch":
                             max_val_accuracy_epoch,
 
+                        "validation_outputs": np.asarray( 
+                            max_val_accuracy_all_outputs_val,
+                            dtype=np.float64
+                        ),
+
+                        "validation_probabilities": np.asarray(
+                            max_val_accuracy_all_probabilities_val,
+                            dtype=np.float64
+                        ),
+
+                        "validation_predictions": np.asarray( 
+                            max_val_accuracy_all_predictions_val, 
+                            dtype=np.int64
+                        ),
+
+                        "validation_labels": np.asarray(
+                            max_val_accuracy_all_labels_val,
+                            dtype=np.int64
+                        ),
 
                         # ------------------------------
                         # PESOS
@@ -2284,27 +2396,27 @@ def execute_branch(
                         "test_accuracy":
                             test_accuracy_ma,
 
-                        "all_predictions":
+                        "test_predictions":
                             np.asarray(
-                                all_predictions_ma,
+                                test_predictions_ma,
                                 dtype=np.int64
                             ),
 
-                        "all_labels":
+                        "test_labels":
                             np.asarray(
-                                all_labels_ma,
+                                test_labels_ma,
                                 dtype=np.int64
                             ),
 
-                        "all_outputs": 
+                        "test_outputs": 
                             np.asarray(
-                                    all_outputs_ma,
+                                    test_outputs_ma,
                                     dtype=np.float64
                             ),
 
-                        "all_probabilities": 
+                        "test_probabilities": 
                             np.asarray(
-                                    all_probabilities_ma,
+                                    test_probabilities_ma,
                                     dtype=np.float64
                             ),
                     },
@@ -2528,7 +2640,7 @@ if __name__ == "__main__":
 
     execute_branch(
         branch="time_frequency_space1_space2",
-        N_EPOCHS=60,       
+        N_EPOCHS=600,       
         subjects=[
             "sub-01"
         ]

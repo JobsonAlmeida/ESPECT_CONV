@@ -427,17 +427,17 @@ def individual_subject_plots(
             )
 
 
-            all_labels_ml = np.asarray(
+            test_labels_ml = np.asarray(
                 minimum_loss_model[
-                    "all_labels"
+                    "test_labels"
                 ],
                 dtype=np.int64
             )
 
 
-            all_predictions_ml = np.asarray(
+            test_predictions_ml = np.asarray(
                 minimum_loss_model[
-                    "all_predictions"
+                    "test_predictions"
                 ],
                 dtype=np.int64
             )
@@ -487,17 +487,17 @@ def individual_subject_plots(
             )
 
 
-            all_labels_ma = np.asarray(
+            test_labels_ma = np.asarray(
                 maximum_accuracy_model[
-                    "all_labels"
+                    "test_labels"
                 ],
                 dtype=np.int64
             )
 
 
-            all_predictions_ma = np.asarray(
+            test_predictions_ma = np.asarray(
                 maximum_accuracy_model[
-                    "all_predictions"
+                    "test_predictions"
                 ],
                 dtype=np.int64
             )
@@ -786,24 +786,24 @@ def individual_subject_plots(
 
                 [
                     np.bincount(
-                        all_labels_ml,
+                        test_labels_ml,
                         minlength=4
                     ),
 
                     np.bincount(
-                        all_labels_ma,
+                        test_labels_ma,
                         minlength=4
                     ),
                 ],
 
                 [
                     np.bincount(
-                        all_predictions_ml,
+                        test_predictions_ml,
                         minlength=4
                     ),
 
                     np.bincount(
-                        all_predictions_ma,
+                        test_predictions_ma,
                         minlength=4
                     ),
                 ],
