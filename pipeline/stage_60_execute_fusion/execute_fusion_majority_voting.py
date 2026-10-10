@@ -1047,9 +1047,9 @@ def execute_fusion_majority_voting(
 
                     "accuracy": train_accuracy,
 
-                    "all_labels": all_labels_train,
+                    "labels": all_labels_train,
                      
-                    "all_predictions": all_predictions_train
+                    "predictions": all_predictions_train
 
                 },
 
@@ -1057,9 +1057,9 @@ def execute_fusion_majority_voting(
                 
                     "accuracy": val_accuracy,
 
-                    "all_labels": all_labels_val,
+                    "labels": all_labels_val,
                         
-                    "all_predictions": all_predictions_val
+                    "predictions": all_predictions_val
 
                 },
 
@@ -1067,9 +1067,9 @@ def execute_fusion_majority_voting(
                             
                     "accuracy": test_accuracy,
 
-                    "all_labels": all_labels_test,
+                    "labels": all_labels_test,
                         
-                    "all_predictions": all_predictions_test
+                    "predictions": all_predictions_test
 
                 }
 
@@ -1248,6 +1248,6 @@ if __name__ == "__main__":
     execute_fusion_majority_voting(
         fusion= "majority_voting_fusion",
         branch_model_state = "maximum_accuracy_model",
-        subjects=["sub-10"],
+        subjects=["sub-01"],
         condition_folder = "pronounced_speech",        
     )
