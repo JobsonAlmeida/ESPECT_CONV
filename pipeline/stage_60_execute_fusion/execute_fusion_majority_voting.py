@@ -945,8 +945,8 @@ def execute_fusion_majority_voting(
 
             (
                 train_accuracy,
-                all_labels_train,
-                all_predictions_train
+                labels_train,
+                predictions_train
             ) = evaluate_majority_voting(
                 model,
                 train_loader,
@@ -955,8 +955,8 @@ def execute_fusion_majority_voting(
 
             (
                 val_accuracy, 
-                all_labels_val, 
-                all_predictions_val
+                labels_val, 
+                predictions_val
             ) = evaluate_majority_voting(
                 model,
                 val_loader,
@@ -965,8 +965,8 @@ def execute_fusion_majority_voting(
 
             (
                 test_accuracy,
-                all_labels_test,
-                all_predictions_test
+                labels_test,
+                predictions_test
             ) = evaluate_majority_voting(
                 model,
                 test_loader,
@@ -1047,9 +1047,9 @@ def execute_fusion_majority_voting(
 
                     "accuracy": train_accuracy,
 
-                    "labels": all_labels_train,
+                    "labels": labels_train,
                      
-                    "predictions": all_predictions_train
+                    "predictions": predictions_train
 
                 },
 
@@ -1057,9 +1057,9 @@ def execute_fusion_majority_voting(
                 
                     "accuracy": val_accuracy,
 
-                    "labels": all_labels_val,
+                    "labels": labels_val,
                         
-                    "predictions": all_predictions_val
+                    "predictions": predictions_val
 
                 },
 
@@ -1067,9 +1067,9 @@ def execute_fusion_majority_voting(
                             
                     "accuracy": test_accuracy,
 
-                    "labels": all_labels_test,
+                    "labels": labels_test,
                         
-                    "predictions": all_predictions_test
+                    "predictions": predictions_test
 
                 }
 
@@ -1095,22 +1095,22 @@ def execute_fusion_majority_voting(
 
             print("Training:")
             print("Accuracy:", train_accuracy)
-            print("All labels:     ", all_labels_train)
-            print("All predictions:", all_predictions_train)
+            print("All labels:     ", labels_train)
+            print("All predictions:", predictions_train)
 
             print()
 
             print("Validation:")
             print("Accuracy:", val_accuracy)
-            print("All labels:     ", all_labels_val)
-            print("All predictions:", all_predictions_val)
+            print("All labels:     ", labels_val)
+            print("All predictions:", predictions_val)
 
             print()
 
             print("Test:")
             print("Accuracy:", test_accuracy)
-            print("All labels:     ", all_labels_test)
-            print("All predictions:", all_predictions_test)
+            print("All labels:     ", labels_test)
+            print("All predictions:", predictions_test)
 
 
         # ===========================================

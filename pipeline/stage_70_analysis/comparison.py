@@ -586,7 +586,7 @@ def retrive_probabilities_branches(
     return probabilities, heading_text
 
 
-def retrive_predictions_fusions_one_step(       
+def retrive_predictions_majority_voting_fusion(       
         FUSIONS_SUB_CONDIT_DIR,
         fusion,
         level,
@@ -605,7 +605,7 @@ def retrive_predictions_fusions_one_step(
 
         case "majority_voting_fusion":
 
-            heading_text = "maj_vot_fus"
+            heading_text = "maj_vot"
 
         # ------------------------------------------
 
@@ -674,7 +674,9 @@ def include_probabilities(
         line_above=False,
         line_above_thickness=1.0,
         line_above_color='#2C3E50',
-        show_probabilities=False
+        show_probabilities=False,
+        fusion_type = "branch",
+
 ):
 
     # ========================================
@@ -683,10 +685,12 @@ def include_probabilities(
 
     probabilities = np.asarray(probabilities)
 
-    if probabilities.ndim != 2 or probabilities.shape[1] != 4:
-        raise ValueError(
-            "Probabilities must have shape (n_samples, 4)."
-        )
+    if fusion_type != "majority_voting_fusion":
+
+        if probabilities.ndim != 2 or probabilities.shape[1] != 4:
+            raise ValueError(
+                "Probabilities must have shape (n_samples, 4)."
+            )
 
     if show_probabilities:
         heading_width = HEADING_WIDTH_1
@@ -815,8 +819,15 @@ def include_probabilities(
                     ),
                 ])
 
-                predicted_label = np.argmax(table_data[line_idx][col_idx])
+
+                if fusion_type != "majority_voting_fusion":                   
+                    predicted_label = np.argmax(table_data[line_idx][col_idx])
+
+                else:
+                    predicted_label = int(table_data[line_idx][col_idx])
+
                 true_label = int(labels_data[line_idx][col_idx])
+
 
                 if predicted_label == true_label:
 
@@ -871,6 +882,20 @@ def include_probabilities(
     )
 
 
+    cell_p_style_2 = ParagraphStyle(
+        'CellProbabilityStyle',
+        fontName='Helvetica-Bold',
+        fontSize=CELL_FONTSIZE_1,
+        leading=CELL_FONTSIZE_1 + 2,
+        textColor=colors.HexColor(box_text_color),
+        alignment=1,
+        spaceBefore=0,
+        spaceAfter=0,
+    )
+
+
+
+
     heading_p_style = ParagraphStyle(
         'HeadingTableStyle',
         fontName='Helvetica-Bold',
@@ -904,29 +929,38 @@ def include_probabilities(
                 )
 
             else : 
+
+                if fusion_type != "majority_voting_fusion":
             
-                if show_probabilities:
+                    if show_probabilities:
 
-                    p = np.round(
-                        np.asarray(value) * 100,
-                        2
-                    )
+                        p = np.round(
+                            np.asarray(value) * 100,
+                            2
+                        )
 
-                    cell_text = (
-                        f"{p[0]:.2f} {p[1]:.2f}<br/>"
-                        f"{p[2]:.2f} {p[3]:.2f}"
-                    )
+                        cell_text = (
+                            f"{p[0]:.2f} {p[1]:.2f}<br/>"
+                            f"{p[2]:.2f} {p[3]:.2f}"
+                        )
+
+                    else:
+
+                        cell_text = str(
+                            np.argmax(value)
+                        )
+
+                    string_line.append(
+                        Paragraph(cell_text, cell_p_style)
+                    )  
 
                 else:
 
-                    cell_text = str(
-                        np.argmax(value)
-                    )
+                    cell_text = str(value)
 
-                string_line.append(
-                    Paragraph(cell_text, cell_p_style)
-                )
-        
+                    string_line.append(
+                        Paragraph(cell_text, cell_p_style_2)
+                    )                  
 
         table_data_string.append(string_line)
 
@@ -967,7 +1001,7 @@ def model_results_comparison(
     N_FOLDS=N_FOLDS,
     model_states = ["minimum_loss_model", "maximum_accuracy_model"],
     branches = None,
-    fusions_no_training = None,
+    majority_voting_fusions = None,
     
 ):
 
@@ -1137,9 +1171,9 @@ def model_results_comparison(
 
                     story.append(Paragraph(f"<b> {" ".join(f"{model_state}".split("_")).title()} State</b>", model_style))
 
-                    # ==========================================================
-                    # INCLUDING INDICES, LABELS AND PREDICTIONS FOR VALIDATION
-                    # ==========================================================
+                    # ==========================================================================
+                    # INCLUDING INDICES, LABELS AND VALIDATION PREDICTIONS FOR ALL BRANCHES
+                    # ==========================================================================
 
                     (validation_indices, validation_labels) = checking_indices_labels(
                         "validation", 
@@ -1148,9 +1182,9 @@ def model_results_comparison(
                         BRANCHES_SUB_CONDIT_DIR, 
                         branches, 
                         FUSIONS_SUB_CONDIT_DIR,
-                        fusions_no_training, 
+                        majority_voting_fusions, 
                     )
-                    
+
                     story, _ = include_indices_labels(
                         story, 
                         validation_indices, 
@@ -1194,9 +1228,9 @@ def model_results_comparison(
                         )
 
 
-                    # ======================================================
-                    # INCLUDING INDICES, LABELS AND PREDICTIONS FOR TEST
-                    # ======================================================
+                    # ================================================================
+                    # INCLUDING INDICES, LABELS AND TEST PREDICTIONS FOR ALL BRANCHES
+                    # ================================================================
 
                     story.append(Spacer(1, 5))
 
@@ -1207,7 +1241,7 @@ def model_results_comparison(
                         BRANCHES_SUB_CONDIT_DIR, 
                         branches, 
                         FUSIONS_SUB_CONDIT_DIR,
-                        fusions_no_training, 
+                        majority_voting_fusions, 
                         
                     )
                     
@@ -1233,7 +1267,7 @@ def model_results_comparison(
 
                     for branch in branches: 
 
-                        test_predictions, heading_text = retrive_probabilities_branches(
+                        test_probabilities, heading_text = retrive_probabilities_branches(
                             branch,
                             "test",
                             fold, 
@@ -1244,7 +1278,7 @@ def model_results_comparison(
 
                         story = include_probabilities(
                             story,
-                            test_predictions,
+                            test_probabilities,
                             box_standard_background = '#FFFFFF',
                             box_success_background = '#D4EDDA',
                             box_line_color= "#C3E6CB",
@@ -1254,28 +1288,33 @@ def model_results_comparison(
 
                         )
 
-                    
-                    # for fusion_one_step in fusions_one_step:
+                    for majority_voting_fusion in majority_voting_fusions:
 
-                    #     test_predictions, heading_text = retrive_predictions_fusions_one_step(
-                    #         FUSIONS_SUB_CONDIT_DIR,
-                    #         fusion_one_step,
-                    #         "test",
-                    #         fold, 
-                    #         model_state,                    
-                    #     )
+                        test_predictions, heading_text = retrive_predictions_majority_voting_fusion(
+                            FUSIONS_SUB_CONDIT_DIR,
+                            majority_voting_fusion,
+                            "test",
+                            fold, 
+                            model_state,                    
+                        )
 
-                    #     story = include_probabilities(
-                    #         story,
-                    #         test_predictions,
-                    #         box_standard_background = '#FFFFFF',
-                    #         box_success_background = '#D4EDDA',
-                    #         box_line_color= '#C3E6CB',
-                    #         labels_data = labels_data,
-                    #         heading_text = heading_text,
-                    #         line_above=True,                      
-                    #         line_below=True,                      
-                    #   )
+                        story = include_probabilities(
+                            story,
+                            test_predictions,
+                            box_standard_background = '#FFFFFF',
+                            box_success_background = '#D4EDDA',
+                            box_line_color= '#C3E6CB',
+                            labels_data = labels_data,
+                            heading_text = heading_text,
+                            show_probabilities= show_probabilities,   
+                            fusion_type = "majority_voting_fusion", 
+                            line_above= True,
+                            line_above_thickness=0.3,
+                            line_below=True,
+                            line_below_thickness=0.3,
+
+                   
+                      )
 
             doc.build(story)
 
@@ -1296,7 +1335,7 @@ if __name__ == "__main__":
             "time_frequency_space2_space1",
             "time_frequency_space1_space2"
             ],
-        fusions_no_training = [
+        majority_voting_fusions = [
             "majority_voting_fusion"
         ],
     )
