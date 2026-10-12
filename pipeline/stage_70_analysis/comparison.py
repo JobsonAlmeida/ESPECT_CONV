@@ -585,6 +585,127 @@ def retrive_probabilities_branches(
     return probabilities, heading_text
 
 
+def retrive_probabilities_fusions(       
+        fusion,
+        level,
+        stage,
+        fold, 
+        model_state,
+        FUSIONS_SUB_CONDIT_DIR,
+                
+):
+
+    
+    """Includes lines in the comparison graph"""
+
+    match (fusion, stage):
+
+        # ------------------------------------------
+
+        case ("mean_fusion"):
+
+            heading_text = "mean"
+
+        # ------------------------------------------
+
+        case ("concatenation_fusion", "stage_1"):
+
+            heading_text = "concat_1"
+
+        # ------------------------------------------
+
+        case ("concatenation_fusion", "stage_2_from_stage_1_minimum_loss"):
+
+            heading_text = "concat_2"
+
+        # ------------------------------------------
+
+        case ("concatenation_fusion", "stage_2_from_stage_1_maximum_accuracy"):
+
+            heading_text = "concat_2"
+
+        # ------------------------------------------
+
+
+        case ("weighted_sum_fusion", "stage_1"):
+
+            heading_text = "wei_sum_1"
+
+        # ------------------------------------------
+
+
+        case ("weighted_sum_fusion", "stage_2_from_stage_1_minimum_loss"):
+
+            heading_text = "wei_sum_2"
+
+        # ------------------------------------------
+
+
+        case ("weighted_sum_fusion", "stage_2_from_stage_1_maximum_accuracy"):
+
+            heading_text = "wei_sum_2"
+
+        # ------------------------------------------
+
+
+
+        case "scalar_gated_fusion":
+
+            heading_text = "scalar_gated"
+
+        case "class_wise_gated_fusion":
+
+            heading_text = "class_wise_gated"
+
+        case _:
+
+            raise ValueError(
+                f"Invalid fusion: {fusion}"
+                )
+
+    # ==================================================
+    # LOADING DATA
+    # ==================================================
+
+    fold_checkpoint = (
+        FUSIONS_SUB_CONDIT_DIR
+        / f"{fusion}_from_{model_state}_in_branches"
+        / f"{fusion}_fold_{fold}.pth"
+    )
+
+    if not fold_checkpoint.exists():
+
+        raise FileNotFoundError(
+            f"Fold checkpoint file not found:\n"
+            f"{fold_checkpoint}"
+        )
+
+
+    checkpoint = torch.load(
+        fold_checkpoint,
+        map_location="cpu",
+        weights_only=False
+    )
+
+    match level:
+
+        case "test":
+            
+            probabilities = checkpoint[stage][model_state][level]["probabilities"]
+
+        case "validation":
+                    
+            probabilities = checkpoint[stage][model_state][level]["probabilities"]
+
+        case _:
+
+            raise ValueError(
+                f"Invalid level: {level}"
+            )
+
+    return probabilities, heading_text
+
+
 def retrive_predictions_majority_voting_fusion(       
         FUSIONS_SUB_CONDIT_DIR,
         fusion,
@@ -644,6 +765,10 @@ def retrive_predictions_majority_voting_fusion(
         case "test":
             
             predictions = checkpoint["test_set"]["predictions"]
+
+        case "validation":
+                    
+            predictions = checkpoint["validation_set"]["predictions"]
 
         case _:
 
@@ -1001,6 +1126,7 @@ def model_results_comparison(
     model_states = ["minimum_loss_model", "maximum_accuracy_model"],
     branches = None,
     majority_voting_fusions = None,
+    fusions = None,
     
 ):
 
@@ -1171,7 +1297,8 @@ def model_results_comparison(
                     story.append(Paragraph(f"<b> {" ".join(f"{model_state}".split("_")).title()} State</b>", model_style))
 
                     # ==========================================================================
-                    # INCLUDING INDICES, LABELS AND VALIDATION PREDICTIONS FOR ALL BRANCHES
+                    # INCLUDING INDICES, LABELS AND VALIDATION PREDICTIONS FOR ALL BRANCHES 
+                    # AND FUSIONS DURING VALIDATION
                     # ==========================================================================
 
                     (validation_indices, validation_labels) = checking_indices_labels(
@@ -1199,8 +1326,8 @@ def model_results_comparison(
                         "labels",
                         box_background= '#e6f2ff',
                         box_line_color= "#d5e8fc",
-                        line_below= True,   
-                        show_probabilities=show_probabilities,                
+                        line_below= True,
+                                      
                     )
 
 
@@ -1223,9 +1350,91 @@ def model_results_comparison(
                             box_line_color= '#d5e8fc',
                             labels_data = labels_data,
                             heading_text = heading_text,
-                            show_probabilities=show_probabilities
+                            show_probabilities=show_probabilities,
+                            
                         )
 
+                    for majority_voting_fusion in majority_voting_fusions:
+
+                        validation_predictions, heading_text = retrive_predictions_majority_voting_fusion(
+                            FUSIONS_SUB_CONDIT_DIR,
+                            majority_voting_fusion,
+                            "validation",
+                            fold, 
+                            model_state,                    
+                        )
+
+                        story = include_probabilities(
+                            story,
+                            validation_predictions,
+                            box_standard_background = '#FFFFFF',
+                            box_success_background = '#e6f2ff',
+                            box_line_color= '#d5e8fc',
+                            labels_data = labels_data,
+                            heading_text = heading_text,
+                            show_probabilities= show_probabilities,   
+                            fusion_type = "majority_voting_fusion", 
+                            line_above= True,
+                            line_above_thickness=0.1,
+                           
+                      )
+
+
+                    for fusion in fusions:
+
+                        validation_probabilities, heading_text = retrive_probabilities_fusions(
+                            fusion,
+                            "validation",
+                            "stage_1",
+                            fold, 
+                            model_state, 
+                            FUSIONS_SUB_CONDIT_DIR,
+                                            
+                        )
+
+                        story = include_probabilities(
+                            story,
+                            validation_probabilities,
+                            box_standard_background = '#FFFFFF',
+                            box_success_background = '#e6f2ff',
+                            box_line_color= '#d5e8fc',
+                            labels_data = labels_data,
+                            heading_text = heading_text,
+                            show_probabilities= show_probabilities, 
+                            line_above= True,
+                            line_above_thickness=0.1,
+                        )
+
+                        match model_state: 
+
+                            case "minimum_loss_model":
+
+                                stage_2 = "stage_2_from_stage_1_minimum_loss" 
+
+                            case "maximum_accuracy_model":
+
+                                stage_2 = "stage_2_from_stage_1_maximum_accuracy"
+
+                        validation_probabilities, heading_text = retrive_probabilities_fusions(
+                            fusion,
+                            "validation",
+                            stage_2,
+                            fold, 
+                            model_state, 
+                            FUSIONS_SUB_CONDIT_DIR,                                          
+                        )
+
+                        story = include_probabilities(
+                            story,
+                            validation_probabilities,
+                            box_standard_background = '#FFFFFF',
+                            box_success_background = '#e6f2ff',
+                            box_line_color= '#d5e8fc',
+                            labels_data = labels_data,
+                            heading_text = heading_text,
+                            show_probabilities= show_probabilities, 
+
+                        )             
 
                     # ================================================================
                     # INCLUDING INDICES, LABELS AND TEST PREDICTIONS FOR ALL BRANCHES
@@ -1308,12 +1517,74 @@ def model_results_comparison(
                             show_probabilities= show_probabilities,   
                             fusion_type = "majority_voting_fusion", 
                             line_above= True,
-                            line_above_thickness=0.3,
-                            line_below=True,
-                            line_below_thickness=0.3,
+                            line_above_thickness=0.1,
+                           
 
                    
                       )
+
+                    for fusion in fusions:
+
+                        test_probabilities, heading_text = retrive_probabilities_fusions(
+                            fusion,
+                            "test",
+                            "stage_1",
+                            fold, 
+                            model_state, 
+                            FUSIONS_SUB_CONDIT_DIR,
+                                            
+                        )
+
+                        story = include_probabilities(
+                            story,
+                            test_probabilities,
+                            box_standard_background = '#FFFFFF',
+                            box_success_background = '#D4EDDA',
+                            box_line_color= "#C3E6CB",
+                            labels_data = labels_data,
+                            heading_text = heading_text,
+                            show_probabilities= show_probabilities, 
+                            line_above= True,
+                            line_above_thickness=0.1,
+
+                        )
+
+
+                        match model_state: 
+
+                            case "minimum_loss_model":
+
+                                stage_2 = "stage_2_from_stage_1_minimum_loss" 
+
+                            case "maximum_accuracy_model":
+
+                                stage_2 = "stage_2_from_stage_1_maximum_accuracy"
+
+
+                        test_probabilities, heading_text = retrive_probabilities_fusions(
+                            fusion,
+                            "test",
+                            stage_2,
+                            fold, 
+                            model_state, 
+                            FUSIONS_SUB_CONDIT_DIR,                                          
+                        )
+
+                        story = include_probabilities(
+                            story,
+                            test_probabilities,
+                            box_standard_background = '#FFFFFF',
+                            box_success_background = '#D4EDDA',
+                            box_line_color= "#C3E6CB",
+                            labels_data = labels_data,
+                            heading_text = heading_text,
+                            show_probabilities= show_probabilities, 
+
+                        )                       
+
+
+
+                    
 
             doc.build(story)
 
@@ -1337,4 +1608,11 @@ if __name__ == "__main__":
         majority_voting_fusions = [
             "majority_voting_fusion"
         ],
+
+        fusions = [
+            "concatenation_fusion",
+            "weighted_sum_fusion"            
+        ],
+
+    
     )

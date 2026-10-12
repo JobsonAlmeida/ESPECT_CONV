@@ -110,8 +110,10 @@ def test_model(
     test_correct = 0
     test_total = 0
 
-    all_predictions = []
-    all_labels = []
+    all_predictions_test = []
+    all_labels_test = []
+    all_outputs_test = []
+    all_probabilities_test = []
 
     with torch.no_grad():
 
@@ -150,6 +152,12 @@ def test_model(
                 X_t_f_s1_s2_batch
             )
 
+            probabilities = torch.softmax(
+                outputs,
+                dim=1
+            )
+
+
             loss = criterion(
                 outputs,
                 y_batch
@@ -171,13 +179,25 @@ def test_model(
                 y_batch.size(0)
             )
 
-            all_predictions.extend(
+            # --------------------------------------------------
+            # SALVE PROBABILITIES, PREVISIONS AND LABELS
+            # --------------------------------------------------
+
+            all_outputs_test.extend(
+                outputs.cpu().numpy().tolist()
+            )
+
+            all_probabilities_test.extend(
+                probabilities.cpu().numpy().tolist()
+            )
+
+            all_predictions_test.extend(
                 predictions
                 .cpu()
                 .numpy()
             )
 
-            all_labels.extend(
+            all_labels_test.extend(
                 y_batch
                 .cpu()
                 .numpy()
@@ -196,8 +216,10 @@ def test_model(
     return (
         test_loss,
         test_accuracy,
-        all_labels,
-        all_predictions,
+        all_labels_test,
+        all_predictions_test,
+        all_outputs_test,
+        all_probabilities_test
     )
 
 
@@ -458,8 +480,7 @@ def train_validate_stage(
                     X_t_f_s2_s1_batch,
                     X_t_f_s1_s2_batch,
                 )
-
-
+            
                 loss = criterion(
                     outputs,
                     y_batch
@@ -516,11 +537,8 @@ def train_validate_stage(
         val_total = 0
 
         all_predictions_val = []
-
         all_labels_val = []
-
         all_outputs_val = []
-
         all_probabilities_val = []
 
         with torch.no_grad():
@@ -1792,8 +1810,10 @@ def execute_fusion(
             (
                 stage_1_test_loss_ml,
                 stage_1_test_accuracy_ml,
-                stage_1_all_labels_ml,
-                stage_1_all_predictions_ml,
+                stage_1_test_labels_ml,
+                stage_1_test_predictions_ml,
+                stage_1_test_outputs_ml,
+                stage_1_test_probabilities_ml,
             ) = test_model(
                 model,
                 stage_1_training_validation[
@@ -1819,8 +1839,10 @@ def execute_fusion(
             (
                 stage_1_test_loss_ma,
                 stage_1_test_accuracy_ma,
-                stage_1_all_labels_ma,
-                stage_1_all_predictions_ma,
+                stage_1_test_labels_ma,
+                stage_1_test_predictions_ma,
+                stage_1_test_outputs_ma,
+                stage_1_test_probabilities_ma,
             ) = test_model(
                 model,
                 stage_1_training_validation[
@@ -1850,8 +1872,8 @@ def execute_fusion(
                 ],
                 stage_1_test_loss_ml,
                 stage_1_test_accuracy_ml,
-                stage_1_all_labels_ml,
-                stage_1_all_predictions_ml
+                stage_1_test_labels_ml,
+                stage_1_test_predictions_ml
             )
 
             print_fold_results(
@@ -1865,8 +1887,8 @@ def execute_fusion(
                 ],
                 stage_1_test_loss_ma,
                 stage_1_test_accuracy_ma,
-                stage_1_all_labels_ma,
-                stage_1_all_predictions_ma
+                stage_1_test_labels_ma,
+                stage_1_test_predictions_ma
             )
 
             stage_1_results = {
@@ -1894,7 +1916,7 @@ def execute_fusion(
                         ],
                 },
 
-                "minimum_loss": {
+                "minimum_loss_model": {
 
                     "validation": {
                         "value":
@@ -1946,18 +1968,27 @@ def execute_fusion(
 
                         "all_predictions":
                             np.array(
-                                stage_1_all_predictions_ml
+                                stage_1_test_predictions_ml
                             ),
 
                         "all_labels":
                             np.array(
-                                stage_1_all_labels_ml
+                                stage_1_test_labels_ml
+                            ),
+
+                        "outputs":
+                            np.array(
+                                stage_1_test_outputs_ml
+                            ),
+                        "probabilities":
+                            np.array(
+                                stage_1_test_probabilities_ml
                             ),
 
                     },
                 },
 
-                "maximum_accuracy": {
+                "maximum_accuracy_model": {
 
                     "validation": {
                         "value":
@@ -2005,6 +2036,7 @@ def execute_fusion(
                         ),
 
                     "test": {
+
                         "loss":
                             stage_1_test_loss_ma,
 
@@ -2013,12 +2045,22 @@ def execute_fusion(
 
                         "all_predictions":
                             np.array(
-                                stage_1_all_predictions_ma
+                                stage_1_test_predictions_ma
                             ),
 
                         "all_labels":
                             np.array(
-                                stage_1_all_labels_ma
+                                stage_1_test_labels_ma
+                            ),
+
+                        "outputs":
+                            np.array(
+                                stage_1_test_outputs_ma
+                            ),
+
+                        "probabilities":
+                            np.array(
+                                stage_1_test_probabilities_ma
                             ),
                     },
                 },
@@ -2108,8 +2150,10 @@ def execute_fusion(
             (
                 stage_2_from_ml_test_loss_ml,
                 stage_2_from_ml_test_accuracy_ml,
-                stage_2_from_ml_all_labels_ml,
-                stage_2_from_ml_all_predictions_ml,
+                stage_2_from_ml_test_labels_ml,
+                stage_2_from_ml_test_predictions_ml,
+                stage_2_from_ml_test_outputs_ml,
+                stage_2_from_ml_test_probabilities_ml,
             ) = test_model(
                 model,
                 stage_2_from_ml_training_validation[
@@ -2132,8 +2176,10 @@ def execute_fusion(
             (
                 stage_2_from_ml_test_loss_ma,
                 stage_2_from_ml_test_accuracy_ma,
-                stage_2_from_ml_all_labels_ma,
-                stage_2_from_ml_all_predictions_ma,
+                stage_2_from_ml_test_labels_ma,
+                stage_2_from_ml_test_predictions_ma,
+                stage_2_from_ml_test_outputs_ma,
+                stage_2_from_ml_test_probabilities_ma,
             ) = test_model(
                 model,
                 stage_2_from_ml_training_validation[
@@ -2163,8 +2209,8 @@ def execute_fusion(
                 ],
                 stage_2_from_ml_test_loss_ml,
                 stage_2_from_ml_test_accuracy_ml,
-                stage_2_from_ml_all_labels_ml,
-                stage_2_from_ml_all_predictions_ml
+                stage_2_from_ml_test_labels_ml,
+                stage_2_from_ml_test_predictions_ml
             )
 
             print_fold_results(
@@ -2178,8 +2224,8 @@ def execute_fusion(
                 ],
                 stage_2_from_ml_test_loss_ma,
                 stage_2_from_ml_test_accuracy_ma,
-                stage_2_from_ml_all_labels_ma,
-                stage_2_from_ml_all_predictions_ma
+                stage_2_from_ml_test_labels_ma,
+                stage_2_from_ml_test_predictions_ma
             )
 
             stage_2_from_ml_results = {
@@ -2209,7 +2255,7 @@ def execute_fusion(
                         ],
                 },
 
-                "minimum_loss": {
+                "minimum_loss_model": {
 
                     "validation": {
                         "value":
@@ -2259,17 +2305,28 @@ def execute_fusion(
 
                         "all_predictions":
                             np.array(
-                                stage_2_from_ml_all_predictions_ml
+                                stage_2_from_ml_test_predictions_ml
                             ),
 
                         "all_labels":
                             np.array(
-                                stage_2_from_ml_all_labels_ml
+                                stage_2_from_ml_test_labels_ml
                             ),
+
+                        "outputs":
+                            np.array(
+                                stage_2_from_ml_test_outputs_ml
+                            ),
+
+                        "probabilities":
+                            np.array(
+                                stage_2_from_ml_test_probabilities_ml
+                            ),
+
                     },
                 },
 
-                "maximum_accuracy": {
+                "maximum_accuracy_model": {
 
                     "validation": {
                         "value":
@@ -2329,13 +2386,25 @@ def execute_fusion(
 
                         "all_predictions":
                             np.array(
-                                stage_2_from_ml_all_predictions_ma
+                                stage_2_from_ml_test_predictions_ma
                             ),
 
                         "all_labels":
                             np.array(
-                                stage_2_from_ml_all_labels_ma
+                                stage_2_from_ml_test_labels_ma
                             ),
+
+                        "outputs":
+                            np.array(
+                                stage_2_from_ml_test_outputs_ma
+                            ),
+
+                        "probabilities":
+                            np.array(
+                                stage_2_from_ml_test_probabilities_ma
+                            ),
+
+
                     },
                 },
             }
@@ -2377,8 +2446,10 @@ def execute_fusion(
             (
                 stage_2_from_ma_test_loss_ml,
                 stage_2_from_ma_test_accuracy_ml,
-                stage_2_from_ma_all_labels_ml,
-                stage_2_from_ma_all_predictions_ml,
+                stage_2_from_ma_test_labels_ml,
+                stage_2_from_ma_test_predictions_ml,
+                stage_2_from_ma_test_outputs_ml,
+                stage_2_from_ma_test_probabilities_ml,
             ) = test_model(
                 model,
                 stage_2_from_ma_training_validation[
@@ -2403,6 +2474,8 @@ def execute_fusion(
                 stage_2_from_ma_test_accuracy_ma,
                 stage_2_from_ma_all_labels_ma,
                 stage_2_from_ma_all_predictions_ma,
+                stage_2_from_ma_test_outputs_ma,
+                stage_2_from_ma_test_probabilities_ma,
             ) = test_model(
                 model,
                 stage_2_from_ma_training_validation[
@@ -2432,8 +2505,8 @@ def execute_fusion(
                 ],
                 stage_2_from_ma_test_loss_ml,
                 stage_2_from_ma_test_accuracy_ml,
-                stage_2_from_ma_all_labels_ml,
-                stage_2_from_ma_all_predictions_ml
+                stage_2_from_ma_test_labels_ml,
+                stage_2_from_ma_test_predictions_ml
             )
 
             print_fold_results(
@@ -2478,7 +2551,7 @@ def execute_fusion(
                         ],
                 },
 
-                "minimum_loss": {
+                "minimum_loss_model": {
 
                     "validation": {
                         "value":
@@ -2529,17 +2602,28 @@ def execute_fusion(
 
                         "all_predictions":
                             np.array(
-                                stage_2_from_ma_all_predictions_ml
+                                stage_2_from_ma_test_predictions_ml
                             ),
 
                         "all_labels":
                             np.array(
-                                stage_2_from_ma_all_labels_ml
+                                stage_2_from_ma_test_labels_ml
                             ),
+
+                        "outputs":
+                            np.array(
+                                stage_2_from_ma_test_outputs_ml
+                            ),
+
+                        "probabilities":
+                            np.array(
+                                stage_2_from_ma_test_probabilities_ml
+                            ),
+
                     },
                 },
 
-                "maximum_accuracy": {
+                "maximum_accuracy_model": {
 
                     "validation": {
                         "value":
@@ -2603,6 +2687,17 @@ def execute_fusion(
                             np.array(
                                 stage_2_from_ma_all_labels_ma
                             ),
+
+                        "outputs":
+                            np.array(
+                                stage_2_from_ma_test_outputs_ma
+                            ),
+
+                        "probabilities":
+                            np.array(
+                                stage_2_from_ma_test_probabilities_ma
+                            ),
+
                     },
                 },
             }
@@ -2854,8 +2949,8 @@ if __name__ == "__main__":
 
 
     execute_fusion(
-        fusion= "concatenation_fusion",
-        branch_model_state = "minimum_loss_model",
+        fusion= "weighted_sum_fusion",
+        branch_model_state = "maximum_accuracy_model",
         subjects=["sub-01"],
         condition_folder = "pronounced_speech",
         N_EPOCHS_STAGE_1=6,

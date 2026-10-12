@@ -213,12 +213,12 @@ def plot_fusion_stage(
 
 
         minimum_loss_model = stage[
-            "minimum_loss"
+            "minimum_loss_model"
         ]
 
 
         maximum_accuracy_model = stage[
-            "maximum_accuracy"
+            "maximum_accuracy_model"
         ]
 
 
@@ -965,9 +965,9 @@ def plot_fusion_stage(
 
             f"{validation_accuracies_mean_ma*100:.2f}",
 
-            f"{fold_accuracies_mean_ml:.4f}",
+            f"{fold_accuracies_mean_ml*100:.2f}",
 
-            f"{fold_accuracies_mean_ma:.4f}",
+            f"{fold_accuracies_mean_ma*100:.2f}",
         ]
     )
 
@@ -978,9 +978,9 @@ def plot_fusion_stage(
 
             f"{validation_accuracies_std_ma*100:.2f}",
 
-            f"{fold_accuracies_std_ml:.4f}",
+            f"{fold_accuracies_std_ml*100:.2f}",
 
-            f"{fold_accuracies_std_ma:.4f}",
+            f"{fold_accuracies_std_ma*100:.2f}",
         ]
     )
 
