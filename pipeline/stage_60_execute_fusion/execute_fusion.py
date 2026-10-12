@@ -331,7 +331,7 @@ def print_folds_summary(
     )
 
 
-def train_stage(
+def train_validate_stage(
     model,
     train_loader,
     val_loader,
@@ -344,7 +344,7 @@ def train_stage(
 ):
 
     """
-    Trains a stage and stores two checkpoints:
+    Trains and validates a stage and stores two checkpoints:
 
     1. Minimum validation loss
     2. Maximum validation accuracy
@@ -515,6 +515,13 @@ def train_stage(
         val_correct = 0
         val_total = 0
 
+        all_predictions_val = []
+
+        all_labels_val = []
+
+        all_outputs_val = []
+
+        all_probabilities_val = []
 
         with torch.no_grad():
 
@@ -558,6 +565,11 @@ def train_stage(
                     y_batch
                 )
 
+                probabilities_val = torch.softmax(
+                                            outputs,
+                    dim=1
+                )
+
 
                 val_total_loss += (
                     loss.item()
@@ -576,6 +588,32 @@ def train_stage(
 
                 val_total += (
                     y_batch.size(0)
+                )
+
+                # --------------------------------------------------
+                # SALVE PROBABILITIES, PREVISIONS AND LABELS
+                # --------------------------------------------------
+
+                all_outputs_val.extend(
+                    outputs.cpu().numpy().tolist()
+                )
+
+                all_probabilities_val.extend(
+                    probabilities_val.cpu().numpy().tolist()
+                )
+
+                all_predictions_val.extend(
+                    predictions
+                    .cpu()
+                    .numpy()
+                    .tolist()
+                )
+
+                all_labels_val.extend(
+                    y_batch
+                    .cpu()
+                    .numpy()
+                    .tolist()
                 )
 
 
@@ -628,6 +666,21 @@ def train_stage(
                 )
             )
 
+            min_val_loss_all_outputs_val = (
+                all_outputs_val
+            )
+
+            min_val_loss_all_probabilities_val = (
+                all_probabilities_val
+            )
+
+            min_val_loss_all_predictions_val = (
+                all_predictions_val
+            )
+
+            min_val_loss_all_labels_val = (
+                all_labels_val
+            )
 
         # ======================================================
         # BEST MODEL: MAXIMUM ACCURACY
@@ -653,6 +706,22 @@ def train_stage(
                 copy.deepcopy(
                     model.state_dict()
                 )
+            )
+
+            max_val_accuracy_all_outputs_val = (
+                all_outputs_val
+            )
+
+            max_val_accuracy_all_probabilities_val = (
+                all_probabilities_val
+            )
+
+            max_val_accuracy_all_predictions_val = (
+                all_predictions_val
+            )
+
+            max_val_accuracy_all_labels_val = (
+                all_labels_val
             )
 
 
@@ -693,6 +762,11 @@ def train_stage(
         "val_accuracies_epoch":
             val_accuracies_epoch,
 
+
+        # ===============================
+        # VALIDATION MINIMUM LOSS
+        # ===============================
+
         "min_val_loss":
             min_val_loss,
 
@@ -701,6 +775,31 @@ def train_stage(
 
         "min_val_loss_model_state":
             min_val_loss_model_state,
+
+        "min_val_loss_validation_outputs": np.asarray(
+            min_val_loss_all_outputs_val,
+            dtype=np.float64
+        ),
+        
+        "min_val_loss_validation_probabilities": np.asarray(
+            min_val_loss_all_probabilities_val,
+            dtype=np.float64
+        ),
+
+        "min_val_loss_validation_predictions": np.asarray(
+            min_val_loss_all_predictions_val,
+            dtype=np.int64
+        ),
+
+        "min_val_loss_validation_labels": np.asarray(
+            min_val_loss_all_labels_val,
+            dtype=np.int64
+        ),
+
+
+        # ==================================
+        # VALIDATION MAXIMUM ACCURACY 
+        # ==================================
 
         "max_val_accuracy":
             max_val_accuracy,
@@ -713,6 +812,27 @@ def train_stage(
 
         "max_val_accuracy_model_state":
             max_val_accuracy_model_state,
+
+        "max_val_accuracy_validation_outputs": np.asarray( 
+            max_val_accuracy_all_outputs_val,
+            dtype=np.float64
+        ),
+
+        "max_val_accuracy_validation_probabilities": np.asarray(
+            max_val_accuracy_all_probabilities_val,
+            dtype=np.float64
+        ),
+
+        "max_val_accuracy_validation_predictions": np.asarray( 
+            max_val_accuracy_all_predictions_val, 
+            dtype=np.int64
+        ),
+
+        "max_val_accuracy_validation_labels": np.asarray(
+            max_val_accuracy_all_labels_val,
+            dtype=np.int64
+        ),
+
     }
 
 def get_scalar(value):
@@ -1648,7 +1768,7 @@ def execute_fusion(
 
            
 
-            stage_1_training = train_stage(
+            stage_1_training_validation = train_validate_stage(
                 model=model,
                 train_loader=train_loader,
                 val_loader=val_loader,
@@ -1676,7 +1796,7 @@ def execute_fusion(
                 stage_1_all_predictions_ml,
             ) = test_model(
                 model,
-                stage_1_training[
+                stage_1_training_validation[
                     "min_val_loss_model_state"
                 ],
                 test_loader,
@@ -1703,7 +1823,7 @@ def execute_fusion(
                 stage_1_all_predictions_ma,
             ) = test_model(
                 model,
-                stage_1_training[
+                stage_1_training_validation[
                     "max_val_accuracy_model_state"
                 ],
                 test_loader,
@@ -1722,10 +1842,10 @@ def execute_fusion(
             print_fold_results(
                 "minimum_loss",
                 fold,
-                stage_1_training[
+                stage_1_training_validation[
                     "min_val_loss_epoch"
                 ],
-                stage_1_training[
+                stage_1_training_validation[
                     "min_val_loss"
                 ],
                 stage_1_test_loss_ml,
@@ -1737,10 +1857,10 @@ def execute_fusion(
             print_fold_results(
                 "maximum_accuracy",
                 fold,
-                stage_1_training[
+                stage_1_training_validation[
                     "max_val_accuracy_epoch"
                 ],
-                stage_1_training[
+                stage_1_training_validation[
                     "max_val_accuracy"
                 ],
                 stage_1_test_loss_ma,
@@ -1752,23 +1872,24 @@ def execute_fusion(
             stage_1_results = {
 
                 "training_history": {
+
                     "train_losses_epoch":
-                        stage_1_training[
+                        stage_1_training_validation[
                             "train_losses_epoch"
                         ],
 
                     "val_losses_epoch":
-                        stage_1_training[
+                        stage_1_training_validation[
                             "val_losses_epoch"
                         ],
 
                     "train_accuracies_epoch":
-                        stage_1_training[
+                        stage_1_training_validation[
                             "train_accuracies_epoch"
                         ],
 
                     "val_accuracies_epoch":
-                        stage_1_training[
+                        stage_1_training_validation[
                             "val_accuracies_epoch"
                         ],
                 },
@@ -1777,24 +1898,46 @@ def execute_fusion(
 
                     "validation": {
                         "value":
-                            stage_1_training[
+                            stage_1_training_validation[
                                 "min_val_loss"
                             ],
 
                         "epoch":
-                            stage_1_training[
+                            stage_1_training_validation[
                                 "min_val_loss_epoch"
                             ],
+
+                        "outputs":
+                            stage_1_training_validation[
+                                "min_val_loss_validation_outputs"
+                            ],
+
+                        "probabilities": 
+                            stage_1_training_validation[
+                                "min_val_loss_validation_probabilities"
+                            ],
+
+                        "predictions":
+                            stage_1_training_validation[
+                                "min_val_loss_validation_predictions"
+                            ],
+
+                        "labels":
+                            stage_1_training_validation[
+                                "min_val_loss_validation_labels"
+                            ]
+                        
                     },
 
                     "model_state_dict":
                         copy.deepcopy(
-                            stage_1_training[
+                            stage_1_training_validation[
                                 "min_val_loss_model_state"
                             ]
                         ),
 
                     "test": {
+
                         "loss":
                             stage_1_test_loss_ml,
 
@@ -1810,6 +1953,7 @@ def execute_fusion(
                             np.array(
                                 stage_1_all_labels_ml
                             ),
+
                     },
                 },
 
@@ -1817,24 +1961,45 @@ def execute_fusion(
 
                     "validation": {
                         "value":
-                            stage_1_training[
+                            stage_1_training_validation[
                                 "max_val_accuracy"
                             ],
 
                         "epoch":
-                            stage_1_training[
+                            stage_1_training_validation[
                                 "max_val_accuracy_epoch"
                             ],
 
                         "loss_at_best_accuracy":
-                            stage_1_training[
+                            stage_1_training_validation[
                                 "best_val_loss_to_max_accuracy"
                             ],
+
+                        "outputs":
+                            stage_1_training_validation[
+                                "max_val_accuracy_validation_outputs"
+                            ],
+
+                        "probabilities":
+                            stage_1_training_validation[
+                                "max_val_accuracy_validation_probabilities"
+                            ],
+                        
+                        "predictions":
+                            stage_1_training_validation[
+                                "max_val_accuracy_validation_predictions"
+                            ],
+
+                        "labels":
+                            stage_1_training_validation[
+                                "max_val_accuracy_validation_labels"
+                            ]
+
                     },
 
                     "model_state_dict":
                         copy.deepcopy(
-                            stage_1_training[
+                            stage_1_training_validation[
                                 "max_val_accuracy_model_state"
                             ]
                         ),
@@ -1900,7 +2065,7 @@ def execute_fusion(
             # ==================================================
 
             model.load_state_dict(
-                stage_1_training[
+                stage_1_training_validation[
                     "min_val_loss_model_state"
                 ]
             )
@@ -1927,7 +2092,7 @@ def execute_fusion(
                 RANDOM_STATE_LOADER
             )
 
-            stage_2_from_ml_training = train_stage(
+            stage_2_from_ml_training_validation = train_validate_stage(
                 model=model,
                 train_loader=train_loader,
                 val_loader=val_loader,
@@ -1947,7 +2112,7 @@ def execute_fusion(
                 stage_2_from_ml_all_predictions_ml,
             ) = test_model(
                 model,
-                stage_2_from_ml_training[
+                stage_2_from_ml_training_validation[
                     "min_val_loss_model_state"
                 ],
                 test_loader,
@@ -1971,7 +2136,7 @@ def execute_fusion(
                 stage_2_from_ml_all_predictions_ma,
             ) = test_model(
                 model,
-                stage_2_from_ml_training[
+                stage_2_from_ml_training_validation[
                     "max_val_accuracy_model_state"
                 ],
                 test_loader,
@@ -1990,10 +2155,10 @@ def execute_fusion(
             print_fold_results(
                 "minimum_loss",
                 fold,
-                stage_2_from_ml_training[
+                stage_2_from_ml_training_validation[
                     "min_val_loss_epoch"
                 ],
-                stage_2_from_ml_training[
+                stage_2_from_ml_training_validation[
                     "min_val_loss"
                 ],
                 stage_2_from_ml_test_loss_ml,
@@ -2005,10 +2170,10 @@ def execute_fusion(
             print_fold_results(
                 "maximum_accuracy",
                 fold,
-                stage_2_from_ml_training[
+                stage_2_from_ml_training_validation[
                     "max_val_accuracy_epoch"
                 ],
-                stage_2_from_ml_training[
+                stage_2_from_ml_training_validation[
                     "max_val_accuracy"
                 ],
                 stage_2_from_ml_test_loss_ma,
@@ -2024,22 +2189,22 @@ def execute_fusion(
 
                 "training_history": {
                     "train_losses_epoch":
-                        stage_2_from_ml_training[
+                        stage_2_from_ml_training_validation[
                             "train_losses_epoch"
                         ],
 
                     "val_losses_epoch":
-                        stage_2_from_ml_training[
+                        stage_2_from_ml_training_validation[
                             "val_losses_epoch"
                         ],
 
                     "train_accuracies_epoch":
-                        stage_2_from_ml_training[
+                        stage_2_from_ml_training_validation[
                             "train_accuracies_epoch"
                         ],
 
                     "val_accuracies_epoch":
-                        stage_2_from_ml_training[
+                        stage_2_from_ml_training_validation[
                             "val_accuracies_epoch"
                         ],
                 },
@@ -2048,19 +2213,39 @@ def execute_fusion(
 
                     "validation": {
                         "value":
-                            stage_2_from_ml_training[
+                            stage_2_from_ml_training_validation[
                                 "min_val_loss"
                             ],
 
                         "epoch":
-                            stage_2_from_ml_training[
+                            stage_2_from_ml_training_validation[
                                 "min_val_loss_epoch"
                             ],
+
+                        "outputs":
+                            stage_2_from_ml_training_validation[
+                                "min_val_loss_validation_outputs"
+                            ],
+
+                        "probabilities":
+                            stage_2_from_ml_training_validation[
+                                "min_val_loss_validation_probabilities"
+                            ],
+
+                        "predictions":
+                            stage_2_from_ml_training_validation[
+                                "min_val_loss_validation_predictions"
+                            ],
+                        
+                        "labels":
+                            stage_2_from_ml_training_validation[
+                                "min_val_loss_validation_labels"
+                            ]
                     },
 
                     "model_state_dict":
                         copy.deepcopy(
-                            stage_2_from_ml_training[
+                            stage_2_from_ml_training_validation[
                                 "min_val_loss_model_state"
                             ]
                         ),
@@ -2088,27 +2273,52 @@ def execute_fusion(
 
                     "validation": {
                         "value":
-                            stage_2_from_ml_training[
+                            stage_2_from_ml_training_validation[
                                 "max_val_accuracy"
                             ],
 
                         "epoch":
-                            stage_2_from_ml_training[
+                            stage_2_from_ml_training_validation[
                                 "max_val_accuracy_epoch"
                             ],
 
                         "loss_at_best_accuracy":
-                            stage_2_from_ml_training[
+                            stage_2_from_ml_training_validation[
                                 "best_val_loss_to_max_accuracy"
                             ],
+
+                        "outputs":
+                            stage_2_from_ml_training_validation[
+                                "max_val_accuracy_validation_outputs"
+                            ],
+
+                        "probabilities":
+                            stage_2_from_ml_training_validation[
+                                "max_val_accuracy_validation_probabilities"
+                            ],
+
+                        "predictions":
+                            stage_2_from_ml_training_validation[
+                                "max_val_accuracy_validation_predictions"
+                            ],
+                        
+                        "labels":
+                            stage_2_from_ml_training_validation[
+                                "max_val_accuracy_validation_labels"
+                            ]
+
+
+
                     },
 
                     "model_state_dict":
                         copy.deepcopy(
-                            stage_2_from_ml_training[
+                            stage_2_from_ml_training_validation[
                                 "max_val_accuracy_model_state"
                             ]
                         ),
+
+                    
 
                     "test": {
                         "loss":
@@ -2135,7 +2345,7 @@ def execute_fusion(
             # ==================================================
 
             model.load_state_dict(
-                stage_1_training[
+                stage_1_training_validation[
                     "max_val_accuracy_model_state"
                 ]
             )
@@ -2151,7 +2361,7 @@ def execute_fusion(
                 RANDOM_STATE_LOADER
             )
 
-            stage_2_from_ma_training = train_stage(
+            stage_2_from_ma_training_validation = train_validate_stage(
                 model=model,
                 train_loader=train_loader,
                 val_loader=val_loader,
@@ -2171,7 +2381,7 @@ def execute_fusion(
                 stage_2_from_ma_all_predictions_ml,
             ) = test_model(
                 model,
-                stage_2_from_ma_training[
+                stage_2_from_ma_training_validation[
                     "min_val_loss_model_state"
                 ],
                 test_loader,
@@ -2195,7 +2405,7 @@ def execute_fusion(
                 stage_2_from_ma_all_predictions_ma,
             ) = test_model(
                 model,
-                stage_2_from_ma_training[
+                stage_2_from_ma_training_validation[
                     "max_val_accuracy_model_state"
                 ],
                 test_loader,
@@ -2214,10 +2424,10 @@ def execute_fusion(
             print_fold_results(
                 "minimum_loss",
                 fold,
-                stage_2_from_ma_training[
+                stage_2_from_ma_training_validation[
                     "min_val_loss_epoch"
                 ],
-                stage_2_from_ma_training[
+                stage_2_from_ma_training_validation[
                     "min_val_loss"
                 ],
                 stage_2_from_ma_test_loss_ml,
@@ -2229,10 +2439,10 @@ def execute_fusion(
             print_fold_results(
                 "maximum_accuracy",
                 fold,
-                stage_2_from_ma_training[
+                stage_2_from_ma_training_validation[
                     "max_val_accuracy_epoch"
                 ],
-                stage_2_from_ma_training[
+                stage_2_from_ma_training_validation[
                     "max_val_accuracy"
                 ],
                 stage_2_from_ma_test_loss_ma,
@@ -2248,22 +2458,22 @@ def execute_fusion(
 
                 "training_history": {
                     "train_losses_epoch":
-                        stage_2_from_ma_training[
+                        stage_2_from_ma_training_validation[
                             "train_losses_epoch"
                         ],
 
                     "val_losses_epoch":
-                        stage_2_from_ma_training[
+                        stage_2_from_ma_training_validation[
                             "val_losses_epoch"
                         ],
 
                     "train_accuracies_epoch":
-                        stage_2_from_ma_training[
+                        stage_2_from_ma_training_validation[
                             "train_accuracies_epoch"
                         ],
 
                     "val_accuracies_epoch":
-                        stage_2_from_ma_training[
+                        stage_2_from_ma_training_validation[
                             "val_accuracies_epoch"
                         ],
                 },
@@ -2272,19 +2482,40 @@ def execute_fusion(
 
                     "validation": {
                         "value":
-                            stage_2_from_ma_training[
+                            stage_2_from_ma_training_validation[
                                 "min_val_loss"
                             ],
 
                         "epoch":
-                            stage_2_from_ma_training[
+                            stage_2_from_ma_training_validation[
                                 "min_val_loss_epoch"
                             ],
+
+                        "outputs":
+                            stage_2_from_ma_training_validation[
+                                "min_val_loss_validation_outputs"
+                            ],
+
+                        "probabilities":
+                            stage_2_from_ma_training_validation[
+                                "min_val_loss_validation_probabilities"
+                            ],
+
+                        "predictions":
+                            stage_2_from_ma_training_validation[
+                                "min_val_loss_validation_predictions"
+                            ],
+                        
+                        "labels":
+                            stage_2_from_ma_training_validation[
+                                "min_val_loss_validation_labels"
+                            ]
+                    
                     },
 
                     "model_state_dict":
                         copy.deepcopy(
-                            stage_2_from_ma_training[
+                            stage_2_from_ma_training_validation[
                                 "min_val_loss_model_state"
                             ]
                         ),
@@ -2312,24 +2543,46 @@ def execute_fusion(
 
                     "validation": {
                         "value":
-                            stage_2_from_ma_training[
+                            stage_2_from_ma_training_validation[
                                 "max_val_accuracy"
                             ],
 
                         "epoch":
-                            stage_2_from_ma_training[
+                            stage_2_from_ma_training_validation[
                                 "max_val_accuracy_epoch"
                             ],
 
                         "loss_at_best_accuracy":
-                            stage_2_from_ma_training[
+                            stage_2_from_ma_training_validation[
                                 "best_val_loss_to_max_accuracy"
                             ],
+
+
+                        "outputs":
+                            stage_2_from_ma_training_validation[
+                                "max_val_accuracy_validation_outputs"
+                            ],
+
+                        "probabilities":
+                            stage_2_from_ma_training_validation[
+                                "max_val_accuracy_validation_probabilities"
+                            ],
+
+                        "predictions":
+                            stage_2_from_ma_training_validation[
+                                "max_val_accuracy_validation_predictions"
+                            ],
+                        
+                        "labels":
+                            stage_2_from_ma_training_validation[
+                                "max_val_accuracy_validation_labels"
+                            ]
+
                     },
 
                     "model_state_dict":
                         copy.deepcopy(
-                            stage_2_from_ma_training[
+                            stage_2_from_ma_training_validation[
                                 "max_val_accuracy_model_state"
                             ]
                         ),

@@ -1889,7 +1889,7 @@ def execute_branch(
 
 
                 # ==========================================
-                # MENOR VALIDATION LOSS
+                # BEST MODEL: MINIMUM VALIDATION LOSS
                 # ==========================================
 
                 if val_loss < min_val_loss:
@@ -1934,7 +1934,7 @@ def execute_branch(
 
 
                 # ==========================================
-                # MAIOR VALIDATION ACCURACY
+                # BEST MODEL: MAXIMUM VALIDATION ACCURACY
                 #
                 # Em caso de empate na acurácia,
                 # escolhemos o modelo com menor

@@ -522,8 +522,7 @@ def retrive_probabilities_branches(
 
         case "space1_space2_time_frequency":
 
-            heading_text = "s1_s1_t_f"
-
+            heading_text = "s1_s2_t_f"
 
         # ------------------------------------------
 
