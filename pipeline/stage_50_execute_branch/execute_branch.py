@@ -658,6 +658,7 @@ def print_folds_summary(
 def execute_branch(
     branch,
     subjects=subjects,
+    condition_folder = "PRONOUNCED_SPEECH",
     N_FOLDS=N_FOLDS,
     N_EPOCHS=N_EPOCHS,
     BATCH_SIZE=BATCH_SIZE,
@@ -721,12 +722,37 @@ def execute_branch(
 
 
 
+        # =================================
+        # DIRECTORIES
+        # ================================
+
+        SUB_CONDIT_INPUT_DIR = (
+            INPUT_DIR
+            / subject
+            / condition_folder.lower()
+        )
+
+        if not SUB_CONDIT_INPUT_DIR.is_dir():
+            raise NotADirectoryError(f"The required directory was not found: {SUB_CONDIT_INPUT_DIR}")
+
+        # SUB_CONDIT_OUTPUT_DIR = (
+        #     OUTPUT_DIR
+        #     / subject
+        #     / condition_folder.lower()
+        # )
+
+        # SUB_CONDIT_OUTPUT_DIR.mkdir(
+        #     parents=True,
+        #     exist_ok=True
+        # )
+
+
         # ==================================================
         # LOAD DATA
         # ==================================================
 
         file_path = (
-            INPUT_DIR
+            SUB_CONDIT_INPUT_DIR
             / f"{subject}_all_sessions.pkl"
         )
 
@@ -746,13 +772,17 @@ def execute_branch(
         psd_array = subj_file["psd_array"]
         labels = subj_file["labels"]
 
-
-
         # ==================================================
         # LOADING CNN MODELS
         # ==================================================
 
         condition = subj_file["condition"]
+
+        if condition_folder.lower() != condition.lower() : 
+
+            raise ValueError(
+                f"Condition Folder {condition_folder.lower()} differs from condition {condition.lower()} obtained in checkpoint!"
+            ) 
 
         if condition == "PRONOUNCED_SPEECH":
 
@@ -794,27 +824,12 @@ def execute_branch(
         # DIRETÓRIO DOS MODELOS
         # ==================================================
 
-        # MODEL_DIR = (
-        #     OUTPUT_DIR
-        #     / subject
-        #     / condition.lower()
-        #     / f"{branch}_branch"
-        # )
-
-
-        # MODEL_DIR.mkdir(
-        #     parents=True,
-        #     exist_ok=True
-        # )
-
-
         SUB_CONDIT_BRANCH_DIR = (
             OUTPUT_DIR
             / subject
             / condition.lower()
             / f"{branch}_branch"            
         )
-
 
         SUB_CONDIT_BRANCH_DIR.mkdir(
             parents=True,
@@ -828,8 +843,8 @@ def execute_branch(
 
         FOLDS_DIR = (
             OBTAIN_INDICES_STAGE
-            / "fold_indices"
             / subject
+            / condition_folder.lower()
         )
 
 
@@ -895,6 +910,15 @@ def execute_branch(
             # ==================================================
             # C = frequency
             #
+            # Original:
+            # (
+            #   epoch,
+            #   space2,
+            #   space1,
+            #   frequency,
+            #   time
+            # )
+            #
             # Final:
             # (
             #   epoch,
@@ -922,6 +946,15 @@ def execute_branch(
             # ==================================================
             # C = space1
             #
+            # Original:
+            # (
+            #   epoch,
+            #   space2,
+            #   space1,
+            #   frequency,
+            #   time
+            # )
+
             # Final:
             # (
             #   epoch,
@@ -948,6 +981,15 @@ def execute_branch(
 
             # ==================================================
             # C = space2
+            #
+            # Original:
+            # (
+            #   epoch,
+            #   space2,
+            #   space1,
+            #   frequency,
+            #   time
+            # )
             #
             # Final:
             # (
@@ -1144,7 +1186,6 @@ def execute_branch(
                 / f"fold_{fold}.npz"
             )
 
-
             if not fold_file.exists():
 
                 raise FileNotFoundError(
@@ -1157,6 +1198,15 @@ def execute_branch(
                 fold_file
             )
 
+            condition_indices = fold_data[
+                "condition"
+            ].item()
+
+            if condition_folder.lower() != condition_indices.lower() : 
+
+                raise ValueError(
+                    f"Condition Folder {condition_folder.lower()} differs from condition {condition_indices.lower()} obtained in indices checkpoint!"
+                )            
 
             train_indices = fold_data[
                 "train_indices"
@@ -2639,9 +2689,10 @@ if __name__ == "__main__":
     # ======================================================
 
     execute_branch(
-        branch="time_frequency_space1_space2",
-        N_EPOCHS=600,       
+        branch="space1_space2_frequency_time",
+        N_EPOCHS=60,       
         subjects=[
             "sub-01"
-        ]
+        ],
+        condition_folder = "PRONOUNCED_SPEECH",
     )

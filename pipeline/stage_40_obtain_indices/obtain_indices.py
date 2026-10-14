@@ -125,6 +125,14 @@ def obtain_indices(
             subj_file["labels"]
         ).reshape(-1)
 
+        condition = subj_file["condition"]
+
+        if condition_folder.lower() != condition.lower() : 
+
+            raise ValueError(
+                f"Condition Folder {condition_folder.lower()} differs from condition {condition.lower()} obtained in checkpoint!"
+            ) 
+
 
         print(
             "PSD array shape:",
@@ -196,8 +204,6 @@ def obtain_indices(
 
         FOLDS_DIR = (
             SUB_CONDIT_OUTPUT_DIR
-            # / "fold_indices"
-            # / subject
         )
 
 
@@ -360,12 +366,11 @@ def obtain_indices(
             np.savez(
                 FOLDS_DIR
                 / f"fold_{fold}.npz",
-
                 train_indices=train_indices,
                 val_indices=val_indices,
-                test_indices=test_indices
+                test_indices=test_indices,
+                condition=condition,
             )
-
 
             print(
                 f"Indices saved: fold_{fold}.npz"
