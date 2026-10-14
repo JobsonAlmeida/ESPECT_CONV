@@ -57,6 +57,8 @@ def obtain_indices(
     N_FOLDS=N_FOLDS,
     VALIDATION_SIZE=VALIDATION_SIZE,
     RANDOM_STATE=RANDOM_STATE,
+    condition_folder = "PRONOUNCED_SPEECH",
+
 ):
 
     # ======================================================
@@ -71,12 +73,36 @@ def obtain_indices(
         print("#" * 70)
 
 
+        # =================================
+        # DIRECTORIES
+        # ================================
+
+        SUB_CONDIT_INPUT_DIR = (
+            INPUT_DIR
+            / subject
+            / condition_folder.lower()
+        )
+
+        if not SUB_CONDIT_INPUT_DIR.is_dir():
+            raise NotADirectoryError(f"The required directory was not found: {SUB_CONDIT_INPUT_DIR}")
+
+        SUB_CONDIT_OUTPUT_DIR = (
+            OUTPUT_DIR
+            / subject
+            / condition_folder.lower()
+        )
+
+        SUB_CONDIT_OUTPUT_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
         # ==================================================
         # LOAD DATA
         # ==================================================
 
         file_path = (
-            INPUT_DIR
+            SUB_CONDIT_INPUT_DIR
             / f"{subject}_all_sessions.pkl"
         )
 
@@ -169,9 +195,9 @@ def obtain_indices(
         # ==================================================
 
         FOLDS_DIR = (
-            OUTPUT_DIR
-            / "fold_indices"
-            / subject
+            SUB_CONDIT_OUTPUT_DIR
+            # / "fold_indices"
+            # / subject
         )
 
 
@@ -358,4 +384,10 @@ def obtain_indices(
 
 if __name__ == "__main__":
 
-    obtain_indices()
+    obtain_indices(
+        subjects=subjects,
+        N_FOLDS=N_FOLDS,
+        VALIDATION_SIZE=VALIDATION_SIZE,
+        RANDOM_STATE=RANDOM_STATE,
+        condition_folder = "PRONOUNCED_SPEECH",
+    )

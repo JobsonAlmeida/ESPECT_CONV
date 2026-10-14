@@ -1320,3 +1320,4 @@ class CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION:
         f"EEG 2D Distribution figure saved: "
         f"{figure_path}"
     )
+    
