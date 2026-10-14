@@ -191,6 +191,23 @@ def load_and_epoching(
         )
 
         # ==================================================
+        # DIRETÓRIO DOS MODELOS
+        # ==================================================
+
+        subject = sub_ses[0:6]
+
+        SUB_CONDIT_BRANCH_DIR = (
+            OUTPUT_DIR
+            / subject
+            / condition.lower()
+        )
+
+        SUB_CONDIT_BRANCH_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        # ==================================================
         # SAVED DATA STRUCTURE
         # ==================================================
 
@@ -219,15 +236,9 @@ def load_and_epoching(
         # ==================================================
 
         output_path = (
-            OUTPUT_DIR
+            SUB_CONDIT_BRANCH_DIR
             / f"{sub_ses}.pkl"
         )
-
-        # output_path.mkdir(
-        #         parents=True,
-        #         exist_ok=True
-        #     )
-
 
         with output_path.open("wb") as file:
 
