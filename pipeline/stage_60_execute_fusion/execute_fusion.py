@@ -949,12 +949,26 @@ def execute_fusion(
         print("#" * 70)
 
 
+        # =================================
+        # DIRECTORIES
+        # ================================
+
+        SUB_CONDIT_INPUT_DIR = (
+            INPUT_DIR
+            / subject
+            / condition_folder.lower()
+        )
+
+        if not SUB_CONDIT_INPUT_DIR.is_dir():
+            raise NotADirectoryError(f"The required directory was not found: {SUB_CONDIT_INPUT_DIR}")
+
+
         # ==================================================
         # LOAD DATA
         # ==================================================
 
         file_path = (
-            INPUT_DIR
+            SUB_CONDIT_INPUT_DIR
             / f"{subject}_all_sessions.pkl"
         )
 
@@ -1086,7 +1100,8 @@ def execute_fusion(
             OUTPUT_DIR
             / subject
             / condition_folder.lower()
-            / f"{fusion}_from_{branch_model_state}_in_branches"
+            / f"{fusion}"
+            / f"from_{branch_model_state}_in_branches"
         )
 
         SUB_CONDIT_FUSION_DIR.mkdir(
@@ -1096,14 +1111,14 @@ def execute_fusion(
 
         FOLDS_DIR = (
             OBTAIN_INDICES_STAGE
-            / "fold_indices"
             / subject
+            / condition_folder.lower()
         )
 
-        FOLDS_DIR.mkdir(
-            parents=True,
-            exist_ok=True
-        )
+        # FOLDS_DIR.mkdir(
+        #     parents=True,
+        #     exist_ok=True
+        # )
 
         # ======================================================
         # REORGANIZAR DIMENSÕES
@@ -1284,11 +1299,35 @@ def execute_fusion(
             # ÍNDICES
             # ==================================================
 
-            fold_data = np.load(
+
+            fold_file = (
                 FOLDS_DIR
                 / f"fold_{fold}.npz"
             )
 
+            if not fold_file.exists():
+
+                raise FileNotFoundError(
+                    f"Fold file does not exist: "
+                    f"{fold_file}"
+                )
+
+
+
+            fold_data = np.load(
+                fold_file
+            )
+
+            condition_indices = fold_data[
+                "condition"
+            ].item()
+
+            if condition_folder.lower() != condition_indices.lower() : 
+
+                raise ValueError(
+                    f"Condition Folder {condition_folder.lower()} differs from condition {condition_indices.lower()} obtained into indices checkpoint!"
+                )            
+                        
             train_indices = (
                 fold_data["train_indices"]
             )
@@ -2901,7 +2940,6 @@ def execute_fusion(
 
         torch.save(
             summary_results,
-
             SUB_CONDIT_FUSION_DIR
             / f"{fusion}_summary.pth"
         )
@@ -2932,15 +2970,7 @@ def execute_fusion(
 
 if __name__ == "__main__":
 
-    # ======================================================
-    # BRANCH_MODEL_STATE OPTIONS
-    # ======================================================
-    #
-    # minimum_loss_model
-    #
-    # maximum_accuracy_model
-    #
-    # ======================================================
+
 
     # ======================================================
     # FUSION OPTIONS
@@ -2957,9 +2987,18 @@ if __name__ == "__main__":
     #
     # ======================================================
 
+    # ======================================================
+    # BRANCH_MODEL_STATE OPTIONS
+    # ======================================================
+    #
+    # minimum_loss_model
+    #
+    # maximum_accuracy_model
+    #
+    # ======================================================
 
     execute_fusion(
-        fusion= "branch_and_class_wise_scalar_gated_fusion",
+        fusion= "concatenation_fusion",
         branch_model_state = "maximum_accuracy_model",
         subjects=["sub-01"],
         condition_folder = "pronounced_speech",

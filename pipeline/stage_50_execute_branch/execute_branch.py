@@ -1205,7 +1205,7 @@ def execute_branch(
             if condition_folder.lower() != condition_indices.lower() : 
 
                 raise ValueError(
-                    f"Condition Folder {condition_folder.lower()} differs from condition {condition_indices.lower()} obtained in indices checkpoint!"
+                    f"Condition Folder {condition_folder.lower()} differs from condition {condition_indices.lower()} obtained into indices checkpoint!"
                 )            
 
             train_indices = fold_data[
@@ -2689,7 +2689,7 @@ if __name__ == "__main__":
     # ======================================================
 
     execute_branch(
-        branch="space1_space2_frequency_time",
+        branch="time_frequency_space1_space2",
         N_EPOCHS=60,       
         subjects=[
             "sub-01"
