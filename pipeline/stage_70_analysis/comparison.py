@@ -224,7 +224,8 @@ def checking_indices_labels(
 
             fold_checkpoint = (
                 FUSIONS_SUB_CONDIT_DIR
-                / f"{fusion}_from_{model_state}_in_branches"
+                / f"{fusion}"
+                / f"from_{model_state}_in_branches"
                 / f"{fusion}_fold_{fold}.pth"
             )
 
@@ -736,7 +737,8 @@ def retrive_probabilities_fusions(
 
     fold_checkpoint = (
         FUSIONS_SUB_CONDIT_DIR
-        / f"{fusion}_from_{model_state}_in_branches"
+        / f"{fusion}"
+        / f"from_{model_state}_in_branches"
         / f"{fusion}_fold_{fold}.pth"
     )
 
@@ -809,7 +811,8 @@ def retrive_predictions_majority_voting_fusion(
 
     fold_checkpoint = (
         FUSIONS_SUB_CONDIT_DIR
-        / f"{fusion}_from_{model_state}_in_branches"
+        / f"{fusion}"
+        / f"from_{model_state}_in_branches"
         / f"{fusion}_fold_{fold}.pth"
     )
 
@@ -1398,54 +1401,57 @@ def model_results_comparison(
                                       
                     )
 
+                    if branches:
 
-                    for branch in branches: 
+                        for branch in branches: 
 
-                        validation_probabilities, heading_text = retrive_probabilities_branches(
-                            branch,
-                            "validation",
-                            fold, 
-                            model_state, 
-                            BRANCHES_SUB_CONDIT_DIR,
-                                            
-                        )
+                            validation_probabilities, heading_text = retrive_probabilities_branches(
+                                branch,
+                                "validation",
+                                fold, 
+                                model_state, 
+                                BRANCHES_SUB_CONDIT_DIR,
+                                                
+                            )
 
-                        story = include_probabilities(
-                            story,
-                            validation_probabilities,
-                            box_standard_background = '#FFFFFF',
-                            box_success_background = '#e6f2ff',
-                            box_line_color= '#d5e8fc',
-                            labels_data = labels_data,
-                            heading_text = heading_text,
-                            show_probabilities=show_probabilities,
+                            story = include_probabilities(
+                                story,
+                                validation_probabilities,
+                                box_standard_background = '#FFFFFF',
+                                box_success_background = '#e6f2ff',
+                                box_line_color= '#d5e8fc',
+                                labels_data = labels_data,
+                                heading_text = heading_text,
+                                show_probabilities=show_probabilities,
+                                
+                            )
+
+                    if majority_voting_fusions:
+
+                        for majority_voting_fusion in majority_voting_fusions:
+
+                            validation_predictions, heading_text = retrive_predictions_majority_voting_fusion(
+                                FUSIONS_SUB_CONDIT_DIR,
+                                majority_voting_fusion,
+                                "validation",
+                                fold, 
+                                model_state,                    
+                            )
+
+                            story = include_probabilities(
+                                story,
+                                validation_predictions,
+                                box_standard_background = '#FFFFFF',
+                                box_success_background = '#e6f2ff',
+                                box_line_color= '#d5e8fc',
+                                labels_data = labels_data,
+                                heading_text = heading_text,
+                                show_probabilities= show_probabilities,   
+                                fusion_type = "majority_voting_fusion", 
+                                line_above= True,
+                                line_above_thickness=0.1,
                             
                         )
-
-                    for majority_voting_fusion in majority_voting_fusions:
-
-                        validation_predictions, heading_text = retrive_predictions_majority_voting_fusion(
-                            FUSIONS_SUB_CONDIT_DIR,
-                            majority_voting_fusion,
-                            "validation",
-                            fold, 
-                            model_state,                    
-                        )
-
-                        story = include_probabilities(
-                            story,
-                            validation_predictions,
-                            box_standard_background = '#FFFFFF',
-                            box_success_background = '#e6f2ff',
-                            box_line_color= '#d5e8fc',
-                            labels_data = labels_data,
-                            heading_text = heading_text,
-                            show_probabilities= show_probabilities,   
-                            fusion_type = "majority_voting_fusion", 
-                            line_above= True,
-                            line_above_thickness=0.1,
-                           
-                      )
 
 
 
@@ -1544,55 +1550,59 @@ def model_results_comparison(
                     )
 
 
-                    for branch in branches: 
+                    if branches:
 
-                        test_probabilities, heading_text = retrive_probabilities_branches(
-                            branch,
-                            "test",
-                            fold, 
-                            model_state, 
-                            BRANCHES_SUB_CONDIT_DIR,
-                                            
+                        for branch in branches: 
+
+                            test_probabilities, heading_text = retrive_probabilities_branches(
+                                branch,
+                                "test",
+                                fold, 
+                                model_state, 
+                                BRANCHES_SUB_CONDIT_DIR,
+                                                
+                            )
+
+                            story = include_probabilities(
+                                story,
+                                test_probabilities,
+                                box_standard_background = '#FFFFFF',
+                                box_success_background = '#D4EDDA',
+                                box_line_color= "#C3E6CB",
+                                labels_data = labels_data,
+                                heading_text = heading_text,
+                                show_probabilities= show_probabilities, 
+
+                            )
+
+                    if majority_voting_fusions:
+
+                        for majority_voting_fusion in majority_voting_fusions:
+
+                            test_predictions, heading_text = retrive_predictions_majority_voting_fusion(
+                                FUSIONS_SUB_CONDIT_DIR,
+                                majority_voting_fusion,
+                                "test",
+                                fold, 
+                                model_state,                    
+                            )
+
+                            story = include_probabilities(
+                                story,
+                                test_predictions,
+                                box_standard_background = '#FFFFFF',
+                                box_success_background = '#D4EDDA',
+                                box_line_color= '#C3E6CB',
+                                labels_data = labels_data,
+                                heading_text = heading_text,
+                                show_probabilities= show_probabilities,   
+                                fusion_type = "majority_voting_fusion", 
+                                line_above= True,
+                                line_above_thickness=0.1,
+                            
+
+                    
                         )
-
-                        story = include_probabilities(
-                            story,
-                            test_probabilities,
-                            box_standard_background = '#FFFFFF',
-                            box_success_background = '#D4EDDA',
-                            box_line_color= "#C3E6CB",
-                            labels_data = labels_data,
-                            heading_text = heading_text,
-                            show_probabilities= show_probabilities, 
-
-                        )
-
-                    for majority_voting_fusion in majority_voting_fusions:
-
-                        test_predictions, heading_text = retrive_predictions_majority_voting_fusion(
-                            FUSIONS_SUB_CONDIT_DIR,
-                            majority_voting_fusion,
-                            "test",
-                            fold, 
-                            model_state,                    
-                        )
-
-                        story = include_probabilities(
-                            story,
-                            test_predictions,
-                            box_standard_background = '#FFFFFF',
-                            box_success_background = '#D4EDDA',
-                            box_line_color= '#C3E6CB',
-                            labels_data = labels_data,
-                            heading_text = heading_text,
-                            show_probabilities= show_probabilities,   
-                            fusion_type = "majority_voting_fusion", 
-                            line_above= True,
-                            line_above_thickness=0.1,
-                           
-
-                   
-                      )
 
                     if fusions: 
 
@@ -1674,18 +1684,18 @@ if __name__ == "__main__":
             "time_frequency_space2_space1",
             "time_frequency_space1_space2"
             ],
-        majority_voting_fusions = [
-            "majority_voting_fusion"
-        ],
+        # majority_voting_fusions = [
+        #     "majority_voting_fusion"
+        # ],
 
-        fusions = [
-            "mean_fusion",  
-            "concatenation_fusion",
-            "branch_wise_weighted_sum_fusion", 
-            "branch_and_class_wise_weighted_sum_fusion",
-            "branch_wise_scalar_gated_fusion",
-            "branch_and_class_wise_scalar_gated_fusion"    
-        ],
+        # fusions = [
+        #     "mean_fusion",  
+        #     "concatenation_fusion",
+            # "branch_wise_weighted_sum_fusion", 
+            # "branch_and_class_wise_weighted_sum_fusion",
+            # "branch_wise_scalar_gated_fusion",
+            # "branch_and_class_wise_scalar_gated_fusion"    
+        #],
 
     
     )

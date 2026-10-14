@@ -242,13 +242,26 @@ def execute_fusion_majority_voting(
         )
         print("#" * 70)
 
+        # =================================
+        # DIRECTORIES
+        # ================================
 
+        SUB_CONDIT_INPUT_DIR = (
+            INPUT_DIR
+            / subject
+            / condition_folder.lower()
+        )
+
+        if not SUB_CONDIT_INPUT_DIR.is_dir():
+            raise NotADirectoryError(f"The required directory was not found: {SUB_CONDIT_INPUT_DIR}")
+
+        
         # ==================================================
         # LOAD DATA
         # ==================================================
 
         file_path = (
-            INPUT_DIR
+            SUB_CONDIT_INPUT_DIR
             / f"{subject}_all_sessions.pkl"
         )
 
@@ -354,7 +367,8 @@ def execute_fusion_majority_voting(
             OUTPUT_DIR
             / subject
             / condition_folder.lower()
-            / f"{fusion}_from_{branch_model_state}_in_branches"
+            / f"{fusion}"
+            / f"from_{branch_model_state}_in_branches"
         )
 
         SUB_CONDIT_FUSION_DIR.mkdir(
@@ -364,8 +378,8 @@ def execute_fusion_majority_voting(
 
         FOLDS_DIR = (
             OBTAIN_INDICES_STAGE
-            / "fold_indices"
             / subject
+            / condition_folder.lower()
         )
 
         FOLDS_DIR.mkdir(
@@ -534,10 +548,31 @@ def execute_fusion_majority_voting(
             # ÍNDICES
             # ==================================================
 
-            fold_data = np.load(
+            fold_file = (
                 FOLDS_DIR
                 / f"fold_{fold}.npz"
             )
+
+            if not fold_file.exists():
+
+                raise FileNotFoundError(
+                    f"Fold file does not exist: "
+                    f"{fold_file}"
+                )
+
+            fold_data = np.load(
+                fold_file
+            )
+
+            condition_indices = fold_data[
+                "condition"
+            ].item()
+
+            if condition_folder.lower() != condition_indices.lower() : 
+
+                raise ValueError(
+                    f"Condition Folder {condition_folder.lower()} differs from condition {condition_indices.lower()} obtained into indices checkpoint!"
+                )
 
             train_indices = (
                 fold_data["train_indices"]
@@ -1243,7 +1278,6 @@ if __name__ == "__main__":
     # 
     #
     # ======================================================
-
 
     execute_fusion_majority_voting(
         fusion= "majority_voting_fusion",
