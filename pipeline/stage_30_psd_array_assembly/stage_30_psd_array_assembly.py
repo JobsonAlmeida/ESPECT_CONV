@@ -152,139 +152,165 @@ def create_power_array(data, window_duration, step_duration, Channels_Distributi
 def psd_array_assembly(
         window_duration = WINDOW_DURATION,
         step_duration = STEP_DURATION,
-        channels_distribution = CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION
+        channels_distribution = CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION,
+        condition_folder = "PRONOUNCED_SPEECH",
+        subjects = subjects
 ):
 
     """Build the PSD array for all sessions."""
-
-
-
 
     # ======================================================
     # CREATING FIGURE
     # ======================================================
     channels_distribution.plot_channels_distribution(OUTPUT_DIR)
 
-    # ======================================================
-    # FINDING SESSIONS FILES
-    # ======================================================
 
-    session_files = sorted(
-        INPUT_DIR.glob(
-            "sub-*ses-*.pkl"
-        )
-    )
+    for subject in subjects:
 
-    if len(session_files) == 0:
+        # =================================
+        # DIRECTORIES
+        # ================================
 
-        raise FileNotFoundError(
-            f"\nNo sub-*/ses-*/*.pkl files found in:\n"
-            f"{INPUT_DIR}"
+        SUB_CONDIT_INPUT_DIR = (
+            INPUT_DIR
+            / subject
+            / condition_folder.lower()
         )
 
-    print(
-        f"\nSession files found: "
-        f"{len(session_files)}"
-    )
+        if not SUB_CONDIT_INPUT_DIR.is_dir():
+            raise NotADirectoryError(f"The required directory was not found: {SUB_CONDIT_INPUT_DIR}")
 
-    for path in session_files:
-
-        print(
-            " -",
-            path.relative_to(PROJECT_ROOT)
-        )
-
-    # ======================================================
-    # CREATING POWER ARRAY
-    # ======================================================
-
-    for data_path in session_files:
-
-        session_file = data_path.name
-        session_name = data_path.stem
-
-
-        session_dir = INPUT_DIR/session_file
-
-        with open(session_dir, 'rb') as file:
-            session_data = pickle.load(file)
-
-        data = session_data["data"]
-        labels = session_data["labels"]
-
-        frequencies, times, psd_array = create_power_array(
-            data,
-            window_duration,
-            step_duration,
-            channels_distribution,
-            session_data["sampling_rate"],
-            session_data
-        )
-
-        if len(psd_array) != len(labels):
-            raise ValueError(f"Incompatible sessions and labels in {session_file}")
-
-
-        processed_session = {
-
-            "sub_ses": session_data["sub_ses"],
-
-            "psd_array": psd_array,
-
-            "frequencies": frequencies,
-
-            "times": times,
-
-            "labels": labels,
-
-            "channel_names": session_data["channel_names"],
-
-            "sampling_rate": session_data["sampling_rate"],
-
-            "condition": session_data["condition"],
-
-            "start_seconds": session_data["start_seconds"],
-
-            "end_seconds": session_data["end_seconds"],
-
-        }
-
-
-        # ==================================================
-        # SAVING PROCESSED SESSION
-        # ==================================================
-
-        output_path = (
+        SUB_CONDIT_OUTPUT_DIR = (
             OUTPUT_DIR
-            / f"{session_name}.pkl"
+            / subject
+            / condition_folder.lower()
         )
 
-        with output_path.open("wb") as file:
+        SUB_CONDIT_OUTPUT_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
-            pickle.dump(
-                processed_session,
-                file
+
+        # ======================================================
+        # FINDING SESSIONS FILES
+        # ======================================================
+
+        session_files = sorted(
+            SUB_CONDIT_INPUT_DIR.glob(
+                "sub-*ses-*.pkl"
+            )
+        )
+
+        if len(session_files) == 0:
+
+            raise FileNotFoundError(
+                f"\nNo sub-*/ses-*/*.pkl files found in:\n"
+                f"{SUB_CONDIT_INPUT_DIR}"
             )
 
-        # ==================================================
-        # SESSION INFORMATION
-        # ==================================================
-
         print(
-            f"\n{session_name}"
+            f"\nSession files found: "
+            f"{len(session_files)}"
         )
 
-        print(
-            f"  data shape: {psd_array.shape}"
-        )
+        for path in session_files:
 
-        print(
-            f"  labels shape: {labels.shape}"
-        )
+            print(
+                " -",
+                path.relative_to(PROJECT_ROOT)
+            )
 
-        print(
-            f"  saved to: {output_path.relative_to(PROJECT_ROOT)}"
-        )
+        # ======================================================
+        # CREATING POWER ARRAY
+        # ======================================================
+
+        for data_path in session_files:
+
+            session_file = data_path.name
+            session_name = data_path.stem
+
+            session_dir = SUB_CONDIT_INPUT_DIR/session_file
+
+            with open(session_dir, 'rb') as file:
+                session_data = pickle.load(file)
+
+            data = session_data["data"]
+            labels = session_data["labels"]
+
+            frequencies, times, psd_array = create_power_array(
+                data,
+                window_duration,
+                step_duration,
+                channels_distribution,
+                session_data["sampling_rate"],
+                session_data
+            )
+
+            if len(psd_array) != len(labels):
+                raise ValueError(f"Incompatible sessions and labels in {session_file}")
+
+
+            processed_session = {
+
+                "sub_ses": session_data["sub_ses"],
+
+                "psd_array": psd_array,
+
+                "frequencies": frequencies,
+
+                "times": times,
+
+                "labels": labels,
+
+                "channel_names": session_data["channel_names"],
+
+                "sampling_rate": session_data["sampling_rate"],
+
+                "condition": session_data["condition"],
+
+                "start_seconds": session_data["start_seconds"],
+
+                "end_seconds": session_data["end_seconds"],
+
+            }
+
+
+            # ==================================================
+            # SAVING PROCESSED SESSION
+            # ==================================================
+
+            output_path = (
+                SUB_CONDIT_OUTPUT_DIR
+                / f"{session_name}.pkl"
+            )
+
+            with output_path.open("wb") as file:
+
+                pickle.dump(
+                    processed_session,
+                    file
+                )
+
+            # ==================================================
+            # SESSION INFORMATION
+            # ==================================================
+
+            print(
+                f"\n{session_name}"
+            )
+
+            print(
+                f"  data shape: {psd_array.shape}"
+            )
+
+            print(
+                f"  labels shape: {labels.shape}"
+            )
+
+            print(
+                f"  saved to: {output_path.relative_to(PROJECT_ROOT)}"
+            )
 
 
     # ===========================================================
@@ -299,10 +325,20 @@ def psd_array_assembly(
         label_sessions = []
         session_ids = []
 
+        SUB_CONDIT_OUTPUT_DIR = (
+            OUTPUT_DIR
+            / subject
+            / condition_folder.lower()
+        )
+
+        if not SUB_CONDIT_OUTPUT_DIR.is_dir():
+            raise NotADirectoryError(f"The required directory was not found: {SUB_CONDIT_OUTPUT_DIR}")
+
+
         for session in sessions:
 
             file_path = os.path.join(
-                OUTPUT_DIR,
+                SUB_CONDIT_OUTPUT_DIR,
                 f"{subject}_{session}.pkl"
             )
 
@@ -387,7 +423,7 @@ def psd_array_assembly(
         # ==================================================
 
         output_path = (
-            OUTPUT_DIR
+            SUB_CONDIT_OUTPUT_DIR
             / f"{subject}_all_sessions.pkl"
         )
 
@@ -424,8 +460,13 @@ def psd_array_assembly(
         "STAGE 30 COMPLETED\n"
         "==============================================="
     )
-        
 
 if __name__ == "__main__":
 
-    psd_array_assembly()
+    psd_array_assembly(
+        window_duration = WINDOW_DURATION,
+        step_duration = STEP_DURATION,
+        channels_distribution = CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION,
+        condition_folder = "PRONOUNCED_SPEECH",
+        subjects = subjects
+    )
