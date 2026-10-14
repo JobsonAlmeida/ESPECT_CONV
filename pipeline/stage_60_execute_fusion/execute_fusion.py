@@ -1683,6 +1683,43 @@ def execute_fusion(
                         model_t_f_s1_s2
                     ).to(device)
 
+                case "branch_wise_weighted_sum_fusion":
+
+                    model = fusion_cnn_models.BranchWiseWeightedSumFusion(
+                        model_s1_s2_f_t,
+                        model_s1_s2_t_f,
+                        model_t_f_s2_s1,
+                        model_t_f_s1_s2
+                    ).to(device)
+
+
+                case "branch_and_class_wise_weighted_sum_fusion":
+
+                    model = fusion_cnn_models.BranchAndClassWiseWeightedSumFusion(
+                        model_s1_s2_f_t,
+                        model_s1_s2_t_f,
+                        model_t_f_s2_s1,
+                        model_t_f_s1_s2
+                    ).to(device)
+
+
+                case "branch_wise_scalar_gated_fusion":
+
+                    model = fusion_cnn_models.BranchWiseScalarGatedFusion(
+                        model_s1_s2_f_t,
+                        model_s1_s2_t_f,
+                        model_t_f_s2_s1,
+                        model_t_f_s1_s2
+                    ).to(device)
+
+                case "branch_and_class_wise_scalar_gated_fusion":
+
+                    model = fusion_cnn_models.BranchAndClassWiseScalarGatedFusion(
+                        model_s1_s2_f_t,
+                        model_s1_s2_t_f,
+                        model_t_f_s2_s1,
+                        model_t_f_s1_s2
+                    ).to(device)
 
                 case "multiplication_fusion":
 
@@ -1696,33 +1733,6 @@ def execute_fusion(
                 case "multiplication_log_softmax_fusion":
 
                     model = fusion_cnn_models.MultiplicationLogSoftmaxFusion(
-                        model_s1_s2_f_t,
-                        model_s1_s2_t_f,
-                        model_t_f_s2_s1,
-                        model_t_f_s1_s2
-                    ).to(device)
-
-                case "weighted_sum_fusion":
-
-                    model = fusion_cnn_models.WeightedSumFusion(
-                        model_s1_s2_f_t,
-                        model_s1_s2_t_f,
-                        model_t_f_s2_s1,
-                        model_t_f_s1_s2
-                    ).to(device)
-
-                case "scalar_gated_fusion":
-
-                    model = fusion_cnn_models.ScalarGatedFusion(
-                        model_s1_s2_f_t,
-                        model_s1_s2_t_f,
-                        model_t_f_s2_s1,
-                        model_t_f_s1_s2
-                    ).to(device)
-              
-                case "class_wise_gated_fusion":
-
-                    model = fusion_cnn_models.ClassWiseGatedFusion(
                         model_s1_s2_f_t,
                         model_s1_s2_t_f,
                         model_t_f_s2_s1,
@@ -2938,18 +2948,18 @@ if __name__ == "__main__":
     #
     # mean_fusion
     # concatenation_fusion
-    # multiplication_fusion
-    # multiplication_log_softmax_fusion
-    # weighted_sum_fusion
-    # scalar_gated_fusion
-    # class_wise_gated_fusion
     #
+    # branch_wise_weighted_sum_fusion
+    # branch_and_class_wise_weighted_sum_fusion
+    # 
+    # branch_wise_scalar_gated_fusion
+    # branch_and_class_wise_scalar_gated_fusion 
     #
     # ======================================================
 
 
     execute_fusion(
-        fusion= "weighted_sum_fusion",
+        fusion= "branch_and_class_wise_scalar_gated_fusion",
         branch_model_state = "maximum_accuracy_model",
         subjects=["sub-01"],
         condition_folder = "pronounced_speech",

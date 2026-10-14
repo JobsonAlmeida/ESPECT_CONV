@@ -602,60 +602,127 @@ def retrive_probabilities_fusions(
 
         # ------------------------------------------
 
-        case ("mean_fusion"):
+        case ("mean_fusion", "stage_1"):
 
-            heading_text = "mean"
+            heading_text = "mean 1"
+
+        # ------------------------------------------
+
+        case ("mean_fusion", "stage_2_from_stage_1_minimum_loss"):
+
+            heading_text = "mean 2"
+
+        # ------------------------------------------
+        # ------------------------------------------
+
+        case ("mean_fusion", "stage_2_from_stage_1_maximum_accuracy"):
+
+            heading_text = "mean 2"
 
         # ------------------------------------------
 
         case ("concatenation_fusion", "stage_1"):
 
-            heading_text = "concat_1"
+            heading_text = "concat 1"
 
         # ------------------------------------------
 
         case ("concatenation_fusion", "stage_2_from_stage_1_minimum_loss"):
 
-            heading_text = "concat_2"
+            heading_text = "concat 2"
 
         # ------------------------------------------
 
         case ("concatenation_fusion", "stage_2_from_stage_1_maximum_accuracy"):
 
-            heading_text = "concat_2"
+            heading_text = "concat 2"
 
         # ------------------------------------------
 
 
-        case ("weighted_sum_fusion", "stage_1"):
+        case ("branch_wise_weighted_sum_fusion", "stage_1"):
 
-            heading_text = "wei_sum_1"
-
-        # ------------------------------------------
-
-
-        case ("weighted_sum_fusion", "stage_2_from_stage_1_minimum_loss"):
-
-            heading_text = "wei_sum_2"
+            heading_text = "b w w s 1"
 
         # ------------------------------------------
 
 
-        case ("weighted_sum_fusion", "stage_2_from_stage_1_maximum_accuracy"):
+        case ("branch_wise_weighted_sum_fusion", "stage_2_from_stage_1_minimum_loss"):
 
-            heading_text = "wei_sum_2"
+            heading_text = "b w w s 2"
+
+        # ------------------------------------------
+
+
+        case ("branch_wise_weighted_sum_fusion", "stage_2_from_stage_1_maximum_accuracy"):
+
+            heading_text = "b w w s 2"
+
+        # ------------------------------------------
+
+        case ("branch_and_class_wise_weighted_sum_fusion", "stage_1"):
+
+            heading_text = "b c w w s 1"
+
+        # ------------------------------------------
+
+
+        case ("branch_and_class_wise_weighted_sum_fusion", "stage_2_from_stage_1_minimum_loss"):
+
+            heading_text = "b c w w s 2"
+
+        # ------------------------------------------
+
+
+        case ("branch_and_class_wise_weighted_sum_fusion", "stage_2_from_stage_1_maximum_accuracy"):
+
+            heading_text = "b c w w s 2"
+
+        # ------------------------------------------
+
+
+        case ("branch_wise_scalar_gated_fusion", "stage_1"):
+
+            heading_text = "b w s g 1"
+
+        # ------------------------------------------
+
+
+        case ("branch_wise_scalar_gated_fusion", "stage_2_from_stage_1_minimum_loss"):
+
+            heading_text = "b w s g 2"
+
+        # ------------------------------------------
+
+
+        case ("branch_wise_scalar_gated_fusion", "stage_2_from_stage_1_maximum_accuracy"):
+
+            heading_text = "b w s g 2"
 
         # ------------------------------------------
 
 
 
-        case "scalar_gated_fusion":
+        case ("branch_and_class_wise_scalar_gated_fusion", "stage_1"):
 
-            heading_text = "scalar_gated"
+            heading_text = "b c w s g 1"
 
-        case "class_wise_gated_fusion":
+        # ------------------------------------------
 
-            heading_text = "class_wise_gated"
+
+        case ("branch_and_class_wise_scalar_gated_fusion", "stage_2_from_stage_1_minimum_loss"):
+
+            heading_text = "b c w s g 2"
+
+        # ------------------------------------------
+
+
+        case ("branch_and_class_wise_scalar_gated_fusion", "stage_2_from_stage_1_maximum_accuracy"):
+
+            heading_text = "b c w s g 2"
+
+        # ------------------------------------------
+
 
         case _:
 
@@ -725,7 +792,7 @@ def retrive_predictions_majority_voting_fusion(
 
         case "majority_voting_fusion":
 
-            heading_text = "maj_vot"
+            heading_text = "maj vot"
 
         # ------------------------------------------
 
@@ -1380,61 +1447,64 @@ def model_results_comparison(
                       )
 
 
-                    for fusion in fusions:
 
-                        validation_probabilities, heading_text = retrive_probabilities_fusions(
-                            fusion,
-                            "validation",
-                            "stage_1",
-                            fold, 
-                            model_state, 
-                            FUSIONS_SUB_CONDIT_DIR,
-                                            
-                        )
+                    if fusions:
 
-                        story = include_probabilities(
-                            story,
-                            validation_probabilities,
-                            box_standard_background = '#FFFFFF',
-                            box_success_background = '#e6f2ff',
-                            box_line_color= '#d5e8fc',
-                            labels_data = labels_data,
-                            heading_text = heading_text,
-                            show_probabilities= show_probabilities, 
-                            line_above= True,
-                            line_above_thickness=0.1,
-                        )
+                        for fusion in fusions:
 
-                        match model_state: 
+                            validation_probabilities, heading_text = retrive_probabilities_fusions(
+                                fusion,
+                                "validation",
+                                "stage_1",
+                                fold, 
+                                model_state, 
+                                FUSIONS_SUB_CONDIT_DIR,
+                                                
+                            )
 
-                            case "minimum_loss_model":
+                            story = include_probabilities(
+                                story,
+                                validation_probabilities,
+                                box_standard_background = '#FFFFFF',
+                                box_success_background = '#e6f2ff',
+                                box_line_color= '#d5e8fc',
+                                labels_data = labels_data,
+                                heading_text = heading_text,
+                                show_probabilities= show_probabilities, 
+                                line_above= True,
+                                line_above_thickness=0.1,
+                            )
 
-                                stage_2 = "stage_2_from_stage_1_minimum_loss" 
+                            match model_state: 
 
-                            case "maximum_accuracy_model":
+                                case "minimum_loss_model":
 
-                                stage_2 = "stage_2_from_stage_1_maximum_accuracy"
+                                    stage_2 = "stage_2_from_stage_1_minimum_loss" 
 
-                        validation_probabilities, heading_text = retrive_probabilities_fusions(
-                            fusion,
-                            "validation",
-                            stage_2,
-                            fold, 
-                            model_state, 
-                            FUSIONS_SUB_CONDIT_DIR,                                          
-                        )
+                                case "maximum_accuracy_model":
 
-                        story = include_probabilities(
-                            story,
-                            validation_probabilities,
-                            box_standard_background = '#FFFFFF',
-                            box_success_background = '#e6f2ff',
-                            box_line_color= '#d5e8fc',
-                            labels_data = labels_data,
-                            heading_text = heading_text,
-                            show_probabilities= show_probabilities, 
+                                    stage_2 = "stage_2_from_stage_1_maximum_accuracy"
 
-                        )             
+                            validation_probabilities, heading_text = retrive_probabilities_fusions(
+                                fusion,
+                                "validation",
+                                stage_2,
+                                fold, 
+                                model_state, 
+                                FUSIONS_SUB_CONDIT_DIR,                                          
+                            )
+
+                            story = include_probabilities(
+                                story,
+                                validation_probabilities,
+                                box_standard_background = '#FFFFFF',
+                                box_success_background = '#e6f2ff',
+                                box_line_color= '#d5e8fc',
+                                labels_data = labels_data,
+                                heading_text = heading_text,
+                                show_probabilities= show_probabilities, 
+
+                            )             
 
                     # ================================================================
                     # INCLUDING INDICES, LABELS AND TEST PREDICTIONS FOR ALL BRANCHES
@@ -1523,68 +1593,66 @@ def model_results_comparison(
                    
                       )
 
-                    for fusion in fusions:
+                    if fusions: 
 
-                        test_probabilities, heading_text = retrive_probabilities_fusions(
-                            fusion,
-                            "test",
-                            "stage_1",
-                            fold, 
-                            model_state, 
-                            FUSIONS_SUB_CONDIT_DIR,
-                                            
-                        )
+                        for fusion in fusions:
 
-                        story = include_probabilities(
-                            story,
-                            test_probabilities,
-                            box_standard_background = '#FFFFFF',
-                            box_success_background = '#D4EDDA',
-                            box_line_color= "#C3E6CB",
-                            labels_data = labels_data,
-                            heading_text = heading_text,
-                            show_probabilities= show_probabilities, 
-                            line_above= True,
-                            line_above_thickness=0.1,
+                            test_probabilities, heading_text = retrive_probabilities_fusions(
+                                fusion,
+                                "test",
+                                "stage_1",
+                                fold, 
+                                model_state, 
+                                FUSIONS_SUB_CONDIT_DIR,
+                                                
+                            )
 
-                        )
+                            story = include_probabilities(
+                                story,
+                                test_probabilities,
+                                box_standard_background = '#FFFFFF',
+                                box_success_background = '#D4EDDA',
+                                box_line_color= "#C3E6CB",
+                                labels_data = labels_data,
+                                heading_text = heading_text,
+                                show_probabilities= show_probabilities, 
+                                line_above= True,
+                                line_above_thickness=0.1,
 
-
-                        match model_state: 
-
-                            case "minimum_loss_model":
-
-                                stage_2 = "stage_2_from_stage_1_minimum_loss" 
-
-                            case "maximum_accuracy_model":
-
-                                stage_2 = "stage_2_from_stage_1_maximum_accuracy"
+                            )
 
 
-                        test_probabilities, heading_text = retrive_probabilities_fusions(
-                            fusion,
-                            "test",
-                            stage_2,
-                            fold, 
-                            model_state, 
-                            FUSIONS_SUB_CONDIT_DIR,                                          
-                        )
+                            match model_state: 
 
-                        story = include_probabilities(
-                            story,
-                            test_probabilities,
-                            box_standard_background = '#FFFFFF',
-                            box_success_background = '#D4EDDA',
-                            box_line_color= "#C3E6CB",
-                            labels_data = labels_data,
-                            heading_text = heading_text,
-                            show_probabilities= show_probabilities, 
+                                case "minimum_loss_model":
 
-                        )                       
+                                    stage_2 = "stage_2_from_stage_1_minimum_loss" 
+
+                                case "maximum_accuracy_model":
+
+                                    stage_2 = "stage_2_from_stage_1_maximum_accuracy"
 
 
+                            test_probabilities, heading_text = retrive_probabilities_fusions(
+                                fusion,
+                                "test",
+                                stage_2,
+                                fold, 
+                                model_state, 
+                                FUSIONS_SUB_CONDIT_DIR,                                          
+                            )
 
-                    
+                            story = include_probabilities(
+                                story,
+                                test_probabilities,
+                                box_standard_background = '#FFFFFF',
+                                box_success_background = '#D4EDDA',
+                                box_line_color= "#C3E6CB",
+                                labels_data = labels_data,
+                                heading_text = heading_text,
+                                show_probabilities= show_probabilities, 
+
+                            )                       
 
             doc.build(story)
 
@@ -1610,8 +1678,12 @@ if __name__ == "__main__":
         ],
 
         fusions = [
+            "mean_fusion",  
             "concatenation_fusion",
-            "weighted_sum_fusion"            
+            "branch_wise_weighted_sum_fusion", 
+            "branch_and_class_wise_weighted_sum_fusion",
+            "branch_wise_scalar_gated_fusion",
+            "branch_and_class_wise_scalar_gated_fusion"    
         ],
 
     
