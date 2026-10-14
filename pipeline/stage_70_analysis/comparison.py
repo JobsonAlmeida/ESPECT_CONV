@@ -1394,6 +1394,7 @@ def model_results_comparison(
                         box_background= '#e6f2ff',
                         box_line_color= "#d5e8fc",
                         line_below= True,
+                        show_probabilities= show_probabilities,
                                       
                     )
 
