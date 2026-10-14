@@ -657,14 +657,14 @@ def print_folds_summary(
 
 def execute_branch(
     branch,
-    subjects=subjects,
-    condition_folder = "PRONOUNCED_SPEECH",
-    N_FOLDS=N_FOLDS,
-    N_EPOCHS=N_EPOCHS,
-    BATCH_SIZE=BATCH_SIZE,
-    LEARNING_RATE=LEARNING_RATE,
-    RANDOM_STATE=RANDOM_STATE,
-    RANDOM_STATE_LOADER=RANDOM_STATE_LOADER,
+    subjects,
+    condition_folder,
+    N_FOLDS,
+    N_EPOCHS,
+    BATCH_SIZE,
+    LEARNING_RATE,
+    RANDOM_STATE,
+    RANDOM_STATE_LOADER,
 ):
 
     # ======================================================
@@ -2690,9 +2690,12 @@ if __name__ == "__main__":
 
     execute_branch(
         branch="time_frequency_space1_space2",
-        N_EPOCHS=60,       
-        subjects=[
-            "sub-01"
-        ],
+        subjects=["sub-01"],
         condition_folder = "PRONOUNCED_SPEECH",
+        N_FOLDS=N_FOLDS,
+        N_EPOCHS=60, 
+        BATCH_SIZE=BATCH_SIZE,
+        LEARNING_RATE=LEARNING_RATE,
+        RANDOM_STATE=RANDOM_STATE,
+        RANDOM_STATE_LOADER=RANDOM_STATE_LOADER,       
     )

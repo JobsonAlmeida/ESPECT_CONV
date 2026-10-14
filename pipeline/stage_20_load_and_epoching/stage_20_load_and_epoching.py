@@ -75,8 +75,9 @@ CONDITION_MAP = {
 
 def load_and_epoching(
         condition,
-        crop_start_time=EPOCH_START_SECONDS,
-        crop_end_time=EPOCH_END_SECONDS):
+        crop_start_time,
+        crop_end_time
+    ):
 
     """
     Load epoched EEG files, select one experimental condition,
@@ -605,6 +606,8 @@ if __name__ == "__main__":
     # ======================================================
 
     load_and_epoching(
+        crop_start_time=EPOCH_START_SECONDS,
+        crop_end_time=EPOCH_END_SECONDS,
         condition="PRONOUNCED_SPEECH"
     )
 

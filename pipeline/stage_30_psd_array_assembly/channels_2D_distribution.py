@@ -1220,9 +1220,19 @@ class CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION:
     
     # Rosa claro e azul claro.
     color_map = ListedColormap([
-        "#bdd9df",
-        "#afcdc0"
+        "#eeeeee",
+        "#ffffff"
     ])
+
+
+    # "#f8f6f6",
+    # "#ffffff"
+
+    # "#e6eeff",
+    # "#ebe6ff"
+
+    # "#D0F0EAFF",
+    # "#DACFD1FF"
 
     figure, axis = plt.subplots(figsize=figsize)
 
@@ -1288,36 +1298,45 @@ class CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION:
 
     plt.tight_layout()
 
-    # plt.show()
 
-    # ======================================================
-    # SALVAR
-    # ======================================================
+    if not OUTPUT_DIR:
 
-    save_dir = (
-        OUTPUT_DIR
-        / "figures"
-    )
+      plt.show()
 
-    save_dir.mkdir(
-        parents=True,
-        exist_ok=True
-    )
+    else:
+      
+      plt.close('all')
 
-    figure_path = (
-        save_dir
-        / (
-            f"channels_2D_distribution.svg"
+      # ======================================================
+      # SALVAR
+      # ======================================================
+
+      if OUTPUT_DIR: 
+        
+        save_dir = (
+            OUTPUT_DIR
+            / "figures"
         )
-    )
 
-    figure.savefig(
-        figure_path,
-        bbox_inches="tight"
-    )
+        save_dir.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
-    print(
-        f"EEG 2D Distribution figure saved: "
-        f"{figure_path}"
-    )
+        figure_path = (
+            save_dir
+            / (
+                f"channels_2D_distribution.svg"
+            )
+        )
+
+        figure.savefig(
+            figure_path,
+            bbox_inches="tight"
+        )
+
+        print(
+            f"EEG 2D Distribution figure saved: "
+            f"{figure_path}"
+        )
     

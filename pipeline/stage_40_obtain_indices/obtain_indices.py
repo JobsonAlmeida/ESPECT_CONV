@@ -53,11 +53,11 @@ subjects = [
 # ==========================================================
 
 def obtain_indices(
-    subjects=subjects,
-    N_FOLDS=N_FOLDS,
-    VALIDATION_SIZE=VALIDATION_SIZE,
-    RANDOM_STATE=RANDOM_STATE,
-    condition_folder = "PRONOUNCED_SPEECH",
+    subjects,
+    N_FOLDS,
+    VALIDATION_SIZE,
+    RANDOM_STATE,
+    condition_folder,
 
 ):
 

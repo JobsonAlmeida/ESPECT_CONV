@@ -150,19 +150,16 @@ def create_power_array(data, window_duration, step_duration, Channels_Distributi
     return frequencies, times, psd_array
 
 def psd_array_assembly(
-        window_duration = WINDOW_DURATION,
-        step_duration = STEP_DURATION,
-        channels_distribution = CENTRALIZED_ONE_BY_ONE_2D_DISTRIBUTION,
-        condition_folder = "PRONOUNCED_SPEECH",
-        subjects = subjects
+        window_duration,
+        step_duration,
+        channels_distribution,
+        condition_folder,
+        subjects
 ):
 
     """Build the PSD array for all sessions."""
 
-    # ======================================================
-    # CREATING FIGURE
-    # ======================================================
-    channels_distribution.plot_channels_distribution(OUTPUT_DIR)
+
 
 
     for subject in subjects:
@@ -221,6 +218,11 @@ def psd_array_assembly(
                 path.relative_to(PROJECT_ROOT)
             )
 
+        # ======================================================
+        # CREATING ELECTRODES DISTRIBUTION FIGURE
+        # ======================================================
+        channels_distribution.plot_channels_distribution(SUB_CONDIT_OUTPUT_DIR)
+    
         # ======================================================
         # CREATING POWER ARRAY
         # ======================================================
