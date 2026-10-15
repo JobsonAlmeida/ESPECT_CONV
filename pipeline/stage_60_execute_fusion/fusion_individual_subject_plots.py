@@ -33,6 +33,29 @@ DEFAULT_SUBJECTS = [
 
 
 
+# ================================
+# COLORS
+# ===============================
+
+INDICES_COLOR = "#EBEBEB"
+
+TRAINING_COLOR_LINE = "sandybrown"
+
+VALIDATION_COLOR_LINE = "royalblue"
+VALIDATION_COLOR_BACKGROUND = '#e6f2ff'
+VALIDATION_COLOR_BACKGROUND_2 = "#d4dfec"
+VALIDATION_COLOR_CONTOUR = '#d5e8fc'
+
+TEST_COLOR_BACKGROUND =  "#dcefd5"  #'#D4EDDA'
+TEST_COLOR_BACKGROUND_2 = "#cddec6"
+TEST_COLOR_COUNTOUR = "#C3E6CB"
+
+
+
+MINIMUM_VALIDATION_LOSS_COLOR = "violet"
+MAXIMUM_VALIDATION_ACCURACY_COLOR = "purple"
+
+
 # ==========================================================
 # CONFIGURAÇÃO DOS TRÊS PONTOS DO TREINAMENTO
 # ==========================================================
@@ -479,7 +502,7 @@ def plot_fusion_stage(
         ax_loss.plot(
             epochs,
             train_losses_epoch,
-            color="sandybrown",
+            color=TRAINING_COLOR_LINE,
             label="Train"
         )
 
@@ -487,14 +510,14 @@ def plot_fusion_stage(
         ax_loss.plot(
             epochs,
             val_losses_epoch,
-            color="royalblue",
+            color=VALIDATION_COLOR_LINE,
             label="Validation"
         )
 
 
         ax_loss.axvline(
             x=min_val_loss_epoch + 1,
-            color="violet",
+            color=MINIMUM_VALIDATION_LOSS_COLOR,
             linestyle=":",
             linewidth=2,
             label="Min Val Loss"
@@ -503,7 +526,7 @@ def plot_fusion_stage(
 
         ax_loss.axvline(
             x=max_val_accuracy_epoch + 1,
-            color="purple",
+            color=MAXIMUM_VALIDATION_ACCURACY_COLOR,
             linestyle=":",
             linewidth=2,
             label="Max Val Acc"
@@ -565,14 +588,14 @@ def plot_fusion_stage(
         ax_acc.plot(
             epochs,
             val_accuracies_epoch,
-            color="royalblue",
+            color=VALIDATION_COLOR_LINE,
             label="Validation"
         )
 
 
         ax_acc.axvline(
             x=min_val_loss_epoch + 1,
-            color="violet",
+            color=MINIMUM_VALIDATION_LOSS_COLOR,
             linestyle=":",
             linewidth=2,
             label="Min Val Loss"
@@ -581,7 +604,7 @@ def plot_fusion_stage(
 
         ax_acc.axvline(
             x=max_val_accuracy_epoch + 1,
-            color="purple",
+            color=MAXIMUM_VALIDATION_ACCURACY_COLOR,
             linestyle=":",
             linewidth=2,
             label="Max Val Acc"
@@ -826,7 +849,7 @@ def plot_fusion_stage(
                 vaidation_accuracy,
                 column
             ].set_facecolor(
-                "#e6f2ff"
+                VALIDATION_COLOR_BACKGROUND
             )
 
 
@@ -834,7 +857,7 @@ def plot_fusion_stage(
                 test_accuracy,
                 column
             ].set_facecolor(
-                "#dcefd5" #"#dcefd5"  #dff3d8"
+                TEST_COLOR_BACKGROUND #"#dcefd5"  #dff3d8"
             )
 
     # ======================================================
@@ -1093,7 +1116,7 @@ def plot_fusion_stage(
                 line,
                 column
             ].set_facecolor(
-                "#e6f2ff"
+                VALIDATION_COLOR_BACKGROUND
             )
 
 
@@ -1117,7 +1140,7 @@ def plot_fusion_stage(
             vaidation_accuracy,
             column
         ].set_facecolor(
-            "#d4dfec"
+            VALIDATION_COLOR_BACKGROUND_2
         )
 
 
@@ -1125,7 +1148,7 @@ def plot_fusion_stage(
             test_accuracy,
             column
         ].set_facecolor(
-            "#d4dfec"
+            VALIDATION_COLOR_BACKGROUND_2
         )
 
     for column in [
@@ -1139,7 +1162,7 @@ def plot_fusion_stage(
                 line,
                 column
             ].set_facecolor(
-                "#dcefd5"
+                TEST_COLOR_BACKGROUND
             )
 
         mini_table[
@@ -1162,7 +1185,7 @@ def plot_fusion_stage(
             mean_row,
             column
         ].set_facecolor(
-            "#cddec6"
+            TEST_COLOR_BACKGROUND_2
         )
 
 
@@ -1170,7 +1193,7 @@ def plot_fusion_stage(
             std_row,
             column
         ].set_facecolor(
-            "#cddec6"
+            TEST_COLOR_BACKGROUND_2
         )
 
 
@@ -1427,11 +1450,11 @@ def plot_fusion_stage(
 # ==========================================================
 
 def fusion_individual_subject_plots(
-    fusion = "concatenation_fusion",
-    branch_model_state = "minimum_loss_model", 
-    subjects=["sub-01"],
-    condition_folder = "pronounced_speech",
-    OUTPUT_DIR = OUTPUT_DIR   
+    fusion,
+    branch_model_state, 
+    subjects,
+    condition_folder ,
+    OUTPUT_DIR   
 ):
 
     # ======================================================
@@ -1465,10 +1488,13 @@ def fusion_individual_subject_plots(
             OUTPUT_DIR
             / subject
             / condition_folder.lower()
-            / f"{fusion}_from_{branch_model_state}_in_branches"
+            / f"{fusion}"
+            / f"from_{branch_model_state}_in_branches"
 
         )
 
+        if not SUB_CONDIT_FUSION_DIR.is_dir():
+            raise NotADirectoryError(f"The required directory was not found: {SUB_CONDIT_FUSION_DIR}")
        
         # ==================================================
         # LOCALIZAR CHECKPOINTS
@@ -1580,4 +1606,10 @@ def fusion_individual_subject_plots(
 
 if __name__ == "__main__":
 
-    fusion_individual_subject_plots()
+    fusion_individual_subject_plots(
+        fusion = "concatenation_fusion",
+        branch_model_state = "minimum_loss_model", 
+        subjects=["sub-01"],
+        condition_folder = "pronounced_speech",
+        OUTPUT_DIR = OUTPUT_DIR
+    )

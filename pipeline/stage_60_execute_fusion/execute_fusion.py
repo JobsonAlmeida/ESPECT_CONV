@@ -877,17 +877,17 @@ subjects = [
 
 def execute_fusion(
     fusion,
-    branch_model_state = "minimum_loss_model",
-    subjects=subjects,
-    condition_folder = "pronounced_speech",
-    N_FOLDS=N_FOLDS,
-    N_EPOCHS_STAGE_1=N_EPOCHS_STAGE_1,
-    N_EPOCHS_STAGE_2=N_EPOCHS_STAGE_2,
-    BATCH_SIZE=BATCH_SIZE,
-    LEARNING_RATE_STAGE_1=LEARNING_RATE_STAGE_1,
-    LEARNING_RATE_STAGE_2=LEARNING_RATE_STAGE_2,
-    RANDOM_STATE=RANDOM_STATE,
-    RANDOM_STATE_LOADER=RANDOM_STATE_LOADER,
+    branch_model_state,
+    subjects,
+    condition_folder,
+    N_FOLDS,
+    N_EPOCHS_STAGE_1,
+    N_EPOCHS_STAGE_2,
+    BATCH_SIZE,
+    LEARNING_RATE_STAGE_1,
+    LEARNING_RATE_STAGE_2,
+    RANDOM_STATE,
+    RANDOM_STATE_LOADER,
 ):
 
 
@@ -3002,8 +3002,14 @@ if __name__ == "__main__":
         branch_model_state = "maximum_accuracy_model",
         subjects=["sub-01"],
         condition_folder = "pronounced_speech",
-        N_EPOCHS_STAGE_1=6,
-        N_EPOCHS_STAGE_2 = 3,
-        LEARNING_RATE_STAGE_1 = 0.001,
-        LEARNING_RATE_STAGE_2 = 0.0001
+        N_FOLDS=N_FOLDS,
+        N_EPOCHS_STAGE_1=N_EPOCHS_STAGE_1,
+        N_EPOCHS_STAGE_2=N_EPOCHS_STAGE_2,
+        BATCH_SIZE=BATCH_SIZE,
+        LEARNING_RATE_STAGE_1=LEARNING_RATE_STAGE_1,
+        LEARNING_RATE_STAGE_2=LEARNING_RATE_STAGE_2,
+        RANDOM_STATE=RANDOM_STATE,
+        RANDOM_STATE_LOADER=RANDOM_STATE_LOADER,
     )
+
+

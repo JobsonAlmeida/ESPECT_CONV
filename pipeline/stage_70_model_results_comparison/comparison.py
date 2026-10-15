@@ -111,6 +111,28 @@ CELL_FONTSIZE_1 = 8
 HEADING_FONTSIZE_2 = 8
 CELL_FONTSIZE_2 = 4
 
+# ================================
+# COLORS
+# ===============================
+
+INDICES_COLOR = "#EBEBEB"
+
+TRAINING_COLOR_LINE = "sandybrown"
+
+VALIDATION_COLOR_LINE = "royalblue"
+VALIDATION_COLOR_BACKGROUND = '#e6f2ff'
+VALIDATION_COLOR_BACKGROUND_2 = "#d4dfec"
+VALIDATION_COLOR_CONTOUR = '#d5e8fc'
+
+TEST_COLOR_BACKGROUND =  "#dcefd5"  #'#D4EDDA'
+TEST_COLOR_BACKGROUND_2 = "#cddec6"
+TEST_COLOR_COUNTOUR = "#cfe1c8"  # #cfe1c8
+
+
+MINIMUM_VALIDATION_LOSS_COLOR = "violet"
+MAXIMUM_VALIDATION_ACCURACY_COLOR = "purple"
+
+
 # ==========================================================
 # SUJEITOS
 # ==========================================================
@@ -119,6 +141,9 @@ subjects = [
     f"sub-{i:02d}"
     for i in range(1, 11)
 ]
+
+
+
 
 def checking_indices_labels(
         level, 
@@ -1192,8 +1217,8 @@ def include_probabilities(
 def model_results_comparison(
     subjects,
     condition_folder,
-    N_FOLDS=N_FOLDS,
-    model_states = ["minimum_loss_model", "maximum_accuracy_model"],
+    N_FOLDS,
+    model_states,
     branches = None,
     majority_voting_fusions = None,
     fusions = None,
@@ -1385,8 +1410,8 @@ def model_results_comparison(
                         story, 
                         validation_indices, 
                         "indices",
-                        box_background= "#EBEBEB",
-                        box_line_color= "#e6f2ff",
+                        box_background= INDICES_COLOR,
+                        box_line_color= VALIDATION_COLOR_BACKGROUND,
                         show_probabilities= show_probabilities,
                     )
 
@@ -1394,8 +1419,8 @@ def model_results_comparison(
                         story, 
                         validation_labels, 
                         "labels",
-                        box_background= '#e6f2ff',
-                        box_line_color= "#d5e8fc",
+                        box_background= VALIDATION_COLOR_BACKGROUND,
+                        box_line_color= VALIDATION_COLOR_CONTOUR,
                         line_below= True,
                         show_probabilities= show_probabilities,
                                       
@@ -1418,8 +1443,8 @@ def model_results_comparison(
                                 story,
                                 validation_probabilities,
                                 box_standard_background = '#FFFFFF',
-                                box_success_background = '#e6f2ff',
-                                box_line_color= '#d5e8fc',
+                                box_success_background = VALIDATION_COLOR_BACKGROUND,
+                                box_line_color= VALIDATION_COLOR_CONTOUR,
                                 labels_data = labels_data,
                                 heading_text = heading_text,
                                 show_probabilities=show_probabilities,
@@ -1442,8 +1467,8 @@ def model_results_comparison(
                                 story,
                                 validation_predictions,
                                 box_standard_background = '#FFFFFF',
-                                box_success_background = '#e6f2ff',
-                                box_line_color= '#d5e8fc',
+                                box_success_background = VALIDATION_COLOR_BACKGROUND,
+                                box_line_color= VALIDATION_COLOR_CONTOUR,
                                 labels_data = labels_data,
                                 heading_text = heading_text,
                                 show_probabilities= show_probabilities,   
@@ -1473,8 +1498,8 @@ def model_results_comparison(
                                 story,
                                 validation_probabilities,
                                 box_standard_background = '#FFFFFF',
-                                box_success_background = '#e6f2ff',
-                                box_line_color= '#d5e8fc',
+                                box_success_background = VALIDATION_COLOR_BACKGROUND,
+                                box_line_color= VALIDATION_COLOR_CONTOUR,
                                 labels_data = labels_data,
                                 heading_text = heading_text,
                                 show_probabilities= show_probabilities, 
@@ -1505,8 +1530,8 @@ def model_results_comparison(
                                 story,
                                 validation_probabilities,
                                 box_standard_background = '#FFFFFF',
-                                box_success_background = '#e6f2ff',
-                                box_line_color= '#d5e8fc',
+                                box_success_background = VALIDATION_COLOR_BACKGROUND,
+                                box_line_color= VALIDATION_COLOR_CONTOUR,
                                 labels_data = labels_data,
                                 heading_text = heading_text,
                                 show_probabilities= show_probabilities, 
@@ -1534,8 +1559,8 @@ def model_results_comparison(
                         story, 
                         test_indices, 
                         "indices",
-                        box_background= "#EBEBEB",
-                        box_line_color= "#C3E6CB",
+                        box_background= INDICES_COLOR,
+                        box_line_color= TEST_COLOR_COUNTOUR,
                         show_probabilities= show_probabilities,
                     )
 
@@ -1543,8 +1568,8 @@ def model_results_comparison(
                         story, 
                         test_labels, 
                         "labels",
-                        box_background= '#D4EDDA',
-                        box_line_color= "#C3E6CB",
+                        box_background= TEST_COLOR_BACKGROUND,
+                        box_line_color= TEST_COLOR_COUNTOUR,
                         line_below= True,   
                         show_probabilities= show_probabilities,                
                     )
@@ -1567,8 +1592,8 @@ def model_results_comparison(
                                 story,
                                 test_probabilities,
                                 box_standard_background = '#FFFFFF',
-                                box_success_background = '#D4EDDA',
-                                box_line_color= "#C3E6CB",
+                                box_success_background = TEST_COLOR_BACKGROUND,
+                                box_line_color= TEST_COLOR_COUNTOUR,
                                 labels_data = labels_data,
                                 heading_text = heading_text,
                                 show_probabilities= show_probabilities, 
@@ -1591,8 +1616,8 @@ def model_results_comparison(
                                 story,
                                 test_predictions,
                                 box_standard_background = '#FFFFFF',
-                                box_success_background = '#D4EDDA',
-                                box_line_color= '#C3E6CB',
+                                box_success_background = TEST_COLOR_BACKGROUND,
+                                box_line_color= TEST_COLOR_COUNTOUR,
                                 labels_data = labels_data,
                                 heading_text = heading_text,
                                 show_probabilities= show_probabilities,   
@@ -1622,8 +1647,8 @@ def model_results_comparison(
                                 story,
                                 test_probabilities,
                                 box_standard_background = '#FFFFFF',
-                                box_success_background = '#D4EDDA',
-                                box_line_color= "#C3E6CB",
+                                box_success_background = TEST_COLOR_BACKGROUND,
+                                box_line_color= TEST_COLOR_COUNTOUR,
                                 labels_data = labels_data,
                                 heading_text = heading_text,
                                 show_probabilities= show_probabilities, 
@@ -1657,8 +1682,8 @@ def model_results_comparison(
                                 story,
                                 test_probabilities,
                                 box_standard_background = '#FFFFFF',
-                                box_success_background = '#D4EDDA',
-                                box_line_color= "#C3E6CB",
+                                box_success_background = TEST_COLOR_BACKGROUND,
+                                box_line_color= TEST_COLOR_COUNTOUR,
                                 labels_data = labels_data,
                                 heading_text = heading_text,
                                 show_probabilities= show_probabilities, 
@@ -1678,15 +1703,17 @@ if __name__ == "__main__":
             "sub-01"
         ],
         condition_folder = "PRONOUNCED_SPEECH",
+        N_FOLDS=N_FOLDS,
+        model_states = ["minimum_loss_model", "maximum_accuracy_model"],
         branches= [
             "space1_space2_frequency_time",
             "space1_space2_time_frequency",
             "time_frequency_space2_space1",
             "time_frequency_space1_space2"
             ],
-        # majority_voting_fusions = [
-        #     "majority_voting_fusion"
-        # ],
+        majority_voting_fusions = [
+            "majority_voting_fusion"
+        ],
 
         # fusions = [
         #     "mean_fusion",  

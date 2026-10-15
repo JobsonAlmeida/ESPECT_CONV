@@ -36,14 +36,34 @@ DEFAULT_SUBJECTS = [
 ]
 
 
+# ================================
+# COLORS
+# ===============================
+
+INDICES_COLOR = "#EBEBEB"
+
+TRAINING_COLOR_LINE = "sandybrown"
+
+VALIDATION_COLOR_LINE = "royalblue"
+VALIDATION_COLOR_BACKGROUND = '#e6f2ff'
+VALIDATION_COLOR_BACKGROUND_2 = "#d4dfec"
+VALIDATION_COLOR_CONTOUR = '#d5e8fc'
+
+TEST_COLOR_BACKGROUND =  "#dcefd5"  #'#D4EDDA'
+TEST_COLOR_BACKGROUND_2 = "#cddec6"
+TEST_COLOR_COUNTOUR = "#C3E6CB"
+
+MINIMUM_VALIDATION_LOSS_COLOR = "violet"
+MAXIMUM_VALIDATION_ACCURACY_COLOR = "purple"
+
 # ==========================================================
 # FUNÇÃO PRINCIPAL
 # ==========================================================
 
 def individual_subject_plots(
-    branch="space1_space2_frequency_time",
-    subjects=["sub-01"],
-    condition = "pronounced_speech"
+    branch,
+    subjects,
+    condition,
 ):
 
     # ======================================================
@@ -574,7 +594,7 @@ def individual_subject_plots(
             ax_loss.plot(
                 epochs,
                 val_losses_epoch,
-                color="royalblue",
+                color= VALIDATION_COLOR_LINE, 
                 label="Validation"
             )
 
@@ -585,7 +605,7 @@ def individual_subject_plots(
 
             ax_loss.axvline(
                 x=min_val_loss_epoch + 1,
-                color="violet",
+                color=MINIMUM_VALIDATION_LOSS_COLOR, # "violet"
                 linestyle=":",
                 linewidth=2,
                 label="Min Val Loss"
@@ -598,7 +618,7 @@ def individual_subject_plots(
 
             ax_loss.axvline(
                 x=max_val_accuracy_epoch + 1,
-                color="purple",
+                color=MAXIMUM_VALIDATION_ACCURACY_COLOR, 
                 linestyle=":",
                 linewidth=2,
                 label="Max Val Acc"
@@ -652,7 +672,7 @@ def individual_subject_plots(
             ax_acc.plot(
                 epochs,
                 train_accuracies_epoch,
-                color="sandybrown",
+                color=TRAINING_COLOR_LINE, #"sandybrown"
                 label="Train"
             )
 
@@ -660,7 +680,7 @@ def individual_subject_plots(
             ax_acc.plot(
                 epochs,
                 val_accuracies_epoch,
-                color="royalblue",
+                color=VALIDATION_COLOR_LINE,
                 label="Validation"
             )
 
@@ -671,7 +691,7 @@ def individual_subject_plots(
 
             ax_acc.axvline(
                 x=min_val_loss_epoch + 1,
-                color="violet",
+                color=MINIMUM_VALIDATION_LOSS_COLOR,
                 linestyle=":",
                 linewidth=2,
                 label="Min Val Loss"
@@ -684,7 +704,7 @@ def individual_subject_plots(
 
             ax_acc.axvline(
                 x=max_val_accuracy_epoch + 1,
-                color="purple",
+                color=MAXIMUM_VALIDATION_ACCURACY_COLOR,
                 linestyle=":",
                 linewidth=2,
                 label="Max Val Acc"
@@ -942,7 +962,7 @@ def individual_subject_plots(
                     vaidation_accuracy,
                     column
                 ].set_facecolor(
-                    "#e6f2ff"
+                    VALIDATION_COLOR_BACKGROUND # "#e6f2ff"
                 )
     
     
@@ -950,7 +970,7 @@ def individual_subject_plots(
                     test_accuracy,
                     column
                 ].set_facecolor(
-                   "#dcefd5" #"#dcefd5"  #dff3d8"
+                    TEST_COLOR_BACKGROUND # "#dcefd5" #"#dcefd5"  #dff3d8"
                 )
 
         # ==================================================
@@ -1208,7 +1228,7 @@ def individual_subject_plots(
                     line,
                     column
                 ].set_facecolor(
-                    "#e6f2ff"
+                    VALIDATION_COLOR_BACKGROUND   # before "#e6f2ff"
                 )
 
 
@@ -1232,7 +1252,7 @@ def individual_subject_plots(
                 vaidation_accuracy,
                 column
             ].set_facecolor(
-                "#d4dfec"
+                VALIDATION_COLOR_BACKGROUND_2
             )
 
 
@@ -1240,7 +1260,7 @@ def individual_subject_plots(
                 test_accuracy,
                 column
             ].set_facecolor(
-                "#d4dfec"
+                VALIDATION_COLOR_BACKGROUND_2
             )
 
 
@@ -1256,7 +1276,7 @@ def individual_subject_plots(
                     line,
                     column
                 ].set_facecolor(
-                    "#dcefd5"
+                    TEST_COLOR_BACKGROUND # before "#dcefd5"
                 )
 
             mini_table[
@@ -1279,7 +1299,7 @@ def individual_subject_plots(
                 vaidation_accuracy,
                 column
             ].set_facecolor(
-                "#cddec6"
+               TEST_COLOR_BACKGROUND_2
             )
 
 
@@ -1287,7 +1307,7 @@ def individual_subject_plots(
                 test_accuracy,
                 column
             ].set_facecolor(
-                "#cddec6"
+                TEST_COLOR_BACKGROUND_2
             )
 
         # --------------------------------------------------
@@ -1575,5 +1595,8 @@ if __name__ == "__main__":
         branch="space1_space2_frequency_time",
         subjects=[
             "sub-01"
-        ]
+        ],
+        condition = "pronounced_speech"
     )
+
+   

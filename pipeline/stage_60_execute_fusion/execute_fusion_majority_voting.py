@@ -176,12 +176,12 @@ subjects = [
 
 def execute_fusion_majority_voting(
     fusion,
-    branch_model_state = "minimum_loss_model",
-    subjects=subjects,
-    condition_folder = "pronounced_speech",
-    N_FOLDS=N_FOLDS,
-    BATCH_SIZE=BATCH_SIZE,
-    RANDOM_STATE=RANDOM_STATE,
+    branch_model_state,
+    subjects,
+    condition_folder,
+    N_FOLDS,
+    BATCH_SIZE,
+    RANDOM_STATE,
 ):
 
 
@@ -1283,5 +1283,9 @@ if __name__ == "__main__":
         fusion= "majority_voting_fusion",
         branch_model_state = "maximum_accuracy_model",
         subjects=["sub-01"],
-        condition_folder = "pronounced_speech",        
+        condition_folder = "pronounced_speech", 
+        N_FOLDS=N_FOLDS,
+        BATCH_SIZE=BATCH_SIZE,
+        RANDOM_STATE=RANDOM_STATE,       
     )
+
