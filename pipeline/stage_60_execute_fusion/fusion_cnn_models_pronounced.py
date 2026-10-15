@@ -5,7 +5,7 @@ import torch.nn.functional as F
 # =========================================================
 # MODELS FOR PRONOUNCED SPEECH
 #
-# This models use the probabilities to produce the fusions
+# These models use the probabilities to produce the fusions
 #
 # =========================================================
 
