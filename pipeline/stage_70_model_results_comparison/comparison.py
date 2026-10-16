@@ -1798,7 +1798,7 @@ if __name__ == "__main__":
         subjects=[
             "sub-01"
         ],
-        condition_folder = "INNER_SPEECH",
+        condition_folder = "PRONOUNCED_SPEECH",
         N_FOLDS=N_FOLDS,
         model_states = ["minimum_loss_model", "maximum_accuracy_model"],
         branches= [
